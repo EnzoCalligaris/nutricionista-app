@@ -188,3 +188,21 @@ dado plausível/inventado.
    reais do PDF (Consultas, Planejamento nutricional, Acompanhamento de perto),
    sem preços, depoimentos ou CTAs reais. O site institucional completo é
    Fase 4.
+
+9. **`./references` foi removido do controle de versão** (correção de higiene
+   pós-Fase 1, 2026-09-13). O commit inicial da Fase 1 versionou o material
+   bruto (PDF de ~28MB + fotos) — esses arquivos servem só como referência
+   local de conteúdo para extrair informação, não como asset da aplicação.
+   `references/` foi adicionado ao `.gitignore` e removido do índice com
+   `git rm -r --cached` (arquivos locais preservados). **Atenção**: como o
+   commit inicial já havia sido enviado a um remoto real
+   (`github.com/EnzoCalligaris/nutricionista-app`, confirmado via
+   `git ls-remote`), esses arquivos continuam presentes no histórico do Git
+   local e do remoto — `git rm --cached` só impede que continuem rastreados
+   dali em diante, não os apaga de commits passados. Removê-los do histórico
+   exigiria reescrever o histórico (`git filter-repo`/BFG) e um force-push,
+   uma operação destrutiva sobre histórico compartilhado que não foi
+   solicitada e não deve ser feita sem decisão explícita do usuário.
+   `public/brand/logo-horizontal.jpg` (asset derivado, usado pela aplicação)
+   permanece versionado normalmente — a exclusão é só do material bruto em
+   `./references`.
