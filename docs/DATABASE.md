@@ -1,227 +1,174 @@
-# DATABASE — Modelo de dados proposto
+# DATABASE — Schema implementado (Fase 2)
 
-Convenções gerais: `id uuid default gen_random_uuid()` como PK em toda tabela;
-`created_at timestamptz default now()`; `updated_at timestamptz` mantido por
-trigger; soft delete (`deactivated_at`/`archived_at`) em vez de hard delete
-sempre que houver histórico dependente (pacientes, contratos, consultas,
-pagamentos); enums via `create type ... as enum` quando o conjunto de valores é
-fechado e estável; FKs com `on delete restrict` por padrão (nunca cascade em
-dados financeiros/clínicos) e índices em toda FK e em colunas de filtro
-frequente (`nutritionist_id`, `patient_id`, `status`, datas).
+Este documento descreve o schema **realmente implementado** em
+`supabase/migrations/`. A versão anterior (Fase 0) era uma proposta; onde as
+duas divergem, o que está aqui e nas migrations é o que vale — divergências
+relevantes estão registradas em `docs/DECISIONS.md`.
 
-## Entidades principais
+Postgres 17 (Supabase local). Migrations em
+`supabase/migrations/2026091321005X_*.sql`, aplicadas nessa ordem. Dado de
+catálogo real (planos, métricas de avaliação) entra via migration; dado
+fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
+(ver `docs/DECISIONS.md`).
 
-### profiles
-Estende `auth.users`. `id` (= auth.users.id), `role` (`NUTRITIONIST`|`PATIENT`|
-`ADMIN`), `full_name`, `email`, `phone`, `avatar_url`, `created_at`.
+## Convenções
 
-### patients
-`id`, `profile_id` (FK profiles, nullable até o paciente ter conta própria),
-`nutritionist_id`, `full_name`, `birth_date`, `phone`, `email`, `status`
-(`ACTIVE`|`INACTIVE`), `deactivated_at`, `created_at`.
-Paciente pode existir antes de ter login (cadastro manual pelo nutricionista);
-`profile_id` é vinculado quando o paciente ativa a conta.
+- PK `uuid default gen_random_uuid()` em toda tabela.
+- `created_at timestamptz not null default now()`; `updated_at` mantido por
+  trigger reutilizável (`public.set_updated_at()`), anexado tabela a tabela —
+  nunca lógica duplicada.
+- Dinheiro sempre `integer` em centavos (`amount_cents`), nunca float.
+- Enums (`create type ... as enum`) para conjuntos fechados e estáveis
+  (status, role, modality). Texto livre com `check` quando o conjunto deve
+  crescer sem migration (`plans.code`, `measurement_types.code`,
+  `notification_events.event_type`).
+- FKs `on delete restrict` por padrão em dados financeiros/clínicos;
+  `on delete cascade` só em filhos que não fazem sentido sem o pai (ex.:
+  `meal_plan_days` sem `meal_plan_versions`); `on delete set null` quando a
+  referência é só rastreabilidade.
+- Soft delete (`archived_at`, `revoked_at`, `status`) onde há histórico
+  dependente — nunca hard delete de paciente, contrato, pagamento, consulta.
+- Índice em toda FK usada em filtro/join frequente.
+- RLS habilitada em **toda** tabela — sem exceção (ver `docs/SECURITY.md`).
 
-### plans
-`id`, `name`, `slug`, `duration_months` (nullable p/ avulsa), `sessions_in_person`,
-`sessions_online`, `active`, `publicly_visible`, `available_for_sale`,
-`created_at`. Preço não fica hardcoded aqui — ver `plan_prices`.
+## Extensões
 
-### plan_prices
-`id`, `plan_id`, `label` (ex.: "à vista", "parcelado 3x"), `total_amount_cents`,
-`installments`, `installment_amount_cents`, `valid_from`, `valid_to`.
-Histórico de preço fica preservado; contrato referencia o preço vigente no
-momento da assinatura (não recalcula se a tabela mudar depois).
+- `pgcrypto` — `gen_random_uuid()`.
+- `btree_gist` — exclusion constraint anti-double-booking.
+- `pgtap` (só ambiente de teste, não é uma dependência do schema de produção)
+  — usado por `supabase/tests/database/*.sql`.
 
-### plan_benefits
-`id`, `plan_id`, `label`, `sort_order`. Texto de benefício versionável em vez de
-hardcoded no frontend — o nutricionista deve poder ajustar sem deploy (Fase 14:
-tela de configurações).
+## Entidades (por migration)
 
-### patient_contracts
-`id`, `patient_id`, `plan_id`, `plan_price_id`, `start_date`, `end_date_expected`,
-`status` (`ACTIVE`|`COMPLETED`|`CANCELLED`), `contracted_amount_cents`,
-`created_at`. Um paciente pode ter múltiplos contratos ao longo do tempo
-(histórico preservado, nunca sobrescrito).
+| Migration | Tabelas | Papel |
+|---|---|---|
+| `..051_extensions_and_helpers` | — | Extensões, `set_updated_at()` |
+| `..052_profiles` | `profiles` | Identidade/autenticação (extends `auth.users`) |
+| `..053_patients` | `patients` | Dado de negócio do paciente (separado de profile) |
+| `..054_rls_helper_functions` | — | `current_profile_role()`, `is_nutritionist_of_patient()`, `is_patient_self()` |
+| `..055_plans` | `plans`, `plan_prices`, `plan_benefits` | Catálogo de planos versionável |
+| `..056_contracts` | `patient_contracts`, `contract_installments` | Contrato ≠ plano ≠ parcela |
+| `..057_scheduling` | `availability_rules`, `blocked_times`, `appointments`, `appointment_notes` | Agenda + anti-double-booking |
+| `..058_financial` | `financial_categories`, `payments`, `financial_transactions` | Ledger financeiro |
+| `..059_meal_plans` | `meal_plans`, `meal_plan_versions`, `meal_plan_days`, `meals`, `meal_items`, `meal_substitutions` | Cardápio versionado |
+| `..060_assessments` | `measurement_types`, `assessments`, `assessment_measurements` | Avaliação flexível (catálogo + valor) |
+| `..061_supplements_feedback_materials` | `supplement_recommendations`, `feedback_messages`, `patient_materials`, `material_assignments` | |
+| `..062_food_photo_analyses` | `food_photo_analyses` | Estimativa de IA (sem IA real ainda) |
+| `..063_blog` | `blog_categories`, `blog_tags`, `blog_posts`, `blog_post_tags` | CMS |
+| `..064_results_and_consent` | `media_consents`, `before_after_results` | Nunca publica sem consentimento |
+| `..065_notifications` | `notifications`, `notification_events`, `notification_deliveries` | Sem envio real ainda |
+| `..066_site_settings` | `site_settings` | Vazia — nada inventado |
+| `..067_audit_log` | `audit_logs` | Append-only |
+| `..068_financial_views` | views `contract_financial_summary`, `patient_active_status` | Cálculos recorrentes |
+| `..069_storage_buckets` | `storage.buckets` + policies | 5 buckets, 4 privados |
+| `..070_plans_catalog_data` | dados em `plans`/`plan_prices`/`plan_benefits` | Catálogo real (não fictício) |
 
-### contract_installments
-`id`, `contract_id`, `sequence`, `due_date`, `amount_cents`, `status`
-(`PENDING`|`PAID`|`OVERDUE`|`CANCELLED`). Base para "previsão de recebimentos".
+## Decisão de modelagem: avaliações flexíveis (não colunas fixas)
 
-### payments
-`id`, `contract_installment_id` (nullable — pagamento avulso não tem parcela),
-`patient_id`, `amount_cents`, `method` (`PIX`|`CARD`|`CASH`|... enum
-configurável), `status` (`PENDING`|`CONFIRMED`|`FAILED`|`REFUNDED`),
-`external_provider`, `external_id`, `confirmed_at`, `created_at`.
-`external_id` único por provider — chave de idempotência de webhook.
+`measurement_types` (catálogo: código, nome, unidade) + `assessments` (um
+"encontro de medição") + `assessment_measurements` (valor por métrica),
+em vez de dezenas de colunas fixas em `bioimpedance_assessments` como a
+Fase 0 havia proposto. Decisão explícita do prompt da Fase 2 — nenhum campo é
+obrigatório por paciente; novas métricas entram como linha de catálogo, sem
+migration. Ver `docs/DECISIONS.md`.
 
-### financial_transactions
-`id`, `type` (`INCOME`|`EXPENSE`), `category_id`, `description`, `amount_cents`,
-`payment_method`, `status`, `origin` (`MANUAL`|`APPOINTMENT`|`PAYMENT`),
-`origin_payment_id` (nullable, FK payments), `transaction_date`, `created_by`,
-`created_at`.
-Regra de não-duplicação: todo `payment.status = CONFIRMED` gera **exatamente
-um** `financial_transaction` via trigger/serviço idempotente
-(`origin_payment_id` com `unique`); nunca cadastrado manualmente em paralelo.
+## Anti-double-booking
 
-### financial_categories
-`id`, `name`, `type` (`INCOME`|`EXPENSE`), `active`.
+```sql
+alter table public.appointments
+  add constraint appointments_no_overlap
+  exclude using gist (
+    nutritionist_id with =,
+    tstzrange(starts_at, ends_at, '[)') with &&
+  )
+  where (status in ('SCHEDULED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW'));
+```
 
-### appointments
-`id`, `patient_id`, `nutritionist_id`, `starts_at` (timestamptz), `ends_at`,
-`modality` (`IN_PERSON`|`ONLINE`), `status` (`SCHEDULED`|`CONFIRMED`|`DONE`|
-`NO_SHOW`|`CANCELLED`|`RESCHEDULED`), `contract_id` (nullable — de qual contrato
-essa sessão consome), `price_cents`, `created_at`.
-**Constraint de não-sobreposição**: `EXCLUDE USING gist` sobre
-`(nutritionist_id, tsrange(starts_at, ends_at))` — impede double booking no
-nível do banco, não só na aplicação. Ver `docs/SECURITY.md §Concorrência`.
+- `'[)'` (fechado no início, aberto no fim) permite consultas adjacentes
+  (10:00–11:00 e 11:00–12:00) sem falso conflito.
+- `CANCELLED` e `RESCHEDULED` ficam fora do predicado — liberam o horário.
+- Validado por teste real de duas conexões concorrentes
+  (`scripts/db-concurrency-test.mjs`, `npm run test:db:concurrency`): das duas
+  gravações simultâneas para o mesmo horário, exatamente uma sucede.
 
-### availability_rules
-`id`, `nutritionist_id`, `weekday`, `start_time`, `end_time`, `modality`,
-`active`. Regras recorrentes de horário de trabalho.
+## Idempotência financeira
 
-### blocked_times
-`id`, `nutritionist_id`, `starts_at`, `ends_at`, `reason` (férias, ausência,
-compromisso), `created_at`.
+- `payments`: índice único parcial em `(provider, external_id)` — mesmo
+  webhook reenviado não duplica pagamento.
+- `financial_transactions`: índice único parcial em `origin_payment_id` — um
+  pagamento nunca gera duas linhas de receita (testado em
+  `supabase/tests/database/010_constraints.test.sql`).
+- `contract_financial_summary` (view, `security_invoker = true`) calcula
+  contratado/recebido/pendente/previsto a partir de `payments` e
+  `contract_installments` — nunca do valor total do contrato de uma vez
+  (testado com o cenário R$1.200/6x/2 pagas em `040_financial_summary.test.sql`).
 
-### appointment_notes
-`id`, `patient_id`, `appointment_id` (nullable), `author_id`, `content`,
-`created_at`, `edited_at`. Comentários do nutricionista — nunca hard delete.
+## RLS — funções auxiliares
 
-### meal_plans
-`id`, `patient_id`, `nutritionist_id`, `title`, `current_version_id` (FK
-meal_plan_versions, nullable), `created_at`.
+`public.current_profile_role()`, `public.is_nutritionist_of_patient(uuid)`,
+`public.is_patient_self(uuid)` e `public.has_valid_media_consent(uuid)`:
+`SECURITY DEFINER`, `search_path = ''` (todos os identificadores
+schema-qualificados no corpo), `EXECUTE` restrito a `authenticated`
+(`has_valid_media_consent` também a `anon`, porque a policy pública de
+antes/depois precisa dela). Cada uma só devolve um boolean/role — nunca uma
+linha de dado alheio. Detalhe completo em `docs/SECURITY.md`.
 
-### meal_plan_versions
-`id`, `meal_plan_id`, `version_number`, `status` (`DRAFT`|`PUBLISHED`|
-`ARCHIVED`), `published_at`, `created_by`, `created_at`. Paciente só enxerga a
-versão com `status = PUBLISHED` mais recente.
+## Storage
 
-### meal_plan_days
-`id`, `version_id`, `weekday` (`MON`..`SUN`).
+| Bucket | Público | Path | Acesso |
+|---|---|---|---|
+| `patient-documents` | não | `<material_id>/arquivo` | nutricionista dono; paciente com `material_assignments` não revogado |
+| `meal-photos` | não | `<patient_id>/arquivo` | paciente dono; nutricionista responsável |
+| `bioimpedance-reports` | não | `<patient_id>/arquivo` | paciente dono; nutricionista responsável |
+| `before-after` | **não** (mesmo publicado) | `<before_after_results.id>/arquivo` | nutricionista; paciente dono. Entrega pública é server-side (signed URL, Fase 14) — nunca via storage RLS para `anon` |
+| `blog` | sim | `<post_id>/arquivo` | leitura pública; escrita só nutricionista |
 
-### meals
-`id`, `day_id`, `name` (configurável — não enum fixo, tabela ou texto livre com
-`sort_order`), `time_of_day` (nullable).
+## ERD (simplificado)
 
-### meal_items
-`id`, `meal_id`, `food_name`, `quantity`, `unit`, `calories`, `protein_g`,
-`carbs_g`, `fat_g`, `fiber_g` (nullable), `instructions`, `notes`.
+```mermaid
+erDiagram
+  PROFILES ||--o| PATIENTS : "profile_id (opcional)"
+  PROFILES ||--o{ PATIENTS : "nutritionist_id"
+  PATIENTS ||--o{ PATIENT_CONTRACTS : tem
+  PLANS ||--o{ PLAN_PRICES : tem
+  PLANS ||--o{ PLAN_BENEFITS : tem
+  PLANS ||--o{ PATIENT_CONTRACTS : referenciado
+  PATIENT_CONTRACTS ||--o{ CONTRACT_INSTALLMENTS : tem
+  PATIENT_CONTRACTS ||--o{ PAYMENTS : "gera (opcional)"
+  CONTRACT_INSTALLMENTS ||--o| PAYMENTS : "quitada por"
+  PAYMENTS ||--o| FINANCIAL_TRANSACTIONS : "origin_payment_id (único)"
+  PATIENTS ||--o{ APPOINTMENTS : agenda
+  APPOINTMENTS ||--o{ APPOINTMENT_NOTES : anotações
+  PATIENTS ||--o{ MEAL_PLANS : tem
+  MEAL_PLANS ||--o{ MEAL_PLAN_VERSIONS : versiona
+  MEAL_PLAN_VERSIONS ||--o{ MEAL_PLAN_DAYS : contém
+  MEAL_PLAN_DAYS ||--o{ MEALS : contém
+  MEALS ||--o{ MEAL_ITEMS : contém
+  MEAL_ITEMS ||--o{ MEAL_SUBSTITUTIONS : tem
+  PATIENTS ||--o{ ASSESSMENTS : tem
+  ASSESSMENTS ||--o{ ASSESSMENT_MEASUREMENTS : tem
+  MEASUREMENT_TYPES ||--o{ ASSESSMENT_MEASUREMENTS : catálogo
+  PATIENTS ||--o{ FEEDBACK_MESSAGES : recebe
+  PATIENTS ||--o{ MATERIAL_ASSIGNMENTS : recebe
+  PATIENT_MATERIALS ||--o{ MATERIAL_ASSIGNMENTS : atribuído
+  PATIENTS ||--o{ BEFORE_AFTER_RESULTS : "opcional"
+  MEDIA_CONSENTS ||--o{ BEFORE_AFTER_RESULTS : autoriza
+  NOTIFICATION_EVENTS ||--o{ NOTIFICATION_DELIVERIES : dispara
+```
 
-### meal_substitutions
-`id`, `meal_item_id`, `substitute_food_name`, `quantity`, `unit`, `calories`,
-`protein_g`, `carbs_g`, `fat_g`.
+## Testes de banco
 
-### bioimpedance_assessments
-`id`, `patient_id`, `assessed_at`, `weight_kg` (nullable), `body_fat_pct`
-(nullable), `lean_mass_kg` (nullable), `muscle_mass_kg` (nullable),
-`body_water_pct` (nullable), `visceral_fat` (nullable), `bmi` (nullable),
-`notes`, `created_by`. Todas as métricas nullable — não obrigar campo que o
-profissional não usa.
+- `supabase/tests/database/010_constraints.test.sql` — unicidade/checks
+  críticos (preço primário único, parcela duplicada, idempotência de
+  pagamento/transação, versão publicada única, publicação sem consentimento).
+- `020_appointments_overlap.test.sql` — adjacência permitida, sobreposição
+  real rejeitada, `CANCELLED`/`RESCHEDULED` liberam horário.
+- `030_rls_patient_isolation.test.sql` — IDOR entre pacientes (7 tabelas) e
+  entre nutricionistas.
+- `040_financial_summary.test.sql` — cenário R$1.200/6x/2 pagas.
+- `050_public_visibility.test.sql` — blog e antes/depois só públicos quando
+  deveriam.
+- `scripts/db-concurrency-test.mjs` (`npm run test:db:concurrency`) — duas
+  conexões reais disputando o mesmo horário.
 
-### body_measurements
-`id`, `assessment_id`, `site` (ex.: cintura, quadril, braço — configurável),
-`value_cm`. Tabela separada em vez de colunas fixas, para suportar
-circunferências variáveis sem migração a cada novo ponto de medida.
-
-### supplement_recommendations
-`id`, `patient_id`, `name`, `brand` (nullable), `guidance`, `schedule`, `notes`,
-`purchase_url` (nullable), `image_url` (nullable), `status` (`ACTIVE`|
-`DISCONTINUED`), `created_by`, `created_at`.
-
-### feedback_messages
-`id`, `patient_id`, `author_id`, `content`, `created_at`, `read_at` (nullable).
-
-### patient_materials
-`id`, `nutritionist_id`, `title`, `storage_path` (bucket privado), `mime_type`,
-`created_at`.
-
-### material_assignments
-`id`, `material_id`, `patient_id`, `assigned_at`, `revoked_at` (nullable).
-Revogar acesso = preencher `revoked_at`, não deletar (histórico de quem teve
-acesso a quê).
-
-### food_photo_analyses
-`id`, `patient_id`, `storage_path` (bucket privado), `status` (`PENDING`|
-`ANALYZED`|`CONFIRMED`|`FAILED`), `estimated_calories_min`,
-`estimated_calories_max`, `estimated_macros_json`, `patient_corrections_json`
-(nullable), `analyzed_at`, `created_at`. Nunca um campo "valor exato" —
-sempre faixa/estimativa.
-
-### notifications
-`id`, `recipient_id`, `type`, `title`, `body`, `read_at` (nullable),
-`created_at`. In-app.
-
-### notification_events
-`id`, `event_type` (`APPOINTMENT_CREATED`|`APPOINTMENT_REMINDER_5D`|...),
-`related_entity_type`, `related_entity_id`, `created_at`. Fonte que dispara
-deliveries.
-
-### notification_deliveries
-`id`, `event_id`, `channel` (`IN_APP`|`EMAIL`|`WHATSAPP`), `recipient`,
-`status` (`PENDING`|`SENT`|`FAILED`), `provider_message_id`, `sent_at`,
-`failed_at`, `retry_count`, `idempotency_key` (unique — evita reenvio
-duplicado do mesmo evento no mesmo canal).
-
-### blog_posts
-`id`, `title`, `slug` (unique), `excerpt`, `cover_image_url`, `content`
-(rich text/JSON), `category_id`, `author_id`, `status` (`DRAFT`|`PUBLISHED`|
-`ARCHIVED`), `seo_title`, `meta_description`, `og_image_url`, `published_at`,
-`created_at`.
-
-### blog_categories
-`id`, `name`, `slug`.
-
-### blog_tags / blog_post_tags
-`blog_tags(id, name, slug)`; `blog_post_tags(post_id, tag_id)` — N:N.
-
-### before_after_results
-`id`, `title`, `description`, `period_label`, `before_image_url`,
-`after_image_url`, `published`, `media_consent_id` (FK obrigatória, not null
-antes de permitir `published = true` — validar via constraint/trigger, não só
-na aplicação).
-
-### media_consents
-`id`, `patient_id`, `consent_type` (`BEFORE_AFTER_PHOTOS`|...), `granted_at`,
-`revoked_at` (nullable), `document_reference` (nullable). Consentimento
-específico de uso de imagem, separado do consentimento geral de tratamento de
-dados (LGPD).
-
-### site_settings
-`id` (singleton ou chave/valor), `key`, `value_json`. Configurações editáveis
-pelo dashboard (ex.: periodicidade padrão de presencial no semestral, textos de
-pilares, dados de contato) em vez de hardcoded no frontend.
-
-### audit_logs
-`id`, `actor_id`, `action`, `entity_type`, `entity_id`, `metadata_json`,
-`created_at`. Alvo: alteração de pagamento/financeiro, contrato, consulta,
-avaliação, desativação de paciente, publicação de antes/depois, ações
-administrativas relevantes.
-
-## Índices e constraints críticas
-
-- `appointments`: exclusion constraint anti-overlap por `nutritionist_id`
-  (double booking).
-- `payments.external_id` + `external_provider`: `unique` (idempotência de
-  webhook).
-- `financial_transactions.origin_payment_id`: `unique` quando não nulo (evita
-  duplicar lançamento).
-- `notification_deliveries.idempotency_key`: `unique`.
-- `before_after_results`: `check (published = false or media_consent_id is not null)`.
-- `contract_installments`: `unique(contract_id, sequence)`.
-- `blog_posts.slug`, `blog_categories.slug`, `blog_tags.slug`: `unique`.
-
-## RLS — princípios (detalhe em SECURITY.md)
-
-- `patients`, `appointments`, `meal_plans*`, `bioimpedance_assessments`,
-  `body_measurements`, `supplement_recommendations`, `feedback_messages`,
-  `patient_materials`/`material_assignments`, `food_photo_analyses`,
-  `payments`, `patient_contracts`, `contract_installments`: paciente só lê/edita
-  linhas onde `patient_id` resolve para o seu próprio `profile_id`;
-  nutricionista só lê/edita linhas onde `nutritionist_id = auth.uid()` (direto
-  ou via join em `patients`).
-- `blog_posts` (published), `before_after_results` (published), `plans`
-  (publicly_visible), `site_settings` (chaves públicas): leitura pública
-  liberada, escrita restrita a `NUTRITIONIST`/`ADMIN`.
-- `audit_logs`: leitura restrita a `ADMIN`/`NUTRITIONIST` dono da ação;
-  sem update/delete por ninguém (append-only).
+Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test:db:concurrency`.

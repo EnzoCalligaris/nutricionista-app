@@ -206,3 +206,69 @@ dado plausível/inventado.
    `public/brand/logo-horizontal.jpg` (asset derivado, usado pela aplicação)
    permanece versionado normalmente — a exclusão é só do material bruto em
    `./references`.
+
+## Decisões técnicas da Fase 2 (Banco de dados + Supabase + RLS)
+
+1. **Avaliações usam catálogo flexível, não colunas fixas.** Substitui o
+   desenho `bioimpedance_assessments`/`body_measurements` da Fase 0 por
+   `measurement_types` (catálogo) + `assessments` + `assessment_measurements`
+   (valor por métrica). Decisão explícita do prompt da Fase 2 — nenhum campo
+   obrigatório por paciente, nova métrica não pede migration.
+
+2. **Catálogo real de planos entra por migration, não por `seed.sql`.**
+   `plans`/`plan_prices`/`plan_benefits` (Avulsa/Trimestral/Semestral/Anual,
+   com os valores reais de `docs/PROJECT_SPEC.md §3`) são dado de produto,
+   não dado fictício de teste — devem existir em todo ambiente (dev, staging,
+   produção). `supabase/seed.sql` fica reservado só para dado inventado de
+   desenvolvimento (pacientes, contratos, consultas fictícios). Preço
+   "principal" do Trimestral/Semestral continua com `is_primary = false` nas
+   3 representações (cheio/parcelado/à vista) — ainda PENDENTE DE DEFINIÇÃO.
+
+3. **Campo `modality` em vez de `type` em `appointments`.** O prompt sugeriu
+   `type`; mantido `modality` (já usado na Fase 0) para não confundir com um
+   futuro "tipo de consulta" clínico. Mesmos valores (`IN_PERSON`/`ONLINE`).
+
+4. **`/dashboard`/`/paciente` como segmentos de rota reais** — decisão já
+   registrada na Fase 1, sem mudança nesta fase.
+
+5. **RLS usa funções `SECURITY DEFINER` auxiliares** em vez de repetir
+   subqueries em cada policy (`current_profile_role`, `is_nutritionist_of_patient`,
+   `is_patient_self`, `has_valid_media_consent`). Todas com `search_path = ''`
+   e `EXECUTE` restrito. Corrigido em desenvolvimento: a policy pública de
+   `before_after_results` inicialmente fazia `EXISTS` direto em
+   `media_consents`, mas essa tabela tem sua própria RLS que bloqueia `anon`
+   — o `EXISTS` sempre falhava para visitante anônimo mesmo com consentimento
+   válido. Corrigido com `has_valid_media_consent()` (`SECURITY DEFINER`).
+   Pego pelo próprio teste `050_public_visibility.test.sql` antes de avançar.
+
+6. **`before-after` é um bucket privado mesmo para resultados publicados.**
+   Entrega ao visitante público via signed URL gerada server-side (Fase 14),
+   não via política de storage aberta a `anon` — reduz superfície de risco
+   dado o requisito de consentimento revogável.
+
+7. **Seed local insere em `auth.users` diretamente** (nutricionista + 2
+   pacientes fictícios, senha de dev fixa e documentada) para validar o
+   vínculo `profiles.id references auth.users(id)` de ponta a ponta sem
+   esperar a Fase 3. Restrito ao ambiente local; nunca replicado em produção.
+   Os outros 3 pacientes fictícios do seed não têm `auth.users`/login — cobre
+   o cenário real de "paciente cadastrado manualmente, sem conta ainda".
+
+8. **Testes de banco em duas camadas**: pgTAP
+   (`supabase/tests/database/*.sql`, via `npm run test:db`) para constraints/
+   RLS dentro de uma transação, e um script Node à parte
+   (`scripts/db-concurrency-test.mjs`, `npm run test:db:concurrency`) para o
+   teste de concorrência real entre duas conexões — pgTAP roda tudo numa
+   única transação/conexão, o que não prova proteção contra uma corrida de
+   verdade entre duas conexões simultâneas.
+
+9. **Portas do Supabase local deslocadas para 5542x.** Duas causas: (a) outro
+   projeto Supabase local ("personal-app") já ocupa a faixa padrão
+   54321-54329 nesta máquina; (b) o Windows reserva 54328-54427 como
+   *excluded port range* (`netsh interface ipv4 show excludedportrange
+   protocol=tcp`), então mesmo sem o outro projeto a faixa padrão falharia
+   aqui. `supabase/config.toml` documenta isso inline.
+
+10. **`ADMIN` continua só no enum, sem uso ativo.** Nenhuma policy trata
+    `ADMIN` como super-role e nenhum usuário `ADMIN` é criado — mantém a
+    opção aberta (docs da Fase 0/1) sem introduzir uma permissão global
+    insegura antes de haver necessidade real.

@@ -4,8 +4,16 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASE 0 (Descoberta e Arquitetura) concluída.** Nenhum código de aplicação foi criado.
-Não há `package.json`, não há Next.js instalado, não há banco de dados criado.
+**FASE 0, 1 e 2 concluídas.** Next.js rodando (`src/app`), design system
+inicial, e um banco Postgres/Supabase local completo (39 tabelas, RLS em
+100% delas, anti-double-booking, tipos gerados) — ver `supabase/migrations/`.
+Autenticação real, telas funcionais e dados de produção ainda não existem —
+isso começa na Fase 3.
+
+Comandos do dia a dia para o banco local: `npm run db:start` (sobe
+Supabase local via Docker), `npm run db:reset` (reaplica migrations +
+seed), `npm run test:db` (pgTAP), `npm run test:db:concurrency` (teste real
+de concorrência), `npm run db:types` (regenera `src/types/database.ts`).
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -41,7 +49,16 @@ pare e aguarde confirmação antes de iniciar a próxima.
    (não altera dieta, meta, suplementação ou tratamento).
 9. Fotos de refeições e de pacientes ficam em storage privado, nunca em bucket
    público. Resultados antes/depois só publicam com consentimento de imagem
-   registrado (`media_consents`).
+   registrado (`media_consents`) — o bucket `before-after` é privado mesmo
+   para resultados publicados; entrega ao público é server-side (Fase 14).
+10. **Dado real de produto (planos, preços, catálogo de métricas) entra por
+    migration; dado fictício de desenvolvimento entra só por
+    `supabase/seed.sql`** — nunca misturar os dois (`docs/DECISIONS.md`).
+11. Nova policy de RLS que precisa checar outra tabela com RLS própria: use
+    (ou crie) uma função `SECURITY DEFINER` com `search_path = ''` em vez de
+    um `EXISTS` direto — um `EXISTS` comum herda a RLS da tabela referenciada
+    e pode falhar silenciosamente para `anon`/outro papel (aconteceu com
+    `before_after_results` na Fase 2; ver `docs/DECISIONS.md`).
 
 ## Marca
 

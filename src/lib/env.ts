@@ -5,10 +5,13 @@ import { z } from "zod";
  * `process.env.*` diretamente — importe `env` (client-safe) ou `getServerEnv()`
  * (server-only) daqui.
  *
- * Fase 1: só `NEXT_PUBLIC_SITE_URL` é exigida (com default local). As variáveis
- * de integrações futuras (Supabase, Resend, WhatsApp, pagamento, IA) são
- * opcionais agora e passam a ser obrigatórias quando cada fase as integrar de
- * verdade — ver docs/ROADMAP.md.
+ * Só `NEXT_PUBLIC_SITE_URL` é exigida (com default local). As variáveis do
+ * Supabase (Fase 2) são opcionais aqui de propósito — o app builda e a Home
+ * provisória roda sem elas — mas os clientes em `src/lib/supabase/*` lançam
+ * erro claro em runtime se forem chamados sem `NEXT_PUBLIC_SUPABASE_URL`/
+ * `NEXT_PUBLIC_SUPABASE_ANON_KEY` configuradas. Resend/WhatsApp/pagamento/IA
+ * continuam opcionais até as fases que as integram de verdade — ver
+ * docs/ROADMAP.md.
  */
 
 const clientSchema = z.object({

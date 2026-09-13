@@ -3,8 +3,9 @@
 Plataforma completa (site público, dashboard do nutricionista e portal do
 paciente) para o acompanhamento nutricional de Enzo Mangili — o **Método EM**.
 
-> **Status**: Fase 1 (Fundação do projeto) concluída. Ainda não há banco de
-> dados real, autenticação nem funcionalidades — ver `docs/ROADMAP.md`.
+> **Status**: Fases 1 e 2 concluídas (fundação do projeto + banco de dados
+> Supabase local com RLS). Ainda não há autenticação real nem funcionalidades
+> de produto — ver `docs/ROADMAP.md`.
 
 ## Documentação do produto e da arquitetura
 
@@ -13,7 +14,7 @@ Antes de mexer no código, leia (nessa ordem):
 1. [`CLAUDE.md`](./CLAUDE.md) — regras inegociáveis do projeto.
 2. [`docs/PROJECT_SPEC.md`](./docs/PROJECT_SPEC.md) — o produto e as regras de negócio.
 3. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — como o código é organizado.
-4. [`docs/DATABASE.md`](./docs/DATABASE.md) — modelo de dados (ainda não implementado).
+4. [`docs/DATABASE.md`](./docs/DATABASE.md) — schema implementado (39 tabelas, RLS, ERD).
 5. [`docs/SECURITY.md`](./docs/SECURITY.md) — segurança, LGPD, RLS.
 6. [`docs/DECISIONS.md`](./docs/DECISIONS.md) — conflitos entre o PDF de referência e o
    prompt do produto, pendências, decisões técnicas.
@@ -26,14 +27,17 @@ Antes de mexer no código, leia (nessa ordem):
 - [Zod](https://zod.dev) para validação (formulários e environment variables)
 - [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) (unit/component)
 - [Playwright](https://playwright.dev) (E2E)
-- Planejado para as próximas fases: Supabase (Postgres, Auth, Storage, RLS),
-  React Hook Form, Recharts, TipTap, Resend + React Email — ver
-  `docs/ARCHITECTURE.md`.
+- [Supabase](https://supabase.com) local (Postgres 17, Auth, Storage, RLS) via
+  CLI (`supabase` como devDependency) + Docker — schema em
+  `supabase/migrations/`, testes em `supabase/tests/database/` (pgTAP)
+- Planejado para as próximas fases: React Hook Form, Recharts, TipTap,
+  Resend + React Email — ver `docs/ARCHITECTURE.md`.
 
 ## Requisitos
 
 - Node.js 20+ (usado em desenvolvimento: Node 26)
 - npm 11+
+- Docker Desktop rodando (só necessário para `npm run db:*` / `npm run test:db*`)
 
 ## Como instalar
 
@@ -42,9 +46,31 @@ npm install
 cp .env.example .env.local
 ```
 
-`.env.local` só precisa de `NEXT_PUBLIC_SITE_URL` preenchido nesta fase — as
-demais variáveis (Supabase, Resend, WhatsApp, pagamento, IA) são opcionais até
-as fases que as integram de verdade (ver comentários em `.env.example`).
+Para rodar só a Home/shells (Fase 1), `.env.local` só precisa de
+`NEXT_PUBLIC_SITE_URL`. Para usar o banco local (Fase 2), veja a seção
+seguinte.
+
+## Banco de dados local (Supabase)
+
+```bash
+npm run db:start          # sobe Postgres/Auth/Storage/Studio locais (Docker)
+npx supabase status -o env  # mostra API_URL, ANON_KEY, SERVICE_ROLE_KEY locais
+```
+
+Copie `API_URL`/`ANON_KEY`/`SERVICE_ROLE_KEY` para `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` em `.env.local`
+(são as chaves de demonstração padrão do Supabase, iguais em qualquer
+instalação local — não são segredo de produção). Supabase Studio fica em
+`http://127.0.0.1:55423`.
+
+As portas locais estão deslocadas de 543xx para 5542x
+(`supabase/config.toml` documenta o motivo) — evita colidir com outro
+projeto Supabase local e com a faixa de portas que o Windows reserva.
+
+`npm run db:reset` reaplica todas as migrations + `supabase/seed.sql`
+(dados fictícios — nutricionista e 5 pacientes de exemplo, senha de dev
+documentada no próprio arquivo). `npm run db:types` regenera
+`src/types/database.ts` a partir do schema.
 
 ## Como rodar
 
@@ -70,6 +96,11 @@ Abre em [http://localhost:3000](http://localhost:3000):
 | `npm run test` | Vitest em modo watch |
 | `npm run test:run` | Vitest uma vez (CI) |
 | `npm run test:e2e` | Playwright (builda e sobe o app antes de testar) |
+| `npm run db:start` / `db:stop` | Sobe/derruba o Supabase local |
+| `npm run db:reset` | Reaplica migrations + seed fictício |
+| `npm run db:types` | Regenera `src/types/database.ts` |
+| `npm run test:db` | Testes pgTAP (constraints, RLS, IDOR, financeiro) |
+| `npm run test:db:concurrency` | Teste real de concorrência (double-booking) |
 
 ## Estrutura do projeto (resumo)
 
@@ -85,10 +116,13 @@ src/
     shared/            # genéricos (Container, ComingSoon)
   config/              # siteConfig (nome, locale, timezone)
   hooks/               # hooks compartilhados
-  lib/                 # utils, env.ts (validação central de env vars)
+  lib/                 # utils, env.ts, supabase/ (client/server/admin)
+  types/               # database.ts (gerado — nunca editar à mão)
 e2e/                   # testes Playwright
+supabase/              # migrations, seed.sql, tests/database (pgTAP), config.toml
+scripts/               # scripts de dev fora do Next.js (ex.: teste de concorrência)
 docs/                  # especificação, arquitetura, banco, segurança, decisões, roadmap
-references/            # material original fornecido por Enzo (não editar)
+references/            # material original fornecido por Enzo — local apenas, fora do Git
 ```
 
 `domain/`, `services/`, `data/`, `actions/`, `validators/`, `providers/`,

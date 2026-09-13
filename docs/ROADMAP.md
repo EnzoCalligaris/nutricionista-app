@@ -12,8 +12,14 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   (`/dashboard` e `/paciente` viraram segmentos de rota reais, não route
   groups). Não inclui: Supabase real, autenticação, dados, RLS — isso é
   Fase 2/3.
-- **FASE 2 — Banco de dados.** Migrations para o modelo de `DATABASE.md`, enums,
-  constraints (incl. anti double-booking), seeds mínimos de desenvolvimento.
+- **FASE 2 — Banco de dados.** ✅ Concluída. Supabase local (CLI via npm,
+  Docker), 20 migrations (39 tabelas + 2 views + 5 buckets), RLS em 100% das
+  tabelas com funções auxiliares `SECURITY DEFINER`, anti-double-booking via
+  exclusion constraint (validado com teste real de concorrência entre duas
+  conexões), idempotência financeira testada, seed fictício, clientes
+  Supabase (browser/server/admin) e tipos gerados. 30 testes pgTAP + 1 teste
+  de concorrência, todos passando. Login/autenticação real continuam de fora
+  — isso é Fase 3.
 - **FASE 3 — Autenticação e autorização.** Supabase Auth, `profiles`, papéis,
   RLS base, middlewares de rota por papel.
 - **FASE 4 — Site público.** Home, Método EM, Sobre Mim, pilares, planos
@@ -69,3 +75,15 @@ usuário) — ver histórico da conversa.
 3. Credenciais reais do Supabase (projeto criado por Enzo ou pelo usuário)
    disponíveis para preencher `.env.local` quando a Fase 2 precisar conectar
    de verdade — até lá, o schema pode ser desenhado/migrado localmente.
+
+Todos os 3 itens foram cumpridos (schema desenhado e validado 100% contra
+Supabase local; nenhuma credencial de produção foi necessária ou usada).
+
+## Critérios para iniciar a Fase 3
+
+1. Usuário revisou o schema, RLS e testes de banco da Fase 2 e aprovou
+   explicitamente.
+2. Um projeto Supabase real (hospedado) existe quando chegar a hora de
+   implantar em produção — não bloqueia começar a Fase 3 em ambiente local.
+3. Nenhuma tela de login/cadastro funcional, middleware de autorização ou
+   fluxo de sessão é implementado antes dessa aprovação.
