@@ -17,10 +17,10 @@ async function login(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Entrar" }).click();
 }
 
-test("home renderiza o design system básico", async ({ page }) => {
+test("home renderiza o site público com header e navegação", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Método EM" })).toBeVisible();
-  await expect(page.getByText(/em desenvolvimento/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Nutrição que vai além");
+  await expect(page.getByRole("navigation", { name: "Principal", exact: true }).getByRole("link", { name: "Método EM" })).toBeVisible();
 });
 
 test("shell do dashboard responde (sidebar + navegação)", async ({ page }) => {

@@ -271,12 +271,17 @@ insert into public.blog_tags (id, name, slug) values
   ('90000000-0000-0000-0000-000000000711', 'hidratação', 'hidratacao'),
   ('90000000-0000-0000-0000-000000000712', 'rotina', 'rotina');
 
+-- Conteúdo de DEMONSTRAÇÃO (título prefixado com "Exemplo:" e excerpt
+-- explícito) — só para exercitar o renderizador do blog em dev. Nunca vira
+-- conteúdo real de produção (prompt Fase 4 §28).
 insert into public.blog_posts (id, title, slug, excerpt, content, category_id, author_id, status, published_at) values
   ('90000000-0000-0000-0000-000000000721', 'Exemplo: 5 dicas para se hidratar melhor', 'exemplo-5-dicas-hidratacao',
-   'Post fictício de seed para validar o CMS do blog.', '{"type":"doc","content":[]}'::jsonb,
+   'Post fictício de seed para validar o CMS do blog.',
+   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Este é um conteúdo de demonstração do ambiente de desenvolvimento. Ele existe apenas para validar a renderização do blog."}]},{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Exemplo de subtítulo"}]},{"type":"paragraph","content":[{"type":"text","text":"Parágrafo com "},{"type":"text","marks":[{"type":"bold"}],"text":"negrito"},{"type":"text","text":" e "},{"type":"text","marks":[{"type":"italic"}],"text":"itálico"},{"type":"text","text":"."}]},{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Item de lista 1"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Item de lista 2"}]}]}]}]}'::jsonb,
    '90000000-0000-0000-0000-000000000701', '90000000-0000-0000-0000-000000000001', 'PUBLISHED', now() - interval '20 days'),
   ('90000000-0000-0000-0000-000000000722', 'Exemplo: organizando a rotina alimentar da semana', 'exemplo-rotina-alimentar-semana',
-   'Post fictício de seed para validar o CMS do blog.', '{"type":"doc","content":[]}'::jsonb,
+   'Post fictício de seed para validar o CMS do blog.',
+   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Conteúdo de demonstração do ambiente de desenvolvimento — não é um artigo real."}]}]}'::jsonb,
    '90000000-0000-0000-0000-000000000701', '90000000-0000-0000-0000-000000000001', 'PUBLISHED', now() - interval '5 days'),
   ('90000000-0000-0000-0000-000000000723', 'Rascunho: ideias para o próximo artigo', 'rascunho-ideias-proximo-artigo',
    'Rascunho fictício — nunca deve aparecer publicamente.', '{"type":"doc","content":[]}'::jsonb,

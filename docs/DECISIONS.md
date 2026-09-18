@@ -473,3 +473,174 @@ dado plausível/inventado.
     então fica fora da suíte Vitest, que continua rodando sem Supabase
     (`docs/ROADMAP.md`, Fase 1: "rodar só a Home/shells não precisa
     Supabase").
+
+## Decisões técnicas da Fase 4 (Site público definitivo)
+
+1. **Fontes de verdade do conteúdo, nesta ordem:** decisões explícitas do
+   projeto (`PROJECT_SPEC`/`DECISIONS`) > requisitos do prompt da Fase 4 >
+   PDF `references/Meu acompanhamento apresentação.pdf` > fotos. O texto do
+   PDF foi reextraído integralmente (26 páginas, via PyMuPDF — não há
+   `pdftoppm` na máquina) e cada afirmação publicada aponta para a página de
+   origem em `src/content/metodo-em.ts`. Nada de CRN, telefone, endereço,
+   e-mail, redes sociais, número de pacientes, taxa de sucesso, depoimento,
+   certificação ou promessa de emagrecimento — o site simplesmente não
+   renderiza o que não existe (`site_settings` continua vazio).
+
+2. **Assets selecionados (5 fotos + logo + monograma), e por quê.** Das 20
+   imagens em `./references` só estas foram copiadas para `public/`,
+   convertidas para WebP (~1066×1600, quality 82, 73–104 KB) com `sharp`,
+   originais intocados:
+   - `public/images/enzo/hero.webp` ← `...16.47.32 (1).jpeg` — hero da Home:
+     sorriso natural, luz de janela, enquadramento fechado que funciona em
+     4:5 no desktop e em coluna única no mobile.
+   - `public/images/enzo/sobre.webp` ← `...16.47.30 (1).jpeg` — Home (seção
+     "Quem acompanha você") e `/sobre`: fundo neutro que se funde ao
+     off-white do site, tom próximo.
+   - `public/images/enzo/consulta.webp` ← `...16.47.30 (6).jpeg` — fase
+     "Na consulta" do Método EM: escrevendo, sorrindo, adipômetro e fita na
+     mesa — mostra a consulta acontecendo.
+   - `public/images/enzo/avaliacao.webp` ← `...16.47.32 (3).jpeg` — fase
+     "Depois da consulta": adipômetro em mãos, instrumento da avaliação
+     física.
+   - `public/images/enzo/atendimento-pb.webp` ← `...16.47.30.jpeg` —
+     `/acompanhamento`: a única em preto e branco, escolhida para variar o
+     ritmo visual da página de processo.
+   - `public/brand/logo-horizontal.webp` ← `...16.47.31 (2).jpeg` (versão
+     azul-petróleo), **recortado com `trim()`** — o JPEG original tem ~75% de
+     área em branco, o que deixava o logo ilegível no header (era o
+     `logo-horizontal.jpg` da Fase 1, removido). A pendência do SVG/PNG
+     transparente continua (Fase 1, item 4).
+   - `public/brand/monogram-badge.webp` ← `...16.47.31.jpeg` (monograma em
+     círculo azul) — footer.
+   - `public/images/og-default.jpg` — crop 1200×630 do hero para Open
+     Graph/Twitter.
+   As 3 fotos de pacientes do PDF ("vidas transformadas") NÃO foram
+   extraídas nem usadas (docs/PROJECT_SPEC.md §4 — sem consentimento).
+
+3. **Direção visual: editorial, não template.** Fraunces (títulos) + Manrope
+   (texto) já definidos na Fase 1; off-white, azul-petróleo só em eyebrows,
+   numerais e CTAs; sem gradiente, sem verde, sem ícones genéricos. Seções
+   alternam foto/texto em vez de grades de cards; os únicos "cards" são os
+   de plano. Animação: um único fade-in CSS no hero (`motion-safe:`) e
+   `prefers-reduced-motion` global em `globals.css` — sem Framer Motion. Dark
+   mode continua nos tokens, mas não é exposto no site público (a marca é
+   clara).
+
+4. **Método EM = antes / durante / depois.** Eixo da Home e de `/metodo-em`
+   (`METHOD_PHASES`): pré-consulta gratuita → onboarding → anamnese →
+   contrato (PDF p. 21); consulta com avaliação antropométrica/bioimpedância,
+   exames e planejamento (p. 9, 12); check-list quinzenal com foto, peso e
+   feedback, ajustes, suporte seg–sáb 08h–18h, lista de compras (p. 10, 12).
+   O passo "boas-vindas no grupo de WhatsApp" do PDF **não entra**: dependia
+   do grupo exclusivo, removido da oferta.
+
+5. **Pilares: 4, não 6.** O PDF (p. 8) listava Consultas, Planejamento
+   nutricional, Aplicativo de dietas, Grupo exclusivo, Comunidade VIP,
+   Acompanhamento de perto. Publicamos os quatro válidos — "Grupo exclusivo"
+   foi removido por decisão do prompt; "Comunidade VIP" está PENDENTE DE
+   DEFINIÇÃO e não aparece como benefício nem como pilar até confirmação.
+   "Aplicativo de dietas" virou "Seu plano sempre à mão" (é o módulo de
+   cardápio da própria plataforma, não app de terceiro —
+   docs/PROJECT_SPEC.md §2). Teste explícito em `src/content/metodo-em.test.ts`.
+
+6. **Copy: reescrita natural, primeira pessoa no Sobre.** Sem clichês
+   ("transforme sua jornada", "desbloqueie", "eleve sua saúde", "experiência
+   única" — testado). Sem urgência falsa no CTA final. Headline do hero
+   ("Nutrição que vai além de receber uma dieta.") deriva do conceito do
+   prompt e de "Vamos juntos além de contar calorias" (PDF p. 3).
+
+7. **Preços: o site nunca escolhe o principal.** `presentPlanPrices`
+   (`src/domain/plans/pricing.ts`) só destaca o preço com `is_primary = true`
+   (hoje: AVULSA, R$ 230). TRIMESTRAL/SEMESTRAL continuam sem primário
+   (PENDENTE DE DEFINIÇÃO desde a Fase 0) — o card mostra "Opções de
+   investimento" com à vista, parcelado e "Valor de referência"
+   (`REFERENCIA`, rotulado assim de propósito, sem riscar/sem "de/por" para
+   não afirmar desconto que ninguém definiu). Quando Enzo marcar um
+   `is_primary` no banco, o card passa a destacá-lo sem deploy. Sem selos de
+   "mais vendido"/"recomendado". Testado em unitário, integração e E2E.
+
+8. **Cliente Supabase anônimo para conteúdo público**
+   (`src/lib/supabase/public.ts`): anon key, sem cookies. Motivo: o conteúdo
+   público é igual para todo visitante e a RLS `to anon` já filtra o que
+   pode aparecer; sem `cookies()` as páginas públicas ficam estáticas com ISR
+   (`revalidate = 600` no layout `(public)`). Nunca service role para
+   renderizar conteúdo público (prompt Fase 4 §57).
+
+9. **Camada `data/` + `domain/` nasceu.** `src/data/{plans,blog,results,
+   site-settings}.ts` (queries, `cache()` por renderização) e
+   `src/domain/{plans,blog,site-settings}` (regras puras: visibilidade de
+   plano, apresentação de preço, visibilidade de post, resolução de
+   contato). UI nunca importa Supabase direto (docs/ARCHITECTURE.md).
+   `safeQuery` (`src/data/safe-query.ts`) devolve `{ ok: false }` e loga no
+   servidor quando o banco falha — a UI mostra "temporariamente
+   indisponível", nunca esconde o erro nem finge lista vazia.
+
+10. **Autor do blog vem de `siteConfig`, não de join em `profiles`.** A RLS
+    de `profiles` (correta) não deixa visitante anônimo ler o nome do autor.
+    Como há um único autor, o nome vem de `siteConfig.professional.name`.
+    Se houver mais autores no futuro, criar função `SECURITY DEFINER` que
+    exponha só `full_name` de autores publicados.
+
+11. **Renderizador de rich text próprio, sem `dangerouslySetInnerHTML`**
+    (`src/components/blog/rich-content.tsx`): converte o JSON compatível
+    com TipTap em React, só nós conhecidos, links só `http(s)/mailto//`,
+    texto sempre como children — sem vetor de XSS por conteúdo do banco.
+    Sem `@tailwindcss/typography`: estilos de artigo em `.prose-em`
+    (`globals.css`).
+
+12. **Contato valida, limita abuso e NÃO finge envio.** Sem provedor de
+    e-mail (Resend é Fase 12) e sem tabela para guardar mensagens, a action
+    devolve `not_delivered` e a UI diz que a mensagem foi validada mas ainda
+    não enviada, apontando para o agendamento (prompt Fase 4 §29). Único
+    ponto a mudar depois: chamar `EmailProvider.send()`. Honeypot + rate
+    limit por IP (5/15 min) reaproveitando `InMemoryRateLimiter` da Fase 3.
+
+13. **`/agendar` sem calendário falso.** Explica os 3 passos e usa os canais
+    de `site_settings` quando existirem; sem eles, aponta para `/contato` e
+    avisa que o agendamento online será conectado (Fase 6). `?plano=` só
+    personaliza o texto.
+
+14. **`/resultados` sem foto nesta fase.** Lê `before_after_results` pela
+    policy pública (published + consentimento válido, checado no banco). O
+    bucket `before-after` é privado mesmo para publicados — a entrega de
+    imagem por signed URL server-side é Fase 14 (decisão da Fase 2, item 6).
+    Empty state honesto; nenhum antes/depois fictício, nem do seed.
+
+15. **Páginas legais sem inventar dados jurídicos.** Controlador = "Enzo
+    Mangili, nutricionista clínico"; sem CNPJ, razão social, endereço ou
+    foro. Prazo de retenção declarado como "em definição". Canal de
+    privacidade cai para a página de contato enquanto não houver e-mail
+    configurado. Revisão jurídica específica: PENDENTE DE DEFINIÇÃO antes da
+    Fase 16.
+
+16. **SEO com dados reais.** `metadataBase` = `NEXT_PUBLIC_SITE_URL`;
+    títulos/descrições/canonical por página; OG/Twitter com
+    `og-default.jpg`; `sitemap.ts` (11 rotas estáticas + posts publicados) e
+    `robots.ts` (bloqueia `/dashboard`, `/paciente`, `/auth/`, login/senha);
+    JSON-LD `Person` + `WebSite` na Home e `BlogPosting` no post — sem
+    `address`, `telephone`, `priceRange`, `rating` ou `reviews`.
+
+17. **Login redireciona quem já está autenticado** para `/dashboard` ou
+    `/paciente` (prompt Fase 4 §55) — feito na própria página `/login`
+    (já dinâmica), para não tornar todo o layout público dinâmico só para
+    trocar o botão "Entrar" no header.
+
+18. **Seed do blog ganhou corpo de demonstração** (título "Exemplo:",
+    excerpt e primeiro parágrafo dizendo explicitamente que é demonstração)
+    só para exercitar o renderizador; nunca é conteúdo real. A Home só
+    mostra a seção de blog quando há posts publicados.
+
+19. **Lighthouse não foi executado** (sem Chrome CLI/Lighthouse instalado no
+    ambiente; instalar só para isso não se justifica nesta fase). Em seu
+    lugar: hierarquia de headings verificada (um `h1` por página, `h2`/`h3`
+    encadeados), `alt` em toda imagem, `sizes`/`priority` só acima da dobra,
+    `aspect-ratio` fixo (sem CLS), sem overflow horizontal em 390 px
+    (asserção E2E), Server Components por padrão (client: só menu mobile,
+    formulários e gate de senha). Auditoria formal fica para a Fase 15.
+
+20. **Screenshots de responsividade foram parciais.** A aba do Chrome usada
+    na revisão ficou em segundo plano (`visibilityState: hidden`), o que
+    deixou capturas intermitentemente em branco; a revisão visual desktop
+    foi feita (Home, Método EM, Sobre, Planos) e o mobile foi validado por
+    E2E em 390 px (menu, navegação, hero visível, sem overflow). Vale uma
+    passada visual sua em 375/430/768/1024 antes de aprovar.

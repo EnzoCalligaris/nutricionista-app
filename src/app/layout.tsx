@@ -21,11 +21,29 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Base absoluta para canonical/OG — local vem do default de env.ts,
+  // produção de NEXT_PUBLIC_SITE_URL (prompt Fase 4 §35/§48).
+  metadataBase: new URL(siteConfig.url),
   title: {
     default: siteConfig.name,
     template: `%s · ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [{ url: "/images/og-default.jpg", width: 1200, height: 630, alt: siteConfig.fullName }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: ["/images/og-default.jpg"],
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

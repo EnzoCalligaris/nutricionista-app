@@ -3,10 +3,10 @@
 Plataforma completa (site público, dashboard do nutricionista e portal do
 paciente) para o acompanhamento nutricional de Enzo Mangili — o **Método EM**.
 
-> **Status**: Fases 1, 2 e 3 concluídas (fundação do projeto, banco de dados
-> Supabase local com RLS, e autenticação/autorização real). Ainda não há
-> funcionalidades de produto (pacientes, agenda, financeiro, cardápios) —
-> ver `docs/ROADMAP.md`.
+> **Status**: Fases 1 a 4 concluídas (fundação, banco de dados Supabase local
+> com RLS, autenticação/autorização real e site público definitivo do Método
+> EM). Ainda não há funcionalidades de produto no dashboard (pacientes,
+> agenda, financeiro, cardápios) — ver `docs/ROADMAP.md`.
 
 ## Documentação do produto e da arquitetura
 
@@ -81,7 +81,9 @@ npm run dev
 
 Abre em [http://localhost:3000](http://localhost:3000):
 
-- `/` — home provisória (valida o design system; site institucional real é Fase 4)
+- `/`, `/metodo-em`, `/sobre`, `/acompanhamento`, `/planos`, `/resultados`,
+  `/blog`, `/contato`, `/agendar`, `/politica-de-privacidade`, `/termos` —
+  site público definitivo (Fase 4); planos, blog e resultados vêm do banco
 - `/login`, `/esqueci-senha`, `/redefinir-senha` — autenticação (Fase 3)
 - `/dashboard` — área do nutricionista, exige login com role `NUTRITIONIST`
   (só shell visual além do fluxo de auth; dados reais são fases futuras)
@@ -111,6 +113,7 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:db` | Testes pgTAP (constraints, RLS, IDOR, financeiro, provisionamento de auth) |
 | `npm run test:db:concurrency` | Teste real de concorrência (double-booking) |
 | `npm run test:auth:integration` | Testes de integração de auth contra Supabase local real (login, RLS, role escalation) |
+| `npm run test:public:integration` | Testes de integração do conteúdo público (plano anual invisível, DRAFT oculto, consentimento de resultados) |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)
@@ -119,32 +122,39 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 src/
   proxy.ts             # proteção de rota (Next 16 renomeou middleware.ts)
   app/
-    (public)/          # site público — home provisória, login/esqueci-senha/redefinir-senha
+    (public)/          # site público definitivo (12 páginas) + login/esqueci-senha/redefinir-senha
     auth/callback/     # troca de código PKCE por sessão (server-side)
     dashboard/         # área do nutricionista — exige login + role NUTRITIONIST
     paciente/          # portal do paciente — exige login + role PATIENT
-  actions/             # server actions (auth.ts, onboarding.ts)
-  validators/          # schemas Zod (auth.ts)
+  actions/             # server actions (auth.ts, onboarding.ts, contact.ts)
+  validators/          # schemas Zod (auth.ts, contact.ts)
+  data/                # queries públicas (plans, blog, results, site-settings)
+  domain/              # regras puras (preço/visibilidade de plano, visibilidade de post, contato)
+  content/             # conteúdo editorial do site (origem: PDF de referência)
   components/
     ui/                # primitivos shadcn/ui
     layout/            # headers, sidebars, shells
     shared/            # genéricos (Container, ComingSoon)
     auth/              # formulários de login/senha, gate de reset, menu de logout
+    marketing/         # seções do site público (hero, fases, pilares, planos, CTA...)
+    blog/              # card de post e renderizador de rich text
+    seo/               # JSON-LD
   config/              # siteConfig (nome, locale, timezone)
   hooks/               # hooks compartilhados
-  lib/                 # utils, env.ts, supabase/ (client/server/admin), auth/ (session,
+  lib/                 # utils, env.ts, supabase/ (client/server/admin/public), auth/ (session,
                        # redirect, errors, rate-limit(er))
   types/               # database.ts (gerado — nunca editar à mão)
-e2e/                   # testes Playwright (smoke, auth)
+e2e/                   # testes Playwright (smoke, auth, public-site)
+public/                # brand/ (logo recortado, monograma) e images/enzo/ (5 fotos WebP selecionadas)
 supabase/              # migrations, seed.sql, tests/database (pgTAP), config.toml
 scripts/               # scripts fora do Next.js (concorrência, integração de auth, bootstrap do nutricionista)
 docs/                  # especificação, arquitetura, banco, segurança, decisões, roadmap
 references/            # material original fornecido por Enzo — local apenas, fora do Git
 ```
 
-`domain/`, `services/`, `data/`, `providers/`, `jobs/`, `emails/` ainda não
-existem — nascem nas fases que os justificam (ver `docs/ARCHITECTURE.md`).
-`actions/` e `validators/` nasceram na Fase 3 (auth).
+`services/`, `providers/`, `jobs/`, `emails/` ainda não existem — nascem nas
+fases que os justificam (ver `docs/ARCHITECTURE.md`). `actions/` e
+`validators/` nasceram na Fase 3; `data/`, `domain/` e `content/` na Fase 4.
 
 ## Environment variables
 

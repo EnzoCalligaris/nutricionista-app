@@ -18,6 +18,7 @@
     "test:db": "supabase test db --local",
     "test:db:concurrency": "node scripts/db-concurrency-test.mjs",
     "test:auth:integration": "node scripts/auth-integration-test.mjs",
+    "test:public:integration": "node scripts/public-content-integration-test.mjs",
     "bootstrap:nutritionist": "node scripts/bootstrap-nutritionist.mjs"
   },
   "dependencies": {

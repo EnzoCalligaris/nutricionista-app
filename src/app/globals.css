@@ -178,3 +178,42 @@
     @apply font-heading;
   }
 }
+
+/* Tipografia de artigo do blog (sem @tailwindcss/typography — escopo pequeno). */
+@layer components {
+  .prose-em {
+    @apply text-base leading-relaxed text-foreground/90 sm:text-lg;
+  }
+  .prose-em > * + * {
+    @apply mt-5;
+  }
+  .prose-em h2 {
+    @apply mt-10 font-heading text-2xl font-medium tracking-tight sm:text-3xl;
+  }
+  .prose-em h3 {
+    @apply mt-8 font-heading text-xl font-medium sm:text-2xl;
+  }
+  .prose-em ul {
+    @apply list-disc space-y-2 pl-6;
+  }
+  .prose-em ol {
+    @apply list-decimal space-y-2 pl-6;
+  }
+  .prose-em blockquote {
+    @apply border-l-2 border-primary/40 pl-5 text-muted-foreground;
+  }
+  .prose-em a {
+    @apply text-primary underline underline-offset-4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

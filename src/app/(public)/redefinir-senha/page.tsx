@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Redefinir senha — Método EM",
+  robots: { index: false, follow: false },
 };
 
 export default async function ResetPasswordPage() {

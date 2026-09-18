@@ -35,9 +35,19 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   integração contra Auth/PostgREST reais + 15 E2E Playwright, todos
   passando. Duas correções de bug descobertas só ao testar o fluxo real
   (nunca antes exercitado) documentadas em `docs/DECISIONS.md`.
-- **FASE 4 — Site público.** Home, Método EM, Sobre Mim, pilares, planos
-  (com preços reais confirmados — ver `DECISIONS.md` pendências), blog
-  (listagem/detalhe), contato, login. SEO básico.
+- **FASE 4 — Site público.** ✅ Concluída. 12 páginas públicas definitivas
+  (`/`, `/metodo-em`, `/sobre`, `/acompanhamento`, `/planos`, `/resultados`,
+  `/blog`, `/blog/[slug]`, `/contato`, `/agendar`, `/politica-de-privacidade`,
+  `/termos`) com header/menu mobile e footer definitivos, narrativa
+  antes/durante/depois, 4 pilares válidos (grupo exclusivo removido,
+  Comunidade VIP fora até definição), planos/preços/benefícios lidos do
+  banco via cliente anônimo (ANUAL nunca aparece; trimestral/semestral sem
+  preço principal inventado), blog e resultados respeitando RLS pública,
+  contato que valida mas não finge envio, SEO (metadataBase, OG, sitemap,
+  robots, canonical, JSON-LD só com dados reais), ISR de 10 min. 5 fotos
+  reais + logo recortado + monograma em `public/`. 86 testes unitários +
+  21 checks de integração de conteúdo público + 27 E2E (12 novos). Copy e
+  assets documentados em `DECISIONS.md`.
 - **FASE 5 — Pacientes e contratos.** CRUD de paciente, planos, contratos,
   parcelas — sem pagamento online ainda (lançamento manual de pagamento).
 - **FASE 6 — Agenda.** Disponibilidade, bloqueios, agendamento do paciente,
@@ -112,6 +122,19 @@ projeto Supabase hospedado real fica para antes da Fase 16).
    principal de trimestral/semestral, CRN, telefone, endereço, redes
    sociais, "Comunidade VIP", identidade visual definitiva) esclarecidas ou
    o usuário aceitou seguir com `PENDENTE DE DEFINIÇÃO` visível no conteúdo.
-3. **Aguardando aprovação explícita do usuário** — Fase 3 concluída, mas a
-   Fase 4 (site público) não deve começar sem sinal verde (prompt Fase 3
-   §55).
+3. Aprovação explícita da Fase 3 recebida em 2026-09-17; pendências de
+   conteúdo aceitas como `PENDENTE DE DEFINIÇÃO` (o site simplesmente não
+   renderiza o que não existe).
+
+Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
+
+## Critérios para iniciar a Fase 5
+
+1. Usuário revisou o site público (copy, fotos, planos, páginas legais) e
+   aprovou explicitamente.
+2. Confirmar com Enzo, antes ou durante a Fase 5, o preço "principal" de
+   trimestral/semestral (`is_primary`) e o status de "Comunidade VIP" — o
+   site já reage a essas decisões sem deploy (banco/`plan_benefits`).
+3. **Aguardando aprovação explícita do usuário** — não iniciar CRUD de
+   pacientes, contratos, agenda ou financeiro sem sinal verde (prompt Fase 4
+   §64).

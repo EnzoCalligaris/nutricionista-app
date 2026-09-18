@@ -214,6 +214,26 @@ superfície de risco em torno de um dado que exige consentimento explícito.
   sob sua gestão.
 - Nunca bucket público para conteúdo de paciente.
 
+## Conteúdo público — implementado na Fase 4
+
+- Planos, blog, resultados e `site_settings` são lidos por um cliente
+  **anônimo sem cookies** (`src/lib/supabase/public.ts`, anon key) — só o
+  que a RLS `to anon` libera chega ao site. **Nunca service role** para
+  renderizar conteúdo público (prompt Fase 4 §57); o único uso de service
+  role fora de server actions autenticadas é em scripts de teste/bootstrap.
+- Segunda camada em memória (`src/domain/*`): plano precisa de
+  `active && publicly_visible`; post precisa de `PUBLISHED` com
+  `published_at <= now()`; resultado só sai se `published` + consentimento
+  válido (checado pela policy, o site não acessa `media_consents`).
+- Rich text do blog é renderizado por conversão JSON → React
+  (`src/components/blog/rich-content.tsx`), sem `dangerouslySetInnerHTML`;
+  links só com `http(s)`, `mailto:` ou path relativo. JSON-LD é serializado
+  com `<` escapado.
+- Formulário de contato: validação Zod no server, honeypot e rate limit por
+  IP (5/15 min); não envia nada ainda e diz isso na UI — nunca finge sucesso.
+- `robots.ts` bloqueia `/dashboard`, `/paciente`, `/auth/` e as páginas de
+  login/senha; `/login` e `/redefinir-senha` têm `noindex`.
+
 ## Proteção de aplicação
 
 - Validação de input em toda fronteira (Zod) — client E server (nunca confiar

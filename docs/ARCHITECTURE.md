@@ -27,18 +27,21 @@ de jobs para notificações, se o volume justificar).
 
 ```
 app/
-  (public)/                  # site público — layout próprio, SEO
+  (public)/                  # site público — layout próprio, ISR 10 min (Fase 4)
     page.tsx                 # home
     login/                   # Fase 3
     esqueci-senha/           # Fase 3
     redefinir-senha/         # Fase 3
-    metodo/                  # Fase 4
+    metodo-em/               # Fase 4 — antes/durante/depois, pilares
     sobre/
-    planos/
-    resultados/
-    blog/[slug]/
-    contato/
-    agendar/
+    acompanhamento/
+    planos/                  # lê plans/plan_prices/plan_benefits
+    resultados/              # lê before_after_results (RLS pública)
+    blog/ blog/[slug]/       # lê blog_posts PUBLISHED
+    contato/                 # valida, não envia (Fase 12 conecta e-mail)
+    agendar/                 # porta de entrada; agenda real é Fase 6
+    politica-de-privacidade/ termos/
+  sitemap.ts robots.ts       # Fase 4
   auth/
     callback/route.ts        # Fase 3 — troca de código PKCE por sessão (server-side)
   dashboard/                 # área do nutricionista — exige role=NUTRITIONIST (Fase 3)
@@ -68,22 +71,24 @@ app/
 src/
   proxy.ts           # Fase 3 — proteção de rota (Next 16 renomeou middleware.ts;
                      # ver docs/DECISIONS.md)
-  domain/            # entidades, regras de negócio puras, sem I/O — ainda não criado
-    patients/ plans/ contracts/ appointments/ meal-plans/ assessments/ ...
+  domain/            # regras puras, sem I/O — plans/ (preço, visibilidade),
+                     # blog/ (visibilidade), site-settings/ (contato) desde a Fase 4
   services/          # orquestração de casos de uso (usa domain + data access) — ainda não criado
-  data/              # queries/repositories Supabase, um módulo por agregado — ainda não criado
-  actions/           # server actions (mutações chamadas pela UI) — auth.ts e
-                     # onboarding.ts desde a Fase 3
-  validators/        # schemas Zod, compartilhados client/server — auth.ts desde a Fase 3
+  data/              # queries públicas Supabase (plans, blog, results,
+                     # site-settings) + safe-query — desde a Fase 4
+  content/           # conteúdo editorial do site com origem no PDF (Fase 4)
+  actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts (Fase 4)
+  validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
   emails/            # templates React Email — ainda não criado
-  components/        # UI compartilhada (ui/ = shadcn primitives, layout/ = shells,
-                     # shared/ = genéricos, auth/ = formulários/gate de auth desde a Fase 3)
-  lib/               # utils, cliente Supabase (server/browser/admin), auth/
+  components/        # UI compartilhada (ui/ = shadcn primitives, layout/ = shells + header/
+                     # footer/menu mobile, shared/ = genéricos, auth/ = formulários/gate de auth,
+                     # marketing/ = seções do site público, blog/ = card + rich text, seo/ = JSON-LD)
+  lib/               # utils, cliente Supabase (server/browser/admin/public), auth/
                      # (session, redirect, errors, rate-limit(er) — Fase 3),
-                     # datas/timezone, env
+                     # dates (pt-BR, America/Sao_Paulo), env
   config/            # configuração pública (siteConfig, timezone)
   hooks/             # hooks compartilhados (ex.: use-mobile)
   types/             # tipos compartilhados gerados/derivados do banco
@@ -104,10 +109,17 @@ src/
 > original da Fase 0 sugeria — um route group a mais aqui não adicionava
 > nenhum benefício (nenhum layout específico só para `/login`).
 >
-> `domain/`, `services/`, `data/`, `providers/`, `jobs/`, `emails/` **ainda
-> não foram criados** — não há regra de negócio real para colocar neles
-> ainda. `actions/` e `validators/` nasceram na Fase 3 (auth), o resto nasce
-> nas fases que os justificam.
+> `services/`, `providers/`, `jobs/`, `emails/` **ainda não foram criados** —
+> não há regra de negócio real para colocar neles ainda. `actions/` e
+> `validators/` nasceram na Fase 3 (auth); `domain/`, `data/` e `content/`
+> nasceram na Fase 4 (site público); o resto nasce nas fases que os
+> justificam.
+>
+> **Conteúdo público (Fase 4)**: páginas do site usam `src/data/*` (que usam
+> `src/lib/supabase/public.ts`, cliente anônimo sem cookies) e nunca o
+> Supabase direto. Isso mantém as páginas estáticas com ISR e garante que só
+> o que a RLS `to anon` libera chega ao visitante — nunca service role para
+> renderizar conteúdo público.
 
 Regra: **domain não importa de data/services**; **UI não acessa `data/` direto**,
 sempre via `actions/` ou `services/`. Isso evita regra de negócio duplicada entre

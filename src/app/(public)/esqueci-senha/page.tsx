@@ -6,6 +6,7 @@ import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 
 export const metadata: Metadata = {
   title: "Esqueci minha senha — Método EM",
+  robots: { index: false, follow: false },
 };
 
 export default function ForgotPasswordPage() {
