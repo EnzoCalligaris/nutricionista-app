@@ -4,16 +4,22 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASE 0, 1 e 2 concluídas.** Next.js rodando (`src/app`), design system
-inicial, e um banco Postgres/Supabase local completo (39 tabelas, RLS em
-100% delas, anti-double-booking, tipos gerados) — ver `supabase/migrations/`.
-Autenticação real, telas funcionais e dados de produção ainda não existem —
-isso começa na Fase 3.
+**FASES 0 a 5 concluídas.** Next.js rodando (`src/app`), design system,
+banco Postgres/Supabase local completo (RLS em 100% das tabelas,
+anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
+autorização reais (Fase 3), site público definitivo (Fase 4) e o módulo de
+**Pacientes + Planos + Contratos** funcional no dashboard (Fase 5:
+`/dashboard/pacientes`, `/dashboard/pacientes/[id]`, contratos com parcelas,
+`src/data` + `src/services` + `src/actions`). Agenda, financeiro completo,
+cardápios etc. ainda não existem — começam na Fase 6 em diante
+(`docs/ROADMAP.md`).
 
 Comandos do dia a dia para o banco local: `npm run db:start` (sobe
 Supabase local via Docker), `npm run db:reset` (reaplica migrations +
 seed), `npm run test:db` (pgTAP), `npm run test:db:concurrency` (teste real
 de concorrência), `npm run db:types` (regenera `src/types/database.ts`).
+Integração contra o Supabase local: `npm run test:auth:integration`,
+`npm run test:public:integration`, `npm run test:patients:integration`.
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -59,6 +65,33 @@ pare e aguarde confirmação antes de iniciar a próxima.
     um `EXISTS` direto — um `EXISTS` comum herda a RLS da tabela referenciada
     e pode falhar silenciosamente para `anon`/outro papel (aconteceu com
     `before_after_results` na Fase 2; ver `docs/DECISIONS.md`).
+
+## QA visual obrigatório com screenshots reais (regra permanente)
+
+Toda fase futura que alterar interface deve gerar screenshots REAIS da
+aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
+
+```
+./screenshots/fase-X/
+  desktop/   (1440px)
+  tablet/    (768px)
+  mobile/    (390px)
+```
+
+- Para cada tela relevante criada/alterada: viewport (sem scroll) e
+  full-page — ex.: `pacientes-1440-viewport.png`, `pacientes-1440-full.png`.
+- Quando houver risco específico de responsividade, validar também 375, 430,
+  1024 e 1280 px.
+- Depois de gerar, **analisar visualmente cada imagem** (espaçamento,
+  alinhamento, overflow/scroll horizontal, tabelas, textos cortados, ações
+  acessíveis, empty/loading states, modais, mobile) — se houver problema:
+  corrigir, gerar de novo, comparar, e só então considerar a interface
+  concluída.
+- `screenshots/` está no `.gitignore` (uso exclusivo de QA local) — nunca
+  commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
+  E2E/build.
+- Referência de script: `scripts/screenshots-fase-5.mjs`
+  (`npm run screenshots:fase-5`, com `--extra` para as larguras adicionais).
 
 ## Marca
 

@@ -88,6 +88,13 @@ export type Database = {
             foreignKeyName: "appointment_notes_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "appointment_notes_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
@@ -155,6 +162,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "appointments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["current_contract_id"]
+          },
+          {
             foreignKeyName: "appointments_nutritionist_id_fkey"
             columns: ["nutritionist_id"]
             isOneToOne: false
@@ -166,6 +180,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -267,6 +288,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "assessments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -416,6 +444,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "before_after_results_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -664,6 +699,13 @@ export type Database = {
             referencedRelation: "patient_contracts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contract_installments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["current_contract_id"]
+          },
         ]
       }
       feedback_messages: {
@@ -704,6 +746,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "feedback_messages_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -876,6 +925,13 @@ export type Database = {
             foreignKeyName: "food_photo_analyses_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "food_photo_analyses_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
@@ -916,6 +972,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "material_assignments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -1113,6 +1176,13 @@ export type Database = {
             foreignKeyName: "meal_plans_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "meal_plans_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
@@ -1279,6 +1349,13 @@ export type Database = {
             foreignKeyName: "media_consents_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "media_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
@@ -1416,6 +1493,7 @@ export type Database = {
           created_at: string
           end_date: string | null
           id: string
+          notes: string | null
           patient_id: string
           plan_id: string
           plan_price_id: string | null
@@ -1429,6 +1507,7 @@ export type Database = {
           created_at?: string
           end_date?: string | null
           id?: string
+          notes?: string | null
           patient_id: string
           plan_id: string
           plan_price_id?: string | null
@@ -1442,6 +1521,7 @@ export type Database = {
           created_at?: string
           end_date?: string | null
           id?: string
+          notes?: string | null
           patient_id?: string
           plan_id?: string
           plan_price_id?: string | null
@@ -1455,6 +1535,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "patient_contracts_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -1644,6 +1731,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["current_contract_id"]
+          },
+          {
             foreignKeyName: "payments_installment_id_fkey"
             columns: ["installment_id"]
             isOneToOne: false
@@ -1655,6 +1749,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "payments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -1912,6 +2013,13 @@ export type Database = {
             foreignKeyName: "supplement_recommendations_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "supplement_recommendations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
@@ -1936,6 +2044,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "patient_contracts_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
             referencedColumns: ["patient_id"]
           },
           {
@@ -1986,8 +2101,74 @@ export type Database = {
           },
         ]
       }
+      patient_overview: {
+        Row: {
+          archived_at: string | null
+          birth_date: string | null
+          created_at: string | null
+          current_contract_id: string | null
+          current_contracted_amount_cents: number | null
+          current_end_date: string | null
+          current_plan_code: string | null
+          current_plan_id: string | null
+          current_plan_name: string | null
+          current_start_date: string | null
+          email: string | null
+          full_name: string | null
+          has_active_contract: boolean | null
+          is_effectively_active: boolean | null
+          next_appointment_at: string | null
+          next_appointment_modality:
+            | Database["public"]["Enums"]["appointment_modality"]
+            | null
+          nutritionist_id: string | null
+          patient_id: string | null
+          patient_status: Database["public"]["Enums"]["patient_status"] | null
+          phone: string | null
+          profile_id: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_contracts_plan_id_fkey"
+            columns: ["current_plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      cancel_contract: { Args: { p_contract_id: string }; Returns: undefined }
+      complete_contract: { Args: { p_contract_id: string }; Returns: undefined }
+      create_contract_with_installments: {
+        Args: {
+          p_contracted_amount_cents: number
+          p_end_date?: string
+          p_installments: Json
+          p_notes?: string
+          p_patient_id: string
+          p_plan_id: string
+          p_plan_price_id?: string
+          p_start_date: string
+        }
+        Returns: string
+      }
       current_profile_role: {
         Args: never
         Returns: Database["public"]["Enums"]["profile_role"]

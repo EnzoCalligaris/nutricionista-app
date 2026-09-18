@@ -48,8 +48,28 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   reais + logo recortado + monograma em `public/`. 86 testes unitários +
   21 checks de integração de conteúdo público + 27 E2E (12 novos). Copy e
   assets documentados em `DECISIONS.md`.
-- **FASE 5 — Pacientes e contratos.** CRUD de paciente, planos, contratos,
-  parcelas — sem pagamento online ainda (lançamento manual de pagamento).
+- **FASE 5 — Pacientes e contratos.** ✅ Concluída. `/dashboard/pacientes`
+  real (cards de pacientes ativos / ticket médio / total, busca e filtros
+  server-side por query param, paginação, tabela ≥ 1024 px e cards abaixo),
+  criar/editar/desativar/reativar paciente (sem hard delete), cadastro sem
+  conta + convite opcional reutilizando o onboarding da Fase 3, perfil
+  `/dashboard/pacientes/[id]` (visão geral, acesso ao portal, contrato
+  atual com contratado/recebido/pendente/previsto da view financeira,
+  timeline real, histórico de contratos com parcelas, pagamentos existentes
+  só-leitura, seções futuras com resumo real + "Disponível em uma próxima
+  etapa"), novo contrato (plano + condição de preço do banco, ANUAL com
+  badge "Não disponível no site", datas sugeridas, parcelas determinísticas
+  com remainder de centavos e regra do dia 31, pré-visualização),
+  cancelar/encerrar contrato com confirmação e histórico preservado.
+  Camadas `src/data`, `src/services`, `src/actions`, `src/validators`,
+  `src/domain/{patients,contracts}`, erros de domínio, auditoria escrita
+  pela aplicação, 1 migration (view `patient_overview`, funções SQL
+  transacionais, índice único de e-mail, `patient_contracts.notes`).
+  Testes unitários, pgTAP (34 novos), 37 checks de integração de
+  pacientes/contratos (ownership entre dois nutricionistas, ids
+  adulterados), 14 E2E novos, screenshots reais em 1440/768/390
+  (+375/430/1024/1280) revisadas e corrigidas. Registro manual de pagamento
+  fica para a Fase 7.
 - **FASE 6 — Agenda.** Disponibilidade, bloqueios, agendamento do paciente,
   constraint anti-overlap, próximas sessões, status de consulta.
 - **FASE 7 — Financeiro.** Lançamentos manuais + automáticos a partir de
@@ -135,6 +155,18 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
 2. Confirmar com Enzo, antes ou durante a Fase 5, o preço "principal" de
    trimestral/semestral (`is_primary`) e o status de "Comunidade VIP" — o
    site já reage a essas decisões sem deploy (banco/`plan_benefits`).
-3. **Aguardando aprovação explícita do usuário** — não iniciar CRUD de
-   pacientes, contratos, agenda ou financeiro sem sinal verde (prompt Fase 4
-   §64).
+3. Aprovação técnica explícita da Fase 4 recebida em 2026-09-18 (a revisão
+   visual definitiva do site público continua sujeita a screenshots em
+   múltiplos breakpoints, sem bloquear a Fase 5). Fase 5 concluída em
+   2026-09-18.
+
+## Critérios para iniciar a Fase 6
+
+1. Usuário revisou o módulo de pacientes/contratos (listagem, perfil,
+   formulários, contratos/parcelas, screenshots) e aprovou explicitamente.
+2. Pendências que a agenda pode precisar: periodicidade default de consultas
+   presenciais por plano (`docs/DECISIONS.md`, inconsistência 1), formato da
+   consulta online, horários de trabalho de Enzo — podem seguir como
+   `PENDENTE DE DEFINIÇÃO` configurável.
+3. **Aguardando aprovação explícita do usuário** — não iniciar agenda,
+   financeiro completo, cardápios ou IA sem sinal verde (prompt Fase 5 §80).

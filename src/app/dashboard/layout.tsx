@@ -1,6 +1,7 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { requireNutritionist } from "@/lib/auth/session";
 
 // Segunda camada de proteção (prompt Fase 3 §7) — o proxy (src/proxy.ts) já
@@ -15,9 +16,12 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   return (
     <SidebarProvider>
       <DashboardSidebar />
-      <SidebarInset>
+      {/* min-w-0: sem isso o <main> (flex item) cresce além do viewport quando
+          uma tabela larga aparece, em vez de a tabela rolar dentro do card. */}
+      <SidebarInset className="min-w-0">
         <DashboardHeader fullName={profile.full_name} />
-        <div className="flex-1 space-y-6 p-4 sm:p-6">{children}</div>
+        <div className="min-w-0 flex-1 space-y-6 p-4 sm:p-6">{children}</div>
+        <Toaster position="bottom-right" richColors closeButton />
       </SidebarInset>
     </SidebarProvider>
   );

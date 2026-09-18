@@ -86,9 +86,12 @@ Abre em [http://localhost:3000](http://localhost:3000):
   site público definitivo (Fase 4); planos, blog e resultados vêm do banco
 - `/login`, `/esqueci-senha`, `/redefinir-senha` — autenticação (Fase 3)
 - `/dashboard` — área do nutricionista, exige login com role `NUTRITIONIST`
-  (só shell visual além do fluxo de auth; dados reais são fases futuras)
-- `/dashboard/pacientes/convidar` — núcleo mínimo de onboarding (convite por
-  e-mail); tela completa de gestão de pacientes é Fase 5
+- `/dashboard/pacientes`, `/dashboard/pacientes/novo`,
+  `/dashboard/pacientes/[id]` (+ `/editar`, `/contratos/novo`) — gestão de
+  pacientes, planos e contratos com parcelas (Fase 5); os demais módulos do
+  dashboard ainda são shells (Agenda = Fase 6, Financeiro = Fase 7...)
+- `/dashboard/pacientes/convidar` — convite de paciente por e-mail (Fase 3;
+  a mesma lógica é usada por "Novo paciente + convite" e pelo perfil)
 - `/paciente` — portal do paciente, exige login com role `PATIENT`
 
 Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
@@ -114,6 +117,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:db:concurrency` | Teste real de concorrência (double-booking) |
 | `npm run test:auth:integration` | Testes de integração de auth contra Supabase local real (login, RLS, role escalation) |
 | `npm run test:public:integration` | Testes de integração do conteúdo público (plano anual invisível, DRAFT oculto, consentimento de resultados) |
+| `npm run test:patients:integration` | Testes de integração de pacientes/contratos contra Supabase local real (RLS via API, ownership entre dois nutricionistas, ids adulterados, funções SQL de contrato, e-mail único) |
+| `npm run screenshots:fase-5` | Gera as screenshots reais de QA visual da Fase 5 em `screenshots/fase-5/` (app rodando em :3000; `--extra` para 375/430/1024/1280 px) |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)
@@ -126,35 +131,41 @@ src/
     auth/callback/     # troca de código PKCE por sessão (server-side)
     dashboard/         # área do nutricionista — exige login + role NUTRITIONIST
     paciente/          # portal do paciente — exige login + role PATIENT
-  actions/             # server actions (auth.ts, onboarding.ts, contact.ts)
-  validators/          # schemas Zod (auth.ts, contact.ts)
-  data/                # queries públicas (plans, blog, results, site-settings)
-  domain/              # regras puras (preço/visibilidade de plano, visibilidade de post, contato)
+  actions/             # server actions (auth, onboarding, contact, patients, contracts)
+  validators/          # schemas Zod (auth, contact, patients, contracts)
+  services/            # casos de uso (patients, contracts, onboarding, audit) — ownership + regras
+  data/                # queries: públicas (plans, blog, results, site-settings) e do dashboard (patients, contracts)
+  domain/              # regras puras (planos, blog, contato; pacientes: idade/status/ticket/timeline;
+                       # contratos: parcelas/datas/status)
   content/             # conteúdo editorial do site (origem: PDF de referência)
   components/
     ui/                # primitivos shadcn/ui
     layout/            # headers, sidebars, shells
-    shared/            # genéricos (Container, ComingSoon)
+    shared/            # genéricos (Container, ComingSoon, Breadcrumbs, Pagination, FlashToast)
     auth/              # formulários de login/senha, gate de reset, menu de logout
+    patients/          # listagem, cards de métricas, filtros, formulário, perfil, timeline, ações
+    contracts/         # formulário de contrato (pré-visualização de parcelas), card, ações
     marketing/         # seções do site público (hero, fases, pilares, planos, CTA...)
     blog/              # card de post e renderizador de rich text
     seo/               # JSON-LD
   config/              # siteConfig (nome, locale, timezone)
   hooks/               # hooks compartilhados
   lib/                 # utils, env.ts, supabase/ (client/server/admin/public), auth/ (session,
-                       # redirect, errors, rate-limit(er))
+                       # redirect, errors, rate-limit(er)), calendar.ts, money.ts, errors/domain.ts
   types/               # database.ts (gerado — nunca editar à mão)
-e2e/                   # testes Playwright (smoke, auth, public-site)
+e2e/                   # testes Playwright (smoke, auth, public-site, patients)
 public/                # brand/ (logo recortado, monograma) e images/enzo/ (5 fotos WebP selecionadas)
 supabase/              # migrations, seed.sql, tests/database (pgTAP), config.toml
-scripts/               # scripts fora do Next.js (concorrência, integração de auth, bootstrap do nutricionista)
+scripts/               # scripts fora do Next.js (concorrência, integrações, bootstrap do nutricionista, screenshots)
+screenshots/           # QA visual local por fase (ignorado pelo git — ver CLAUDE.md)
 docs/                  # especificação, arquitetura, banco, segurança, decisões, roadmap
 references/            # material original fornecido por Enzo — local apenas, fora do Git
 ```
 
-`services/`, `providers/`, `jobs/`, `emails/` ainda não existem — nascem nas
-fases que os justificam (ver `docs/ARCHITECTURE.md`). `actions/` e
-`validators/` nasceram na Fase 3; `data/`, `domain/` e `content/` na Fase 4.
+`providers/`, `jobs/`, `emails/` ainda não existem — nascem nas fases que os
+justificam (ver `docs/ARCHITECTURE.md`). `actions/` e `validators/`
+nasceram na Fase 3; `data/`, `domain/` e `content/` na Fase 4; `services/`
+na Fase 5.
 
 ## Environment variables
 

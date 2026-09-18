@@ -62,6 +62,9 @@ fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
 | `..068_financial_views` | views `contract_financial_summary`, `patient_active_status` | Cálculos recorrentes |
 | `..069_storage_buckets` | `storage.buckets` + policies | 5 buckets, 4 privados |
 | `..070_plans_catalog_data` | dados em `plans`/`plan_prices`/`plan_benefits` | Catálogo real (não fictício) |
+| `20260917120000_auth_profile_provisioning` | trigger em `auth.users` | Profile PATIENT automático (Fase 3) |
+| `20260917120001_fix_validate_patient_profile_roles_rls` | — | Trigger de `patients` como SECURITY DEFINER (Fase 3) |
+| `20260918120000_patients_contracts_management` | `patient_contracts.notes`, índice único de e-mail, view `patient_overview`, funções `create_contract_with_installments`/`cancel_contract`/`complete_contract` | Gestão de pacientes/contratos (Fase 5) |
 
 ## Decisão de modelagem: avaliações flexíveis (não colunas fixas)
 
@@ -90,6 +93,36 @@ alter table public.appointments
 - Validado por teste real de duas conexões concorrentes
   (`scripts/db-concurrency-test.mjs`, `npm run test:db:concurrency`): das duas
   gravações simultâneas para o mesmo horário, exatamente uma sucede.
+
+## Gestão de pacientes e contratos (Fase 5)
+
+- **`patient_overview`** (view, `security_invoker = true`): uma linha por
+  paciente com `has_active_contract`, `is_effectively_active` (mesma regra
+  de `patient_active_status`: status manual ACTIVE **e** contrato ACTIVE),
+  o contrato ACTIVE mais recente (`current_contract_id`, plano, valor,
+  período) e a próxima consulta SCHEDULED/CONFIRMED. É o que a listagem do
+  dashboard pagina/filtra/busca pelo PostgREST — sem N+1.
+- **`patients_nutritionist_email_unique_idx`**: único parcial em
+  `(nutritionist_id, lower(email)) where email is not null` — e-mail
+  duplicado no mesmo nutricionista nunca é criado, nem em corrida.
+- **`create_contract_with_installments(patient, plan, start, amount,
+  installments jsonb, [price], [end], [notes])`**: SECURITY INVOKER (RLS
+  vale dentro), transacional; valida ownership (`nutritionist_id =
+  auth.uid()`), plano ativo, preço do mesmo plano, período, soma exata das
+  parcelas e numeração 1..n; parcelas nascem PENDING. Erros são códigos
+  estáveis (`PATIENT_NOT_FOUND`, `PLAN_NOT_AVAILABLE`,
+  `INVALID_CONTRACT_PERIOD`, `INVALID_INSTALLMENTS`).
+- **`cancel_contract(id)`**: ACTIVE → CANCELLED + `cancelled_at`; parcelas
+  PENDING/OVERDUE → CANCELLED; PAID, pagamentos e lançamentos intactos.
+  **`complete_contract(id)`**: ACTIVE → COMPLETED, parcelas intactas.
+  Transição inválida → `INVALID_STATUS_TRANSITION`; contrato invisível
+  pela RLS → `CONTRACT_NOT_FOUND`.
+- Regra de parcelas (aplicação, `src/domain/contracts/installments.ts`):
+  remainder de centavos nas primeiras parcelas; vencimentos mensais com
+  dia-âncora do primeiro vencimento limitado ao fim do mês (31/01 → 28/02 →
+  31/03 → 30/04). Ver `docs/DECISIONS.md`, Fase 5.
+- Desativar paciente = `status = 'INACTIVE'` + `archived_at`; reativar
+  limpa ambos. Nunca DELETE.
 
 ## Idempotência financeira
 
@@ -168,7 +201,15 @@ erDiagram
 - `040_financial_summary.test.sql` — cenário R$1.200/6x/2 pagas.
 - `050_public_visibility.test.sql` — blog e antes/depois só públicos quando
   deveriam.
+- `070_patients_contracts_management.test.sql` — índice único de e-mail,
+  `patient_overview` (status derivado, contrato atual, RLS entre
+  nutricionistas), funções de contrato (sucesso, validações, ownership com
+  ids adulterados, cancelar/encerrar preservando histórico), resumo
+  financeiro do contrato novo.
 - `scripts/db-concurrency-test.mjs` (`npm run test:db:concurrency`) — duas
   conexões reais disputando o mesmo horário.
+- `scripts/patients-integration-test.mjs` (`npm run test:patients:integration`)
+  — o mesmo via PostgREST/GoTrue com JWTs reais de dois nutricionistas e de
+  um paciente.
 
 Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test:db:concurrency`.

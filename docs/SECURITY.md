@@ -163,6 +163,20 @@ outro. Rodar com `npm run test:db`.
   `auth.uid()`/papel antes de considerar o ID da URL.
 - Server actions revalidam propriedade do recurso (paciente pertence ao
   nutricionista logado; consulta pertence ao paciente logado) antes de mutar.
+- **Implementado na Fase 5 (pacientes/contratos)**: páginas carregam o
+  paciente com `getPatientById(nutritionist.id, id)` (id alheio ou
+  inexistente → mesmo 404, sem revelar existência); actions recebem
+  `patientId`/`contractId` como argumento vinculado no server
+  (`action.bind(null, id)`) ou validado como UUID, e o service reconfere
+  ownership (`requireOwnedPatient`/`requireOwnedContract`, checagem
+  explícita de `nutritionist_id`) antes de qualquer escrita; as funções SQL
+  de contrato são SECURITY INVOKER e checam `nutritionist_id = auth.uid()`
+  — a RLS é a última camada, não a única. Schemas Zod descartam `role`,
+  `profile_id`, `nutritionist_id`, `status`, `created_at` e ids internos
+  (mass assignment). Testado em pgTAP (`070_*`), integração
+  (`scripts/patients-integration-test.mjs`: Nutricionista B tenta ler,
+  editar, desativar, criar contrato e cancelar contrato de paciente de A;
+  PATIENT tenta inserir paciente/contrato/auditoria) e E2E.
 
 ## Concorrência / anti double-booking — implementada na Fase 2
 
@@ -252,15 +266,22 @@ superfície de risco em torno de um dado que exige consentimento explícito.
   WhatsApp/e-mail) só em variáveis de ambiente server-side — nunca em código
   client, nunca em `NEXT_PUBLIC_*`.
 
-## Auditoria — tabela implementada, escrita pela aplicação é Fase 5+
+## Auditoria — tabela implementada (Fase 2), escrita pela aplicação desde a Fase 5
 
 `audit_logs` existe e é append-only: sem policy de UPDATE/DELETE para nenhum
 papel, e os privilégios de UPDATE/DELETE são revogados de `anon`/
 `authenticated` como defesa em profundidade (RLS sozinha já bloquearia, mas
-a revogação de privilégio é uma segunda camada independente da RLS). Falta
-(fases futuras): a aplicação de fato registrar linhas em alteração de
-pagamento/lançamento financeiro, contrato, consulta, avaliação, desativação
-de paciente, publicação de antes/depois.
+a revogação de privilégio é uma segunda camada independente da RLS).
+
+Desde a Fase 5 a aplicação registra (`src/services/audit.ts`, cliente de
+sessão — a policy exige `actor_id = auth.uid()` e role NUTRITIONIST):
+`PATIENT_CREATED`, `PATIENT_UPDATED`, `PATIENT_ARCHIVED`,
+`PATIENT_REACTIVATED`, `PATIENT_INVITED`, `CONTRACT_CREATED`,
+`CONTRACT_CANCELLED`, `CONTRACT_COMPLETED`. Metadata é o mínimo para
+rastrear "quem fez o quê" — ids, NOMES dos campos alterados, código do
+plano, valor/quantidade de parcelas — nunca e-mail, telefone, nascimento ou
+qualquer dado clínico. Falta (fases futuras): pagamento/lançamento
+financeiro, consulta, avaliação, publicação de antes/depois.
 
 ## Clientes Supabase — implementados na Fase 2
 

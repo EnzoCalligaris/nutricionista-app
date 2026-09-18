@@ -72,13 +72,20 @@ src/
   proxy.ts           # Fase 3 — proteção de rota (Next 16 renomeou middleware.ts;
                      # ver docs/DECISIONS.md)
   domain/            # regras puras, sem I/O — plans/ (preço, visibilidade),
-                     # blog/ (visibilidade), site-settings/ (contato) desde a Fase 4
-  services/          # orquestração de casos de uso (usa domain + data access) — ainda não criado
-  data/              # queries públicas Supabase (plans, blog, results,
-                     # site-settings) + safe-query — desde a Fase 4
+                     # blog/ (visibilidade), site-settings/ (contato) desde a Fase 4;
+                     # patients/ (idade, status, ticket médio, acesso ao portal,
+                     # timeline) e contracts/ (parcelas, datas, status) desde a Fase 5
+  services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
+                     # (convite, compartilhado com a Fase 3), audit.ts — validam
+                     # ownership e chamam data/ + funções SQL transacionais
+  data/              # queries Supabase: públicas (plans, blog, results, site-settings,
+                     # cliente anônimo — Fase 4) e do dashboard (patients.ts,
+                     # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
-  actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts (Fase 4)
-  validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts
+  actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
+                     # (Fase 4), patients.ts, contracts.ts (Fase 5)
+  validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
+                     # patients.ts, contracts.ts
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
@@ -88,7 +95,8 @@ src/
                      # marketing/ = seções do site público, blog/ = card + rich text, seo/ = JSON-LD)
   lib/               # utils, cliente Supabase (server/browser/admin/public), auth/
                      # (session, redirect, errors, rate-limit(er) — Fase 3),
-                     # dates (pt-BR, America/Sao_Paulo), env
+                     # dates (pt-BR, America/Sao_Paulo), calendar (aritmética de
+                     # data civil), money (centavos <-> BRL), errors/domain (Fase 5), env
   config/            # configuração pública (siteConfig, timezone)
   hooks/             # hooks compartilhados (ex.: use-mobile)
   types/             # tipos compartilhados gerados/derivados do banco
@@ -109,11 +117,25 @@ src/
 > original da Fase 0 sugeria — um route group a mais aqui não adicionava
 > nenhum benefício (nenhum layout específico só para `/login`).
 >
-> `services/`, `providers/`, `jobs/`, `emails/` **ainda não foram criados** —
-> não há regra de negócio real para colocar neles ainda. `actions/` e
+> `providers/`, `jobs/`, `emails/` **ainda não foram criados** — não há
+> regra de negócio real para colocar neles ainda. `actions/` e
 > `validators/` nasceram na Fase 3 (auth); `domain/`, `data/` e `content/`
-> nasceram na Fase 4 (site público); o resto nasce nas fases que os
-> justificam.
+> nasceram na Fase 4 (site público); `services/` nasceu na Fase 5
+> (pacientes/contratos); o resto nasce nas fases que os justificam.
+>
+> **Dashboard (Fase 5) — fluxo de uma mutação**: página (Server Component,
+> `requireNutritionist()`) → formulário/botão (client) → Server Action em
+> `actions/` (Zod + `requireNutritionist()` + mapeamento de erro +
+> `revalidatePath`) → `services/` (ownership explícito por
+> `nutritionist_id`, regra de negócio, auditoria) → `data/` ou função SQL
+> (`create_contract_with_installments`, `cancel_contract`,
+> `complete_contract` — SECURITY INVOKER, transacionais) → RLS como última
+> camada. Leituras: página → `data/` (cliente de sessão, escopado por
+> `nutritionist_id`, views `patient_overview` e
+> `contract_financial_summary`, sem N+1). Dados administrativos são sempre
+> dinâmicos (`force-dynamic`), nunca ISR; após mutação, `revalidatePath`.
+> Erros de domínio (`lib/errors/domain.ts`) são a única coisa que chega à
+> UI — nunca a mensagem crua do banco.
 >
 > **Conteúdo público (Fase 4)**: páginas do site usam `src/data/*` (que usam
 > `src/lib/supabase/public.ts`, cliente anônimo sem cookies) e nunca o

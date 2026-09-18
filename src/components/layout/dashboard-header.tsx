@@ -41,11 +41,11 @@ export function DashboardHeader({ fullName }: { fullName: string }) {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Fase 1 — Fundação</DialogTitle>
+              <DialogTitle>Versão em desenvolvimento</DialogTitle>
               <DialogDescription>
-                Este dashboard é apenas o shell visual da plataforma. Os
-                módulos (Agenda, Pacientes, Financeiro, etc.) são
-                implementados nas fases seguintes — ver docs/ROADMAP.md.
+                Módulos já funcionais: Pacientes e Contratos (Fase 5). Agenda,
+                Financeiro, Cardápios e os demais são implementados nas fases
+                seguintes — ver docs/ROADMAP.md.
               </DialogDescription>
             </DialogHeader>
           </DialogContent>

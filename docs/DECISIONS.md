@@ -644,3 +644,186 @@ dado plausível/inventado.
     foi feita (Home, Método EM, Sobre, Planos) e o mobile foi validado por
     E2E em 390 px (menu, navegação, hero visível, sem overflow). Vale uma
     passada visual sua em 375/430/768/1024 antes de aprovar.
+
+## Decisões técnicas da Fase 5 (Pacientes + Planos + Contratos)
+
+1. **Status de paciente segue a regra da Fase 2, mapeada para três estados
+   de UI.** `patient_overview.is_effectively_active` = `patients.status =
+   'ACTIVE'` **e** existe `patient_contracts.status = 'ACTIVE'` (mesma
+   fórmula da view `patient_active_status`). Na UI
+   (`src/domain/patients/status.ts`): `ACTIVE` ("Ativo"), `NO_CONTRACT`
+   ("Sem contrato" — cadastro ativo sem contrato vigente; conta como
+   inativo nas métricas e no filtro "Inativos") e `INACTIVE` ("Inativo" —
+   desativado pelo nutricionista, o override administrativo). O card
+   "Pacientes ativos" conta `is_effectively_active = true`; "Total de
+   pacientes" conta todos os pacientes do nutricionista (ativos + sem
+   contrato + desativados — nada é destruído, então nada some da contagem).
+
+2. **Desativar = `status = 'INACTIVE'` + `archived_at = now()`; reativar =
+   `status = 'ACTIVE'` + `archived_at = null`.** O schema já tinha os dois
+   campos com semânticas próximas ("soft delete" e "status manual"); em vez
+   de inventar uma flag nova, a desativação preenche ambos e a reativação
+   limpa ambos — um único conceito na UI. Nada é apagado: contratos,
+   parcelas, pagamentos, consultas, avaliações, feedbacks, materiais e
+   audit log ficam intactos (testado em pgTAP, integração e E2E). Sem hard
+   delete nesta fase (`patients` não tem policy de DELETE).
+
+3. **Ticket médio = receita efetivamente recebida no mês ÷ pacientes
+   pagantes no mês.** `payments.status = 'CONFIRMED'` com `paid_at` dentro
+   do mês civil corrente em America/Sao_Paulo (intervalo convertido para
+   instantes explícitos `-03:00`), dividido pelo número de `patient_id`
+   distintos nesses pagamentos (`computeAverageTicket`, puro e testado).
+   Nunca "valor contratado ÷ pacientes": contrato parcelado não é receita
+   no ato (docs/DATABASE.md, ledger). Sem pagantes => R$ 0,00. O card mostra
+   tooltip com a fórmula e o detalhe "R$ X de N pagantes no mês".
+
+4. **Uma migration nova, sem redesenhar nada da Fase 2**
+   (`supabase/migrations/20260918120000_patients_contracts_management.sql`):
+   - `patient_contracts.notes text` (observações administrativas, §27);
+   - índice único parcial `patients (nutritionist_id, lower(email)) where
+     email is not null` — e-mail duplicado para o mesmo nutricionista nunca
+     é criado silenciosamente, nem em corrida entre requisições (a
+     aplicação também checa antes e mapeia `23505` para
+     `PATIENT_EMAIL_ALREADY_EXISTS`); outro nutricionista pode ter o mesmo
+     e-mail;
+   - view `patient_overview` (`security_invoker = true`): paciente +
+     contrato ACTIVE mais recente + próxima consulta, numa query paginável
+     pelo PostgREST (`count: exact`, `ilike` em nome/e-mail/telefone,
+     `range`) — sem N+1 no servidor;
+   - funções `create_contract_with_installments`, `cancel_contract`,
+     `complete_contract` — **SECURITY INVOKER** (RLS continua valendo
+     dentro delas; ownership via `nutritionist_id = auth.uid()` e
+     `is_nutritionist_of_patient`), transacionais (contrato + parcelas
+     nascem ou falham juntos — PostgREST não oferece transação entre dois
+     inserts), e lançam códigos estáveis (`INVALID_INSTALLMENTS`,
+     `PATIENT_NOT_FOUND`…) que `domainErrorFromDatabase` traduz — o erro
+     cru do banco nunca chega ao usuário.
+
+5. **Parcelas: divisão determinística + regra do dia-âncora.**
+   `splitAmountCents(total, n)`: base = floor(total/n), e as primeiras
+   `resto` parcelas recebem +1 centavo (100000/3 = 33334, 33333, 33333;
+   100/3 = 34, 33, 33) — a função SQL revalida soma exata e numeração 1..n.
+   Vencimentos: `addMonthsClamped` mantém o DIA do primeiro vencimento como
+   âncora e limita ao último dia do mês de destino: 31/01 → 28/02 (29/02
+   em bissexto) → 31/03 → 30/04 (o 31 "volta" nos meses que o têm, porque
+   a âncora é a data original, não a anterior já reduzida). Toda a
+   aritmética é de data civil (`YYYY-MM-DD`), sem `Date` local — nunca
+   depende do fuso da máquina. A pré-visualização no formulário usa o
+   mesmo código do servidor.
+
+6. **Datas sugeridas de término**: `start_date + duration_months` do plano
+   (TRIMESTRAL +3, SEMESTRAL +6, ANUAL +12) com o mesmo clamp; AVULSA (sem
+   duração) sugere o próprio dia da consulta, sem duração artificial. O
+   nutricionista revisa antes de salvar; término vazio é permitido.
+
+7. **Snapshot do contrato**: `contracted_amount_cents` é prefixado pela
+   condição de preço escolhida mas gravado como número do contrato;
+   `plan_price_id` é só rastreabilidade. O nutricionista pode editar o
+   valor antes de salvar (contrato manual/negociado) — o que foi vendido é
+   o que fica; mudar `plan_prices` depois nunca altera contrato antigo.
+   Contratos antigos nunca são sobrescritos: cada um é um card no histórico.
+
+8. **Preços pendentes continuam pendentes.** O dashboard mostra TODAS as
+   condições ativas do plano (cheio/REFERENCIA, parcelado, à vista) e o
+   nutricionista escolhe a vendida; `is_primary` continua só refletindo o
+   banco (AVULSA R$ 230 marcado; TRIMESTRAL/SEMESTRAL sem primário —
+   PENDENTE DE DEFINIÇÃO desde a Fase 0). O plano ANUAL aparece no
+   dashboard (histórico/clientes antigos/contratos manuais) com o badge
+   "Não disponível no site". "Comunidade VIP" continua PENDENTE e não é
+   adicionada a nenhum contrato.
+
+9. **Contratos simultâneos: permitidos, sem constraint.** Plano principal
+   + consulta avulsa podem coexistir; a view escolhe como "contrato atual"
+   o ACTIVE de `start_date` mais recente, os demais ficam no histórico.
+   Uma regra de exclusividade fica **PENDENTE DE DEFINIÇÃO** — não criamos
+   constraint destrutiva sem regra de negócio confirmada.
+
+10. **Status de contrato usa o enum real** (`ACTIVE`/`COMPLETED`/
+    `CANCELLED` → Ativo/Encerrado/Cancelado); não há `PENDING` no enum e
+    não criamos outro. Além do cancelamento exigido (§35), há "Encerrar"
+    (ACTIVE → COMPLETED) — sem ele nenhum contrato sairia de ACTIVE fora do
+    seed. Cancelar move parcelas PENDING/OVERDUE para CANCELLED e preserva
+    as PAID, pagamentos e lançamentos; encerrar não toca nas parcelas (uma
+    parcela pendente de contrato encerrado continua sendo valor a receber).
+    Parcela PENDING vencida é EXIBIDA como "Em atraso" sem persistir
+    OVERDUE — isso é do módulo financeiro (Fase 7).
+
+11. **`patients.email` é e-mail de CONTATO; o login vive em
+    `auth.users.email`.** Editar o paciente altera só o contato — o
+    formulário avisa quando o paciente tem conta. Trocar o e-mail de login
+    exige fluxo próprio do Supabase Auth (confirmação nos dois endereços)
+    e fica como funcionalidade futura, nunca embutida em "Editar paciente".
+
+12. **Convite reutiliza exatamente a infraestrutura da Fase 3.** A lógica
+    de `invitePatientAction` foi extraída para
+    `src/services/onboarding.ts#invitePatientToPortal` e é chamada por três
+    caminhos: a tela `/dashboard/pacientes/convidar` (mantida), "Novo
+    paciente + enviar convite" e "Enviar convite" no perfil. Duplicidade
+    (§15): mesmo e-mail no mesmo nutricionista → `PATIENT_EMAIL_ALREADY_
+    EXISTS` (antes de qualquer escrita); paciente já vinculado →
+    `PATIENT_ALREADY_LINKED`; conta Auth já existente (qualquer origem) →
+    o paciente é salvo mas o convite não sai (`INVITE_NOT_SENT`), o toast
+    avisa e nada é vinculado silenciosamente; paciente sem conta + convite
+    → linha existente é vinculada, nunca duplicada. Status do acesso ao
+    portal (§24) vem de dados reais: `profile_id` + usuário Auth via Admin
+    API (só depois de ownership): "Sem conta", "Convite pendente"
+    (`invited_at` sem confirmação), "Ativo" (`last_sign_in_at`), "Não
+    ativado" (demais casos, ex.: usuário do seed que nunca logou).
+
+13. **Auditoria escrita pela aplicação** (`src/services/audit.ts`):
+    `PATIENT_CREATED/UPDATED/ARCHIVED/REACTIVATED/INVITED`,
+    `CONTRACT_CREATED/CANCELLED/COMPLETED`. Metadata mínima (ids, nomes de
+    campos alterados, código do plano, valor/nº de parcelas) — nunca
+    e-mail, telefone ou nascimento. Usa o cliente de sessão (policy exige
+    `actor_id = auth.uid()`); falha ao auditar é logada no servidor e não
+    desfaz a operação de negócio (não há transação cobrindo as duas
+    escritas). A timeline do perfil usa `PATIENT_ARCHIVED/REACTIVATED` do
+    audit log para eventos já revertidos.
+
+14. **IDs nunca vêm "soltos" do client.** `patientId`/`contractId` chegam
+    como argumento vinculado no servidor (`action.bind(null, id)`) ou são
+    validados como UUID e, em todos os casos, reconferidos por ownership no
+    service (`requireOwnedPatient`/`requireOwnedContract`, com checagem
+    explícita de `nutritionist_id` além do filtro da query e da RLS).
+    Schemas Zod só aceitam campos de negócio — `role`, `profile_id`,
+    `nutritionist_id`, `status`, `created_at` são descartados (testado).
+    `z.guid()` em vez de `z.uuid()`: o Zod 4 `uuid()` exige versão RFC
+    9562 e rejeitava os ids do seed (`90000000-0000-...`), que são UUIDs
+    válidos para o Postgres.
+
+15. **Sem React Hook Form ainda.** Os formulários (paciente: 4 campos;
+    contrato: 8 campos com pré-visualização) usam Server Action +
+    `useActionState`, valores devolvidos pelo servidor em caso de erro e
+    `<select>` nativo (`NativeSelect`) — participa do FormData sem campo
+    oculto e é trivial em E2E. Toast pós-redirect via `?toast=<código>`
+    (`FlashToast`): a action só anexa o código depois da resposta do
+    backend, o componente mostra uma vez e limpa a URL.
+
+16. **Componentes shadcn adicionados**: `table`, `select`, `tabs`,
+    `alert-dialog`, `checkbox`, `sonner` (Toaster sem `next-themes` — a
+    marca é clara, dark mode não é exposto; dependência removida) —
+    `select`/`tabs` ficam disponíveis mas as telas usam `NativeSelect` e
+    seções por link (`?tab=`), que funcionam sem JS e têm URL compartilhável.
+
+17. **Responsividade real com a sidebar.** Descoberto na revisão visual em
+    768/1024 px: o `<main>` do shadcn Sidebar (flex item) crescia além do
+    viewport quando a tabela era larga — corrigido com `min-w-0` no
+    `SidebarInset`. A tabela de pacientes aparece a partir de `lg` (1024,
+    quando sobra largura ao lado da sidebar) com "Término previsto" e
+    "Próxima consulta" só em `xl`; abaixo de `lg` a lista vira cards (uma
+    coluna) com as mesmas ações. Parcelas escondem "Pago em" no mobile.
+
+18. **Rate limit de login e a suíte E2E.** O limitador de login (Fase 3,
+    10/5 min por IP+e-mail, em memória, conta tentativas com sucesso) é
+    compartilhado por toda a suíte quando o servidor é reaproveitado.
+    `e2e/patients.spec.ts` loga o nutricionista 2 vezes (uma página
+    compartilhada por bloco serial) em vez de uma por teste — a suíte
+    inteira fica em ~8 logins do nutricionista por execução. Rodar a suíte
+    duas vezes em 5 minutos no mesmo servidor pode esbarrar no limite (já
+    era assim; fica registrado para a Fase 15).
+
+19. **Regra permanente de QA visual com screenshots** adicionada ao
+    `CLAUDE.md` (desktop 1440 / tablet 768 / mobile 390, viewport +
+    full-page, análise e correção antes de considerar a interface pronta;
+    `screenshots/` no `.gitignore`). Script desta fase:
+    `scripts/screenshots-fase-5.mjs`.

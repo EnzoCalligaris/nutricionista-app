@@ -30,7 +30,7 @@ export function DashboardSidebar() {
             <SidebarMenu>
               {dashboardNavItems.map(({ title, href, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
-                  <SidebarMenuButton asChild isActive={pathname === href} tooltip={title}>
+                  <SidebarMenuButton asChild isActive={href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)} tooltip={title}>
                     <Link href={href}>
                       <Icon />
                       <span>{title}</span>

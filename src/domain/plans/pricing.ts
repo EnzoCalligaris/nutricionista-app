@@ -1,3 +1,5 @@
+import { formatBRL } from "@/lib/money";
+
 /**
  * Regras puras de apresentação de preço de plano (sem I/O). Ver
  * docs/DECISIONS.md — para TRIMESTRAL/SEMESTRAL nenhuma das três
@@ -39,11 +41,7 @@ export type PlanPricePresentation = {
   pendingPrimary: boolean;
 };
 
-const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-export function formatBRL(cents: number): string {
-  return brl.format(cents / 100);
-}
+export { formatBRL };
 
 export function toPriceView(price: PlanPriceInput): PriceView {
   const isInstallments = price.payment_type === "PARCELADO" && price.installments > 1;

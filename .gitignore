@@ -68,3 +68,6 @@ logs/
 # temp
 *.tmp
 .tmp/
+
+# QA visual local (CLAUDE.md) — nunca versionado
+screenshots/
