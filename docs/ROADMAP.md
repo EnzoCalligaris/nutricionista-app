@@ -20,8 +20,21 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   Supabase (browser/server/admin) e tipos gerados. 30 testes pgTAP + 1 teste
   de concorrência, todos passando. Login/autenticação real continuam de fora
   — isso é Fase 3.
-- **FASE 3 — Autenticação e autorização.** Supabase Auth, `profiles`, papéis,
-  RLS base, middlewares de rota por papel.
+- **FASE 3 — Autenticação e autorização.** ✅ Concluída. Supabase Auth via
+  `@supabase/ssr`, `src/proxy.ts` (Next.js 16 renomeou `middleware.ts` para
+  `proxy.ts` — ver `docs/DECISIONS.md`) + helpers server-side
+  (`requireNutritionist`/`requirePatient`) como camadas independentes de
+  proteção de rota, provisionamento automático de `profiles` via trigger
+  (role default sempre `PATIENT`, nunca lida de metadata do client), login/
+  logout/esqueci-senha/redefinir-senha, onboarding mínimo de paciente por
+  convite (sem tela completa de gestão — isso é Fase 5), sanitização central
+  de redirect testada contra 6 vetores de ataque, rate limiting em memória
+  (login/esqueci-senha/convite), CSRF coberto pela proteção nativa de Server
+  Actions do Next.js (verificação de `Origin`). 47 testes unitários + 36
+  pgTAP (6 novos de provisionamento/role escalation) + 13 checks de
+  integração contra Auth/PostgREST reais + 15 E2E Playwright, todos
+  passando. Duas correções de bug descobertas só ao testar o fluxo real
+  (nunca antes exercitado) documentadas em `docs/DECISIONS.md`.
 - **FASE 4 — Site público.** Home, Método EM, Sobre Mim, pilares, planos
   (com preços reais confirmados — ver `DECISIONS.md` pendências), blog
   (listagem/detalhe), contato, login. SEO básico.
@@ -87,3 +100,18 @@ Supabase local; nenhuma credencial de produção foi necessária ou usada).
    implantar em produção — não bloqueia começar a Fase 3 em ambiente local.
 3. Nenhuma tela de login/cadastro funcional, middleware de autorização ou
    fluxo de sessão é implementado antes dessa aprovação.
+
+Todos os 3 itens foram cumpridos (aprovação explícita em 2026-09-17;
+projeto Supabase hospedado real fica para antes da Fase 16).
+
+## Critérios para iniciar a Fase 4
+
+1. Usuário revisou o resultado da Fase 3 (autenticação, autorização, testes)
+   e aprovou explicitamente.
+2. Pendências de conteúdo do site público (`docs/DECISIONS.md`: preço
+   principal de trimestral/semestral, CRN, telefone, endereço, redes
+   sociais, "Comunidade VIP", identidade visual definitiva) esclarecidas ou
+   o usuário aceitou seguir com `PENDENTE DE DEFINIÇÃO` visível no conteúdo.
+3. **Aguardando aprovação explícita do usuário** — Fase 3 concluída, mas a
+   Fase 4 (site público) não deve começar sem sinal verde (prompt Fase 3
+   §55).

@@ -272,3 +272,204 @@ dado plausível/inventado.
     `ADMIN` como super-role e nenhum usuário `ADMIN` é criado — mantém a
     opção aberta (docs da Fase 0/1) sem introduzir uma permissão global
     insegura antes de haver necessidade real.
+
+## Decisões técnicas da Fase 3 (Autenticação e autorização)
+
+1. **`src/proxy.ts`, não `middleware.ts`.** A partir do Next.js 16 (instalado:
+   16.3.5), a convenção `middleware.ts` está **depreciada** em favor de
+   `proxy.ts` — confirmado direto no pacote instalado
+   (`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`:
+   *"The `middleware` file convention is deprecated and has been renamed to
+   `proxy`"*, desde a v16.0.0, com codemod oficial
+   `npx @next/codemod@canary middleware-to-proxy`). Usamos a convenção nova
+   diretamente: `export function proxy(request)` em vez de `middleware`,
+   `export const config = { matcher: [...] }` restrito a
+   `/dashboard`/`/paciente` (proxy roda em toda requisição sem matcher,
+   inclusive assets estáticos). Proxy usa o runtime Node.js por padrão
+   (mudança da v16, antes era Edge) — compatível com `@supabase/ssr` sem
+   ressalvas.
+
+2. **Proteção em camadas de verdade, não só no proxy.** O próprio texto
+   embutido nos docs do Next.js alerta: *"A matcher change or a refactor
+   that moves a Server Function to a different route can silently remove
+   Proxy coverage [...] Always verify authentication and authorization
+   inside each Server Function rather than relying on Proxy alone."* Por
+   isso `src/app/dashboard/layout.tsx` e `src/app/paciente/layout.tsx`
+   chamam `requireNutritionist()`/`requirePatient()`
+   (`src/lib/auth/session.ts`) independentemente do proxy, e a RLS
+   (Fase 2) é a camada final que vale mesmo se as duas anteriores
+   falharem.
+
+3. **Role default é sempre `PATIENT`, nunca lida de metadata do client.**
+   Trigger `handle_new_auth_user` (`AFTER INSERT ON auth.users`, SECURITY
+   DEFINER, `search_path = ''` — mesmo padrão das funções auxiliares de RLS
+   da Fase 2) cria o profile automaticamente; só `full_name` vem de
+   `raw_user_meta_data`, nunca `role` (testado explicitamente em
+   `supabase/tests/database/060_auth_provisioning.test.sql`, caso "role em
+   raw_user_meta_data é ignorada"). Promover alguém a `NUTRITIONIST` é
+   sempre uma ação administrativa separada via `service_role`
+   (`scripts/bootstrap-nutritionist.mjs`, documentado abaixo). A policy
+   `profiles_insert_self` (Fase 2) foi apertada para só aceitar
+   auto-inserção com `role = 'PATIENT'` — defesa em profundidade somada ao
+   trigger `prevent_role_change` (Fase 2, já bloqueava `UPDATE` de role por
+   quem não é `service_role`).
+
+4. **Sem cadastro público de nutricionista** (prompt Fase 3 §21). Bootstrap
+   é administrativo: `scripts/bootstrap-nutritionist.mjs`, rodado
+   manualmente por quem tem a `SUPABASE_SERVICE_ROLE_KEY` (nunca por uma
+   rota HTTP pública) — convida por e-mail pelo mesmo fluxo seguro usado
+   para pacientes e depois promove o profile a `NUTRITIONIST` via
+   service role. Documentado no próprio script, único processo hoje.
+
+5. **Onboarding de paciente é núcleo mínimo, não gestão de pacientes.**
+   `src/actions/onboarding.ts` (`invitePatientAction`) +
+   `src/app/dashboard/pacientes/convidar/page.tsx` — convida por e-mail via
+   `admin.inviteUserByEmail`, nunca por definição manual de senha pelo
+   nutricionista (prompt Fase 3 §23). Trata duplicidade: e-mail já com
+   paciente vinculado → erro; paciente cadastrado manualmente sem login
+   ainda (linha em `patients` com `profile_id null`) → vincula em vez de
+   duplicar. Compensação (prompt Fase 3 §26): se o Auth user foi criado
+   nesta chamada mas o insert/update em `patients` falhar, o Auth user é
+   removido (`admin.auth.admin.deleteUser`) para não deixar conta órfã sem
+   paciente vinculado — onboarding cruza Auth + Database sem uma transação
+   única cobrindo os dois. Tela completa de gestão de pacientes continua
+   Fase 5.
+
+6. **Sem React Hook Form nesta fase.** Formulários (login, esqueci-senha,
+   redefinir-senha, convite) usam Server Actions + `useActionState` (React
+   19) com `<form action={...}>` nativo — dois campos por formulário no
+   máximo, validação de autoridade sempre no server (Zod em
+   `src/validators/auth.ts`), RHF não agregaria valor aqui
+   (`docs/ARCHITECTURE.md`: "nenhuma dependência adicional [...] porque é
+   popular"). RHF fica para formulários mais complexos de fases futuras
+   (cardápio, avaliação) se/quando justificar.
+
+7. **Rate limiting em memória do processo, documentado como limitação**
+   (prompt Fase 3 §27). `src/lib/auth/rate-limiter.ts` (lógica pura,
+   testável) + `src/lib/auth/rate-limit.ts` (instâncias configuradas por
+   fluxo — login 10/5min, esqueci-senha 5/15min, convite 20/hora — e
+   `getClientIp()`, este sim `server-only`). Correto para dev local e um
+   servidor Node único; **não confiável sozinho em produção na Vercel**
+   (funções serverless não compartilham memória entre instâncias). Iface
+   `RateLimiter` permite trocar por um store externo (ex.: Upstash Redis)
+   sem mudar quem chama — não integramos fornecedor pago agora (`PENDENTE
+   DE DEFINIÇÃO` para antes da Fase 16/produção).
+
+8. **CSRF coberto pela proteção nativa de Server Actions do Next.js, sem
+   biblioteca adicional** (prompt Fase 3 §32). Toda mutação desta fase
+   (login, logout, esqueci-senha, redefinir-senha, convite) é uma Server
+   Action, e o Next.js já compara `Origin` com `Host`/`X-Forwarded-Host` e
+   rejeita divergência — confirmado no texto oficial embutido no pacote
+   instalado (`node_modules/next/dist/docs/01-app/02-guides/server-actions.md`:
+   *"CSRF check. The request's Origin is compared to the Host [...]
+   Mismatches are rejected"*). A única Route Handler de mutação potencial
+   (`/auth/callback`) é `GET`, idempotente (troca um código de uso único
+   por sessão), não uma mutação de estado de negócio. Não instalamos
+   biblioteca de CSRF token só para "marcar checkbox" — decisão explícita
+   do prompt.
+
+9. **`redirectTo` de convite/esqueci-senha aponta direto para
+   `/redefinir-senha`, não para `/auth/callback`.** Descoberta testando o
+   fluxo real: `inviteUserByEmail`/`resetPasswordForEmail` são chamados do
+   SERVIDOR (Admin API / server action), não de um browser com PKCE já
+   iniciado — o GoTrue local devolve `access_token`/`refresh_token` no
+   **fragmento** da URL (`#...`), nunca um `?code=`. Fragmento nunca chega
+   ao servidor (o browser não o envia em nenhuma requisição HTTP), então
+   `src/app/auth/callback/route.ts` (Route Handler, server-only) é
+   estruturalmente incapaz de processá-lo. `src/components/auth/
+   reset-password-gate.tsx` (Client Component) é quem lê
+   `window.location.hash` e chama `setSession()` no browser, que persiste
+   a sessão em cookies via `@supabase/ssr` (os mesmos que o server action
+   de reset volta a ler). `/auth/callback` continua existindo e correto
+   para o caso PKCE genuíno (`?code=`), relevante se um fluxo iniciado
+   pelo próprio browser for adicionado no futuro (ex.: "Entrar com
+   Google").
+
+10. **`supabase/config.toml`: `site_url`/`additional_redirect_urls`
+    alinhados a `http://localhost:3000`.** Estavam em `127.0.0.1:3000` (só
+    `https`, sem path) desde a Fase 0/1 — o GoTrue rejeita silenciosamente
+    qualquer `redirectTo` fora da allow-list e cai no `site_url` puro, sem
+    token/`next` nenhum. Só ficou visível testando o convite de verdade
+    pela primeira vez nesta fase (nenhum teste anterior passava pela API
+    do GoTrue). Corrigido para `http://localhost:3000` + `/redefinir-senha`
+    e `/auth/callback` explícitos, alinhado a `NEXT_PUBLIC_SITE_URL`
+    (`.env.example`).
+
+11. **BUG REAL encontrado e corrigido: `validate_patient_profile_roles`
+    (Fase 2) precisava de `SECURITY DEFINER`.** Sem isso, o trigger roda
+    com a RLS do usuário que insere em `patients` — normalmente o próprio
+    nutricionista. A policy `profiles_select_by_nutritionist` só libera a
+    leitura do profile do paciente **depois** que a linha em `patients` que
+    os vincula já existe — dependência circular com o que o trigger está
+    validando durante esse mesmo `INSERT`. Resultado: convidar um paciente
+    novo falhava sempre com "profile_id precisa referenciar um profile com
+    role PATIENT", mesmo quando o profile era PATIENT de verdade. Nunca
+    apareceu na Fase 2 porque todo insert de teste/seed em `patients`
+    rodava como superuser (bypassa RLS de qualquer forma) — só ficou visível
+    testando o fluxo real de onboarding autenticado como nutricionista.
+    Corrigido em `supabase/migrations/20260917120001_fix_validate_patient_profile_roles_rls.sql`
+    (mesmo padrão `SECURITY DEFINER` + `search_path = ''` das funções
+    auxiliares de RLS).
+
+12. **BUG REAL encontrado e corrigido: `auth.users` sem defaults para
+    colunas de token quebrava login de usuário criado por insert direto.**
+    `confirmation_token`, `recovery_token`, `email_change_token_new` e
+    `email_change` não têm `DEFAULT` no schema do Supabase Auth — ficavam
+    `NULL` em todo insert direto em `auth.users` usado desde a Fase 2
+    (`supabase/seed.sql`, os 5 arquivos de teste pgTAP,
+    `scripts/db-concurrency-test.mjs`). O GoTrue faz `Scan` dessas colunas
+    como string não-anulável — login (e qualquer chamada de Auth) sobre
+    esses usuários falhava com HTTP 500 ("sql: Scan error [...] converting
+    NULL to string is unsupported"). Também só ficou visível agora: nenhum
+    teste da Fase 2 passava pela API do GoTrue (pgTAP e o teste de
+    concorrência conversam direto com Postgres). `ALTER TABLE auth.users`
+    não é permitido pelo papel usado nas migrations (`must be owner of
+    table users` — `auth.users` pertence a `supabase_auth_admin`, e
+    `postgres` local não é membro desse papel; correto o schema de Auth
+    ficar protegido assim). Corrigido no nível dos fixtures: todo insert
+    direto em `auth.users` passou a informar essas 4 colunas como `''`
+    explicitamente.
+
+13. **BUG DE SEGURANÇA REAL encontrado e corrigido: o gate de
+    redefinição de senha podia alterar a senha da conta ERRADA.**
+    `ResetPasswordGate` (client) originalmente pulava o processamento do
+    token do link (`window.location.hash`) sempre que o browser já tinha
+    QUALQUER sessão válida (`if (initialHasSession) return`). Cenário real
+    testado manualmente: nutricionista logado no mesmo browser abre o link
+    de convite que acabou de gerar para um paciente → o gate via a sessão
+    do nutricionista já presente nos cookies, nunca processava o token do
+    paciente, e mostrava o formulário de nova senha operando em cima da
+    sessão errada — o formulário seguinte trocava a senha do
+    **nutricionista**, não a do paciente dono do link. Corrigido: quando o
+    link traz um token no fragmento, ele SEMPRE tem prioridade e
+    sobrescreve qualquer sessão pré-existente no browser; a sessão
+    "existente" só é aproveitada quando não há token nenhum na URL (ex.:
+    página recarregada na mesma aba depois que o token já tinha sido
+    trocado por sessão). Reproduzido manualmente antes e depois da correção
+    para confirmar (senha do nutricionista ficou intacta; senha do
+    paciente convidado passou a funcionar). Não havia teste automatizado
+    cobrindo esse cenário específico (sessão de outra conta já ativa no
+    mesmo browser) antes desta fase — vale como item de atenção para
+    revisão de segurança em fases futuras (`docs/SECURITY.md`).
+
+14. **Testes E2E de autenticação rodam em série
+    (`test.describe.configure({ mode: "serial" })`).** `e2e/auth.spec.ts` e
+    `e2e/smoke.spec.ts` (que passou a depender de login desde que
+    `/dashboard`/`/paciente` exigem autenticação) batem no mesmo processo
+    único do Next.js (`npm run start`) e no mesmo Postgres local — sob alta
+    concorrência de workers observamos troca esporádica de sessão entre
+    requisições paralelas nesse setup de dev/CI local sem isolamento entre
+    workers (não reproduzido de forma determinística o suficiente para
+    isolar se é do ambiente de teste local ou mereceria investigação
+    própria). Rodar em série elimina a flakiness sem mascarar nenhuma
+    asserção; registrado aqui como item a revisitar na Fase 15 (testes/
+    performance) se a suíte crescer a ponto de a execução serial pesar no
+    tempo de CI.
+
+15. **Testes de integração de Auth ficam fora do `npm run test:run`.**
+    `scripts/auth-integration-test.mjs` (`npm run test:auth:integration`)
+    bate direto nas APIs REST do GoTrue/PostgREST locais — mesmo padrão de
+    `scripts/db-concurrency-test.mjs`: requer `npm run db:start` rodando,
+    então fica fora da suíte Vitest, que continua rodando sem Supabase
+    (`docs/ROADMAP.md`, Fase 1: "rodar só a Home/shells não precisa
+    Supabase").

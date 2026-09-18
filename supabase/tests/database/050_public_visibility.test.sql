@@ -7,9 +7,10 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(6);
 
-insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
-values ('00000000-0000-0000-0000-000000000000', 'e0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'e-nutri@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}');
-insert into public.profiles (id, role, full_name) values ('e0000000-0000-0000-0000-000000000001', 'NUTRITIONIST', 'E Nutri');
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, confirmation_token, recovery_token, email_change_token_new, email_change)
+values ('00000000-0000-0000-0000-000000000000', 'e0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'e-nutri@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}', '', '', '', '');
+insert into public.profiles (id, role, full_name) values ('e0000000-0000-0000-0000-000000000001', 'NUTRITIONIST', 'E Nutri')
+on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
 
 insert into public.patients (id, nutritionist_id, full_name)
 values ('e0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'E Patient');

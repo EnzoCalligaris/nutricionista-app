@@ -27,19 +27,24 @@ de jobs para notificações, se o volume justificar).
 
 ```
 app/
-  (public)/                  # site público — layout próprio, SEO, sem auth
+  (public)/                  # site público — layout próprio, SEO
     page.tsx                 # home
-    metodo/                  # Método EM
+    login/                   # Fase 3
+    esqueci-senha/           # Fase 3
+    redefinir-senha/         # Fase 3
+    metodo/                  # Fase 4
     sobre/
     planos/
     resultados/
     blog/[slug]/
     contato/
     agendar/
-    (auth)/login/
-  dashboard/                 # área do nutricionista — middleware exige role=NUTRITIONIST
+  auth/
+    callback/route.ts        # Fase 3 — troca de código PKCE por sessão (server-side)
+  dashboard/                 # área do nutricionista — exige role=NUTRITIONIST (Fase 3)
     agenda/
     pacientes/[id]/
+    pacientes/convidar/      # Fase 3 — núcleo mínimo de onboarding, não gestão completa
     cardapios/
     avaliacoes/
     comentarios/
@@ -49,7 +54,7 @@ app/
     resultados/
     materiais/
     configuracoes/
-  paciente/                  # portal do paciente — middleware exige role=PATIENT
+  paciente/                  # portal do paciente — exige role=PATIENT (Fase 3)
     cardapio/
     evolucao/
     consultas/
@@ -61,18 +66,24 @@ app/
     webhooks/{payments,whatsapp}/
     cron/{notification-reminders,...}/
 src/
-  domain/            # entidades, regras de negócio puras, sem I/O
+  proxy.ts           # Fase 3 — proteção de rota (Next 16 renomeou middleware.ts;
+                     # ver docs/DECISIONS.md)
+  domain/            # entidades, regras de negócio puras, sem I/O — ainda não criado
     patients/ plans/ contracts/ appointments/ meal-plans/ assessments/ ...
-  services/          # orquestração de casos de uso (usa domain + data access)
-  data/              # queries/repositories Supabase, um módulo por agregado
-  actions/           # server actions (mutações chamadas pela UI)
-  validators/        # schemas Zod, compartilhados client/server
+  services/          # orquestração de casos de uso (usa domain + data access) — ainda não criado
+  data/              # queries/repositories Supabase, um módulo por agregado — ainda não criado
+  actions/           # server actions (mutações chamadas pela UI) — auth.ts e
+                     # onboarding.ts desde a Fase 3
+  validators/        # schemas Zod, compartilhados client/server — auth.ts desde a Fase 3
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
-                     # WhatsAppProvider, FoodAnalysisProvider (+ implementações)
-  jobs/              # tarefas agendadas (lembretes, retries de notificação)
-  emails/            # templates React Email
-  components/        # UI compartilhada (ui/ = shadcn primitives, layout/ = shells, shared/ = genéricos)
-  lib/               # utils, cliente Supabase (server/browser), datas/timezone, env
+                     # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
+  jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
+  emails/            # templates React Email — ainda não criado
+  components/        # UI compartilhada (ui/ = shadcn primitives, layout/ = shells,
+                     # shared/ = genéricos, auth/ = formulários/gate de auth desde a Fase 3)
+  lib/               # utils, cliente Supabase (server/browser/admin), auth/
+                     # (session, redirect, errors, rate-limit(er) — Fase 3),
+                     # datas/timezone, env
   config/            # configuração pública (siteConfig, timezone)
   hooks/             # hooks compartilhados (ex.: use-mobile)
   types/             # tipos compartilhados gerados/derivados do banco
@@ -84,14 +95,19 @@ src/
 > `/resultados` do dashboard colidirem com as páginas públicas de mesmo nome
 > (mesma URL, duas páginas — Next.js recusa o build). A estrutura implementada
 > usa `dashboard/` e `paciente/` como segmentos de rota reais (não
-> parenteses), o que também simplifica o middleware de autorização da Fase 3
-> (basta checar `pathname.startsWith("/dashboard")`, sem visibilidade especial
-> sobre route groups).
+> parenteses), o que também simplificou a proteção de rota da Fase 3 (basta
+> checar `pathname.startsWith("/dashboard")` em `src/proxy.ts`, sem
+> visibilidade especial sobre route groups).
 >
-> `domain/`, `services/`, `data/`, `actions/`, `validators/`, `providers/`,
-> `jobs/`, `emails/` **ainda não foram criados** — não há regra de negócio real
-> para colocar neles na Fase 1. Eles nascem nas fases que os justificam (Fase 2
-> em diante), em vez de existirem vazios agora.
+> **Correção feita na Fase 3**: `/login` foi implementado como rota própria
+> dentro de `(public)/`, não aninhada em `(auth)/login/` como o desenho
+> original da Fase 0 sugeria — um route group a mais aqui não adicionava
+> nenhum benefício (nenhum layout específico só para `/login`).
+>
+> `domain/`, `services/`, `data/`, `providers/`, `jobs/`, `emails/` **ainda
+> não foram criados** — não há regra de negócio real para colocar neles
+> ainda. `actions/` e `validators/` nasceram na Fase 3 (auth), o resto nasce
+> nas fases que os justificam.
 
 Regra: **domain não importa de data/services**; **UI não acessa `data/` direto**,
 sempre via `actions/` ou `services/`. Isso evita regra de negócio duplicada entre

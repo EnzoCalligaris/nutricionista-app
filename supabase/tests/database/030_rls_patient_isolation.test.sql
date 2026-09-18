@@ -10,18 +10,19 @@ create extension if not exists pgtap with schema extensions;
 select plan(9);
 
 -- Fixtures (como superuser, ignora RLS) --------------------------------
-insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, confirmation_token, recovery_token, email_change_token_new, email_change)
 values
-  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'c-nutri1@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}'),
-  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'c-nutri2@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}'),
-  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'c-patient-a@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}'),
-  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'c-patient-b@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}');
+  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'c-nutri1@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'c-nutri2@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'c-patient-a@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'c0000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'c-patient-b@example.com', crypt('x', gen_salt('bf')), now(), now(), now(), '{}', '{}', '', '', '', '');
 
 insert into public.profiles (id, role, full_name) values
   ('c0000000-0000-0000-0000-000000000001', 'NUTRITIONIST', 'Nutri 1'),
   ('c0000000-0000-0000-0000-000000000002', 'NUTRITIONIST', 'Nutri 2'),
   ('c0000000-0000-0000-0000-000000000003', 'PATIENT', 'Patient A'),
-  ('c0000000-0000-0000-0000-000000000004', 'PATIENT', 'Patient B');
+  ('c0000000-0000-0000-0000-000000000004', 'PATIENT', 'Patient B')
+on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
 
 -- Paciente B é gerido pelo Nutri 1 e tem profile próprio (login).
 insert into public.patients (id, profile_id, nutritionist_id, full_name) values

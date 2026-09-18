@@ -14,15 +14,16 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { LogoutMenuItem } from "@/components/auth/logout-menu-item";
+import { initials } from "@/lib/utils";
 
-export function DashboardHeader() {
+export function DashboardHeader({ fullName }: { fullName: string }) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
       <SidebarTrigger />
@@ -54,16 +55,15 @@ export function DashboardHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2">
               <Avatar className="size-7">
-                <AvatarFallback>EM</AvatarFallback>
+                <AvatarFallback>{initials(fullName)}</AvatarFallback>
               </Avatar>
-              <span className="hidden text-sm sm:inline">Enzo Mangili</span>
+              <span className="hidden text-sm sm:inline">{fullName}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>Perfil (Fase 3)</DropdownMenuItem>
-            <DropdownMenuItem disabled>Sair (Fase 3)</DropdownMenuItem>
+            <LogoutMenuItem />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

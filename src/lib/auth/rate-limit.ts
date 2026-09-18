@@ -1,0 +1,24 @@
+import "server-only";
+
+import { headers } from "next/headers";
+import { InMemoryRateLimiter, type RateLimiter } from "@/lib/auth/rate-limiter";
+
+export type { RateLimiter, RateLimitResult } from "@/lib/auth/rate-limiter";
+
+// Um limitador nomeado por fluxo público sensível (prompt Fase 3 §27/§28):
+// login, esqueci-senha, e ações administrativas de onboarding de paciente.
+// Lógica de janela/contagem em src/lib/auth/rate-limiter.ts (sem
+// "server-only", testada em rate-limiter.test.ts).
+export const loginRateLimiter: RateLimiter = new InMemoryRateLimiter(10, 5 * 60 * 1000);
+export const forgotPasswordRateLimiter: RateLimiter = new InMemoryRateLimiter(5, 15 * 60 * 1000);
+export const patientInviteRateLimiter: RateLimiter = new InMemoryRateLimiter(20, 60 * 60 * 1000);
+
+/** IP do cliente a partir dos headers de proxy — usado para compor a chave de rate limit. */
+export async function getClientIp(): Promise<string> {
+  const requestHeaders = await headers();
+  const forwardedFor = requestHeaders.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]!.trim();
+  }
+  return requestHeaders.get("x-real-ip") ?? "unknown";
+}

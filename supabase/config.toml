@@ -160,11 +160,29 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# Alinhado a NEXT_PUBLIC_SITE_URL (.env.example, http://localhost:3000).
+# Sem essas entradas o GoTrue rejeita o redirectTo pedido e cai
+# silenciosamente no `site_url` puro, sem token/next — descoberto testando
+# o fluxo real de convite/reset de senha na Fase 3 (docs/DECISIONS.md).
+# - /redefinir-senha: destino de convite (src/actions/onboarding.ts) e
+#   "esqueci minha senha" (src/actions/auth.ts) — ambos iniciados pelo
+#   servidor, então o GoTrue devolve token no fragmento da URL, tratado
+#   client-side por src/components/auth/reset-password-gate.tsx.
+# - /auth/callback: reservado para um futuro fluxo PKCE genuíno iniciado
+#   pelo browser (ex.: OAuth) — não usado por convite/reset hoje, mas
+#   mantido liberado para não exigir outra mudança de config quando
+#   existir.
+additional_redirect_urls = [
+  "http://localhost:3000/redefinir-senha",
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/redefinir-senha",
+  "http://127.0.0.1:3000/auth/callback",
+  "https://127.0.0.1:3000",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

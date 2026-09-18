@@ -3,9 +3,10 @@
 Plataforma completa (site público, dashboard do nutricionista e portal do
 paciente) para o acompanhamento nutricional de Enzo Mangili — o **Método EM**.
 
-> **Status**: Fases 1 e 2 concluídas (fundação do projeto + banco de dados
-> Supabase local com RLS). Ainda não há autenticação real nem funcionalidades
-> de produto — ver `docs/ROADMAP.md`.
+> **Status**: Fases 1, 2 e 3 concluídas (fundação do projeto, banco de dados
+> Supabase local com RLS, e autenticação/autorização real). Ainda não há
+> funcionalidades de produto (pacientes, agenda, financeiro, cardápios) —
+> ver `docs/ROADMAP.md`.
 
 ## Documentação do produto e da arquitetura
 
@@ -81,8 +82,16 @@ npm run dev
 Abre em [http://localhost:3000](http://localhost:3000):
 
 - `/` — home provisória (valida o design system; site institucional real é Fase 4)
-- `/dashboard` — shell do dashboard do nutricionista (só layout, sem dados reais)
-- `/paciente` — shell do portal do paciente (só layout, sem dados reais)
+- `/login`, `/esqueci-senha`, `/redefinir-senha` — autenticação (Fase 3)
+- `/dashboard` — área do nutricionista, exige login com role `NUTRITIONIST`
+  (só shell visual além do fluxo de auth; dados reais são fases futuras)
+- `/dashboard/pacientes/convidar` — núcleo mínimo de onboarding (convite por
+  e-mail); tela completa de gestão de pacientes é Fase 5
+- `/paciente` — portal do paciente, exige login com role `PATIENT`
+
+Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
+`dev-nutricionista@example.test` (nutricionista) ou
+`fulana.detal@example.test` (paciente).
 
 ## Scripts
 
@@ -99,35 +108,43 @@ Abre em [http://localhost:3000](http://localhost:3000):
 | `npm run db:start` / `db:stop` | Sobe/derruba o Supabase local |
 | `npm run db:reset` | Reaplica migrations + seed fictício |
 | `npm run db:types` | Regenera `src/types/database.ts` |
-| `npm run test:db` | Testes pgTAP (constraints, RLS, IDOR, financeiro) |
+| `npm run test:db` | Testes pgTAP (constraints, RLS, IDOR, financeiro, provisionamento de auth) |
 | `npm run test:db:concurrency` | Teste real de concorrência (double-booking) |
+| `npm run test:auth:integration` | Testes de integração de auth contra Supabase local real (login, RLS, role escalation) |
+| `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)
 
 ```
 src/
+  proxy.ts             # proteção de rota (Next 16 renomeou middleware.ts)
   app/
-    (public)/        # site público — home provisória
-    dashboard/        # shell do dashboard do nutricionista
-    paciente/          # shell do portal do paciente
+    (public)/          # site público — home provisória, login/esqueci-senha/redefinir-senha
+    auth/callback/     # troca de código PKCE por sessão (server-side)
+    dashboard/         # área do nutricionista — exige login + role NUTRITIONIST
+    paciente/          # portal do paciente — exige login + role PATIENT
+  actions/             # server actions (auth.ts, onboarding.ts)
+  validators/          # schemas Zod (auth.ts)
   components/
     ui/                # primitivos shadcn/ui
     layout/            # headers, sidebars, shells
     shared/            # genéricos (Container, ComingSoon)
+    auth/              # formulários de login/senha, gate de reset, menu de logout
   config/              # siteConfig (nome, locale, timezone)
   hooks/               # hooks compartilhados
-  lib/                 # utils, env.ts, supabase/ (client/server/admin)
+  lib/                 # utils, env.ts, supabase/ (client/server/admin), auth/ (session,
+                       # redirect, errors, rate-limit(er))
   types/               # database.ts (gerado — nunca editar à mão)
-e2e/                   # testes Playwright
+e2e/                   # testes Playwright (smoke, auth)
 supabase/              # migrations, seed.sql, tests/database (pgTAP), config.toml
-scripts/               # scripts de dev fora do Next.js (ex.: teste de concorrência)
+scripts/               # scripts fora do Next.js (concorrência, integração de auth, bootstrap do nutricionista)
 docs/                  # especificação, arquitetura, banco, segurança, decisões, roadmap
 references/            # material original fornecido por Enzo — local apenas, fora do Git
 ```
 
-`domain/`, `services/`, `data/`, `actions/`, `validators/`, `providers/`,
-`jobs/`, `emails/` ainda não existem — nascem nas fases que os justificam (ver
-`docs/ARCHITECTURE.md`).
+`domain/`, `services/`, `data/`, `providers/`, `jobs/`, `emails/` ainda não
+existem — nascem nas fases que os justificam (ver `docs/ARCHITECTURE.md`).
+`actions/` e `validators/` nasceram na Fase 3 (auth).
 
 ## Environment variables
 

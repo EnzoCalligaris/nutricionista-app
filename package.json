@@ -16,7 +16,9 @@
     "db:reset": "supabase db reset --local",
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
     "test:db": "supabase test db --local",
-    "test:db:concurrency": "node scripts/db-concurrency-test.mjs"
+    "test:db:concurrency": "node scripts/db-concurrency-test.mjs",
+    "test:auth:integration": "node scripts/auth-integration-test.mjs",
+    "bootstrap:nutritionist": "node scripts/bootstrap-nutritionist.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

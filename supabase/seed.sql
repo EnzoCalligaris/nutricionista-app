@@ -5,37 +5,54 @@
 -- Usuários fictícios com login (nutricionista + 2 pacientes) usam a senha
 -- de desenvolvimento "NutricaoDev123" — válida SÓ no ambiente local, nunca
 -- em produção (prompt Fase 2 §48).
+--
+-- Desde a Fase 3, todo insert em auth.users dispara o trigger
+-- `on_auth_user_created` (ver migration de provisionamento de profiles), que
+-- já cria um profile PATIENT automaticamente. Por isso os inserts em
+-- public.profiles abaixo usam `on conflict (id) do update` em vez de um
+-- insert simples — sem isso, o insert explícito (ex.: promovendo a
+-- NUTRITIONIST) colidiria com a linha já criada pelo trigger.
 
 -- Nutricionista fictício ---------------------------------------------------
+-- confirmation_token/recovery_token/email_change_token_new/email_change
+-- precisam ser '' (nunca NULL) mesmo fora do fluxo real de signup: o
+-- GoTrue faz Scan dessas colunas como string não-anulável, e elas não têm
+-- DEFAULT no schema do Supabase Auth (docs/DECISIONS.md, Fase 3 — só
+-- descoberto ao testar login de verdade pela primeira vez).
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+  email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change_token_new, email_change
 ) values (
   '00000000-0000-0000-0000-000000000000',
   '90000000-0000-0000-0000-000000000001',
   'authenticated', 'authenticated', 'dev-nutricionista@example.test',
   crypt('NutricaoDev123', gen_salt('bf')),
-  now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'
+  now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}',
+  '', '', '', ''
 );
 
 insert into public.profiles (id, role, full_name) values
-  ('90000000-0000-0000-0000-000000000001', 'NUTRITIONIST', 'Nutricionista Demo (dev)');
+  ('90000000-0000-0000-0000-000000000001', 'NUTRITIONIST', 'Nutricionista Demo (dev)')
+on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
 
 -- Pacientes fictícios com login (Fulana e Beltrano) ------------------------
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+  email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change_token_new, email_change
 ) values
   ('00000000-0000-0000-0000-000000000000', '90000000-0000-0000-0000-000000000101',
    'authenticated', 'authenticated', 'fulana.detal@example.test', crypt('NutricaoDev123', gen_salt('bf')),
-   now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+   now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '90000000-0000-0000-0000-000000000102',
    'authenticated', 'authenticated', 'beltrano.dasilva@example.test', crypt('NutricaoDev123', gen_salt('bf')),
-   now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}');
+   now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', '', '', '', '');
 
 insert into public.profiles (id, role, full_name) values
   ('90000000-0000-0000-0000-000000000101', 'PATIENT', 'Fulana de Tal'),
-  ('90000000-0000-0000-0000-000000000102', 'PATIENT', 'Beltrano da Silva');
+  ('90000000-0000-0000-0000-000000000102', 'PATIENT', 'Beltrano da Silva')
+on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
 
 -- Pacientes ------------------------------------------------------------
 -- Fulana e Beltrano têm profile_id (login ativo). Sicrana, Ciclano e Fulano
