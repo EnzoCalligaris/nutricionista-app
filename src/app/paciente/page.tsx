@@ -7,18 +7,19 @@ import { requirePatient } from "@/lib/auth/session";
 import { listPatientAppointments } from "@/data/appointments";
 import { getPatientBookingContext } from "@/services/scheduling";
 import { isActive } from "@/domain/scheduling/state-machine";
+import { getPublishedMealPlan } from "@/data/meal-plans";
+import { formatTimeOfDay } from "@/domain/meal-plans/quantities";
 import { formatTimeRange, formatWeekdayLong } from "@/lib/dates";
-import { instantToDateISO } from "@/lib/timezone";
+import { instantToDateISO, weekdayOfDate } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
 const futureCards = [
-  { title: "Cardápio do dia", icon: UtensilsCrossed, phase: "Fase 8" },
   { title: "Último feedback", icon: MessageSquare, phase: "Fase 10" },
   { title: "Última avaliação", icon: LineChart, phase: "Fase 9" },
 ] as const;
 
-/** Início do portal: próxima consulta real (Fase 6); demais cards continuam previstos para fases futuras. */
+/** Início do portal: próxima consulta real (Fase 6) e cardápio do dia (Fase 8); demais cards continuam previstos para fases futuras. */
 export default async function PatientHomePage() {
   const profile = await requirePatient();
   const context = await getPatientBookingContext(profile.id);
@@ -29,6 +30,9 @@ export default async function PatientHomePage() {
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null
     : null;
   const timeZone = context?.settings.timeZone ?? "America/Sao_Paulo";
+  const today = instantToDateISO(now, timeZone);
+  const mealPlan = context ? await getPublishedMealPlan(context.patientId) : null;
+  const todayMeals = mealPlan?.days.find((day) => day.weekday === weekdayOfDate(today))?.meals ?? [];
 
   return (
     <div className="space-y-6">
@@ -58,6 +62,39 @@ export default async function PatientHomePage() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma consulta agendada.</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="font-sans text-sm font-normal text-muted-foreground">Cardápio do dia</CardTitle>
+            <UtensilsCrossed className="size-4 text-muted-foreground" aria-hidden="true" />
+          </CardHeader>
+          <CardContent>
+            {!mealPlan ? (
+              <p className="text-sm text-muted-foreground">Seu plano alimentar ainda não foi publicado.</p>
+            ) : todayMeals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma refeição cadastrada para hoje.{" "}
+                <Link href="/paciente/cardapio" className="underline underline-offset-4">
+                  Ver o cardápio completo
+                </Link>
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <ul className="space-y-1 text-sm">
+                  {todayMeals.slice(0, 4).map((meal) => (
+                    <li key={meal.id} className="flex items-baseline justify-between gap-2">
+                      <span className="truncate">{meal.name}</span>
+                      {meal.timeOfDay ? <span className="shrink-0 text-muted-foreground tabular-nums">{formatTimeOfDay(meal.timeOfDay)}</span> : null}
+                    </li>
+                  ))}
+                  {todayMeals.length > 4 ? <li className="text-xs text-muted-foreground">+ {todayMeals.length - 4} refeição(ões)</li> : null}
+                </ul>
+                <Link href="/paciente/cardapio" className="text-sm underline underline-offset-4">
+                  Ver o cardápio completo
+                </Link>
+              </div>
             )}
           </CardContent>
         </Card>

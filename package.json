@@ -24,6 +24,8 @@
     "test:scheduling:concurrency": "node scripts/scheduling-concurrency-test.mjs",
     "test:financial:integration": "node scripts/financial-integration-test.mjs",
     "screenshots:fase-7": "node scripts/screenshots-fase-7.mjs",
+    "test:meal-plans:integration": "node scripts/meal-plans-integration-test.mjs",
+    "screenshots:fase-8": "node scripts/screenshots-fase-8.mjs",
     "screenshots:fase-6": "node scripts/screenshots-fase-6.mjs",
     "screenshots:fase-5": "node scripts/screenshots-fase-5.mjs",
     "bootstrap:nutritionist": "node scripts/bootstrap-nutritionist.mjs"

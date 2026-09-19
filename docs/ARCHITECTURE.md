@@ -48,7 +48,7 @@ app/
     agenda/
     pacientes/[id]/
     pacientes/convidar/      # Fase 3 — núcleo mínimo de onboarding, não gestão completa
-    cardapios/
+    cardapios/               # Fase 8 — visão por paciente; editor em pacientes/[id]/cardapio/[versionId]
     avaliacoes/
     comentarios/
     consultas/
@@ -78,23 +78,26 @@ src/
                      # scheduling/ (intervalos, slots, regras de disponibilidade,
                      # máquina de estados, visões/geometria do calendário) desde a Fase 6;
                      # finance/ (definições, saldo de parcela/alocação de pagamento,
-                     # períodos, resumos) desde a Fase 7
+                     # períodos, resumos) desde a Fase 7; meal-plans/ (definições/unidades,
+                     # estrutura+ordenação+duplicação, versionamento, quantidades) — Fase 8
   services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
                      # (convite, compartilhado com a Fase 3), audit.ts — validam
                      # ownership e chamam data/ + funções SQL transacionais;
                      # scheduling.ts + notifications.ts (eventos internos) desde a Fase 6;
-                     # finance.ts (lançamentos manuais, pagamento/estorno via funções SQL) — Fase 7
+                     # finance.ts (lançamentos manuais, pagamento/estorno via funções SQL) — Fase 7;
+                     # meal-plans.ts (plano/versão/dia/refeição/item/substituição, funções SQL) — Fase 8
   data/              # queries Supabase: públicas (plans, blog, results, site-settings,
                      # cliente anônimo — Fase 4) e do dashboard (patients.ts,
                      # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5;
                      # appointments.ts, scheduling.ts — Fase 6; financial.ts,
-                     # payments.ts — Fase 7)
+                     # payments.ts — Fase 7; meal-plans.ts — Fase 8)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
   actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
                      # (Fase 4), patients.ts, contracts.ts (Fase 5), scheduling.ts
-                     # (nutricionista) e patient-booking.ts (paciente) (Fase 6), finance.ts (Fase 7)
+                     # (nutricionista) e patient-booking.ts (paciente) (Fase 6), finance.ts (Fase 7),
+                     # meal-plans.ts (Fase 8)
   validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
-                     # patients.ts, contracts.ts, scheduling.ts, finance.ts
+                     # patients.ts, contracts.ts, scheduling.ts, finance.ts, meal-plans.ts
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
@@ -248,3 +251,33 @@ passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
 - **UI** (`src/components/finance`): cards com definição em tooltip,
   tabela ≥ `lg` / cards abaixo, gráficos Recharts com tabela `sr-only`,
   estados vazio/carregando, confirmações para cancelar/estornar.
+
+## Cardápios (Fase 8) — quem decide o quê
+
+- **Domínio puro** (`src/domain/meal-plans`): ordenação (dias seg→dom,
+  `sort_order` com desempate), subir/descer, dias disponíveis, validação
+  para publicar, contagens, cópia estrutural com ids novos, seleção da
+  versão publicada/rascunho/atual, transições de status, formatação de
+  quantidade/unidade. Sem I/O; testado.
+- **Banco** (migration Fase 8): `create_meal_plan`,
+  `create_meal_plan_version` (cópia profunda), `publish_meal_plan_version`
+  (atômica, lock no plano, nunca duas publicadas), `archive_meal_plan`,
+  `discard_meal_plan_version`, `duplicate_meal`, `duplicate_meal_plan_day`;
+  triggers de imutabilidade (conteúdo só em DRAFT, transições de status,
+  version_number fixo); um plano ativo por paciente; RLS da Fase 2
+  (paciente só PUBLISHED).
+- **Data** (`src/data/meal-plans.ts`): lista de planos/versões só com
+  metadata; conteúdo de UMA versão numa query aninhada (dias → refeições →
+  itens → substituições, sem N+1); versão publicada do portal; helpers de
+  ownership por `!inner` até o plano; visão geral por paciente.
+- **Services** (`src/services/meal-plans.ts`): ownership + só DRAFT edita
+  (o banco também recusa), funções SQL para cópias/publicação, concorrência
+  otimista por `updated_at`, auditoria só com ids.
+- **Actions** (`src/actions/meal-plans.ts`): `requireNutritionist`, Zod
+  (patient_id da rota, nunca de input; status/version_number/published_by
+  nunca do client), `revalidatePath` do perfil, do editor, de
+  `/dashboard/cardapios` e do portal.
+- **UI** (`src/components/meal-plans`): aba do paciente com histórico,
+  ações de versionamento, editor (abas de dia, refeições colapsáveis,
+  formulários inline, confirmações), `MealPlanView` compartilhado entre
+  portal e leitura no dashboard (Radix Tabs, substituições expansíveis).

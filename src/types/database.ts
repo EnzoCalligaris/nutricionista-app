@@ -1112,6 +1112,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          notes: string | null
           updated_at: string
           version_id: string
           weekday: number
@@ -1119,6 +1120,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          notes?: string | null
           updated_at?: string
           version_id: string
           weekday: number
@@ -1126,6 +1128,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          notes?: string | null
           updated_at?: string
           version_id?: string
           weekday?: number
@@ -1142,31 +1145,40 @@ export type Database = {
       }
       meal_plan_versions: {
         Row: {
+          archived_at: string | null
           created_at: string
           created_by: string | null
           id: string
           meal_plan_id: string
+          notes: string | null
           published_at: string | null
+          published_by: string | null
           status: Database["public"]["Enums"]["meal_plan_version_status"]
           updated_at: string
           version_number: number
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           meal_plan_id: string
+          notes?: string | null
           published_at?: string | null
+          published_by?: string | null
           status?: Database["public"]["Enums"]["meal_plan_version_status"]
           updated_at?: string
           version_number: number
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           meal_plan_id?: string
+          notes?: string | null
           published_at?: string | null
+          published_by?: string | null
           status?: Database["public"]["Enums"]["meal_plan_version_status"]
           updated_at?: string
           version_number?: number
@@ -1186,34 +1198,60 @@ export type Database = {
             referencedRelation: "meal_plans"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meal_plan_versions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       meal_plans: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           id: string
+          notes: string | null
           nutritionist_id: string
           patient_id: string
+          start_date: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
+          notes?: string | null
           nutritionist_id: string
           patient_id: string
+          start_date?: string | null
           title?: string
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
+          notes?: string | null
           nutritionist_id?: string
           patient_id?: string
+          start_date?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "meal_plans_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meal_plans_nutritionist_id_fkey"
             columns: ["nutritionist_id"]
@@ -1252,8 +1290,10 @@ export type Database = {
           fat_g: number | null
           id: string
           meal_item_id: string
+          notes: string | null
           protein_g: number | null
           quantity: number | null
+          sort_order: number
           substitute_food_name: string
           unit: string | null
           updated_at: string
@@ -1265,8 +1305,10 @@ export type Database = {
           fat_g?: number | null
           id?: string
           meal_item_id: string
+          notes?: string | null
           protein_g?: number | null
           quantity?: number | null
+          sort_order?: number
           substitute_food_name: string
           unit?: string | null
           updated_at?: string
@@ -1278,8 +1320,10 @@ export type Database = {
           fat_g?: number | null
           id?: string
           meal_item_id?: string
+          notes?: string | null
           protein_g?: number | null
           quantity?: number | null
+          sort_order?: number
           substitute_food_name?: string
           unit?: string | null
           updated_at?: string
@@ -1300,6 +1344,7 @@ export type Database = {
           day_id: string
           id: string
           name: string
+          notes: string | null
           sort_order: number
           time_of_day: string | null
           updated_at: string
@@ -1309,6 +1354,7 @@ export type Database = {
           day_id: string
           id?: string
           name: string
+          notes?: string | null
           sort_order?: number
           time_of_day?: string | null
           updated_at?: string
@@ -1318,6 +1364,7 @@ export type Database = {
           day_id?: string
           id?: string
           name?: string
+          notes?: string | null
           sort_order?: number
           time_of_day?: string | null
           updated_at?: string
@@ -2321,6 +2368,7 @@ export type Database = {
       }
     }
     Functions: {
+      archive_meal_plan: { Args: { p_plan_id: string }; Returns: undefined }
       book_appointment: {
         Args: {
           p_allow_outside_availability?: boolean
@@ -2348,6 +2396,18 @@ export type Database = {
         Returns: undefined
       }
       complete_contract: { Args: { p_contract_id: string }; Returns: undefined }
+      copy_day_meals: {
+        Args: { p_source_day_id: string; p_target_day_id: string }
+        Returns: undefined
+      }
+      copy_meal_into_day: {
+        Args: {
+          p_meal_id: string
+          p_sort_order: number
+          p_target_day_id: string
+        }
+        Returns: string
+      }
       create_contract_with_installments: {
         Args: {
           p_contracted_amount_cents: number
@@ -2361,9 +2421,39 @@ export type Database = {
         }
         Returns: string
       }
+      create_meal_plan: {
+        Args: {
+          p_notes?: string
+          p_patient_id: string
+          p_source_version_id?: string
+          p_start_date?: string
+          p_title: string
+        }
+        Returns: string
+      }
+      create_meal_plan_version: {
+        Args: { p_plan_id: string; p_source_version_id?: string }
+        Returns: string
+      }
       current_profile_role: {
         Args: never
         Returns: Database["public"]["Enums"]["profile_role"]
+      }
+      discard_meal_plan_version: {
+        Args: { p_version_id: string }
+        Returns: undefined
+      }
+      duplicate_meal: {
+        Args: { p_meal_id: string; p_target_day_id?: string }
+        Returns: string
+      }
+      duplicate_meal_plan_day: {
+        Args: {
+          p_day_id: string
+          p_replace?: boolean
+          p_target_weekday: number
+        }
+        Returns: string
       }
       financial_period_summary: {
         Args: { p_from: string; p_timezone?: string; p_to: string }
@@ -2386,6 +2476,10 @@ export type Database = {
         Returns: boolean
       }
       is_patient_self: { Args: { target_patient_id: string }; Returns: boolean }
+      meal_plan_version_status_of_day: {
+        Args: { p_day_id: string }
+        Returns: Database["public"]["Enums"]["meal_plan_version_status"]
+      }
       monthly_financial_series: {
         Args: {
           p_months?: number
@@ -2400,6 +2494,10 @@ export type Database = {
           month_start: string
           received_cents: number
         }[]
+      }
+      publish_meal_plan_version: {
+        Args: { p_version_id: string }
+        Returns: string
       }
       record_manual_payment: {
         Args: {

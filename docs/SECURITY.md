@@ -303,7 +303,11 @@ sessão — a policy exige `actor_id = auth.uid()` e role NUTRITIONIST):
 `PATIENT_REACTIVATED`, `PATIENT_INVITED`, `CONTRACT_CREATED`,
 `CONTRACT_CANCELLED`, `CONTRACT_COMPLETED`; desde a Fase 7:
 `FINANCIAL_TRANSACTION_CREATED`/`UPDATED`/`CANCELLED`, `PAYMENT_RECORDED`,
-`INSTALLMENT_PAYMENT_APPLIED`, `PAYMENT_CANCELLED`. Metadata é o mínimo para
+`INSTALLMENT_PAYMENT_APPLIED`, `PAYMENT_CANCELLED`; desde a Fase 8:
+`MEAL_PLAN_CREATED`/`UPDATED`/`ARCHIVED`, `MEAL_PLAN_VERSION_CREATED`/
+`PUBLISHED`/`DISCARDED`, `MEAL_DUPLICATED`, `MEAL_PLAN_DAY_DUPLICATED`
+(só ids e o tipo de operação — nunca alimento, quantidade ou observação:
+o E2E verifica que nenhum nome de alimento chega ao metadata). Metadata é o mínimo para
 rastrear "quem fez o quê" — ids, NOMES dos campos alterados, código do
 plano, valor/quantidade de parcelas — nunca e-mail, telefone, nascimento ou
 qualquer dado clínico. Falta (fases futuras): avaliação, publicação de
@@ -328,6 +332,25 @@ antes/depois.
 - `returnTo` do formulário de pagamento só aceita caminho interno
   `/dashboard/...` (nunca URL externa); ids em rotas passam por `z.guid()`
   e ownership antes de qualquer query.
+
+## Cardápio — dado pessoal de saúde (Fase 8)
+
+- Paciente lê só versões `PUBLISHED` (RLS em cascata da Fase 2 + query do
+  portal que ignora planos arquivados); rascunho e histórico nunca chegam
+  ao portal. Paciente não escreve em nenhuma tabela do cardápio e não
+  executa as funções de publicação/cópia (ownership dentro delas).
+- Nutricionista só acessa planos dos próprios pacientes: RLS + ownership
+  explícito no serviço em toda a cadeia (versão → dia → refeição → item →
+  substituição), ids adulterados = "não encontrado".
+- Mass assignment: `patient_id` vem da rota e é reconferido;
+  `nutritionist_id`, `status`, `version_number`, `published_by`,
+  `created_by` nunca vêm do client (funções SQL/triggers preenchem).
+- Publicação atômica (`publish_meal_plan_version`, lock no plano): nunca
+  zero ou duas versões publicadas; concorrência testada.
+- Histórico imutável por trigger; nada é apagado exceto rascunho.
+- Logs: erros não incluem conteúdo do plano; auditoria só com ids.
+- Sem cache público/ISR nas rotas do cardápio (dashboard e portal são
+  `force-dynamic`, privados, noindex). Nada é gravado em Storage.
 
 ## Clientes Supabase — implementados na Fase 2
 

@@ -28,7 +28,15 @@ export type AuditAction =
   | "FINANCIAL_TRANSACTION_CANCELLED"
   | "PAYMENT_RECORDED"
   | "PAYMENT_CANCELLED"
-  | "INSTALLMENT_PAYMENT_APPLIED";
+  | "INSTALLMENT_PAYMENT_APPLIED"
+  | "MEAL_PLAN_CREATED"
+  | "MEAL_PLAN_UPDATED"
+  | "MEAL_PLAN_VERSION_CREATED"
+  | "MEAL_PLAN_VERSION_PUBLISHED"
+  | "MEAL_PLAN_VERSION_DISCARDED"
+  | "MEAL_PLAN_ARCHIVED"
+  | "MEAL_DUPLICATED"
+  | "MEAL_PLAN_DAY_DUPLICATED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -54,7 +62,9 @@ export async function recordAudit(input: {
     | "scheduling_settings"
     | "financial_transaction"
     | "payment"
-    | "installment";
+    | "installment"
+    | "meal_plan"
+    | "meal_plan_version";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

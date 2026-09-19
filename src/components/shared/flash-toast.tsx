@@ -27,7 +27,12 @@ export type FlashToastCode =
   | "booking_rescheduled"
   | "transaction_created"
   | "transaction_updated"
-  | "payment_recorded";
+  | "payment_recorded"
+  | "meal_plan_created"
+  | "meal_plan_updated"
+  | "meal_plan_version_created"
+  | "meal_plan_published"
+  | "meal_plan_archived";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -53,6 +58,11 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   transaction_created: { type: "success", message: "Lançamento criado." },
   transaction_updated: { type: "success", message: "Lançamento atualizado." },
   payment_recorded: { type: "success", message: "Pagamento registrado." },
+  meal_plan_created: { type: "success", message: "Plano criado.", description: "Adicione os dias, as refeições e os alimentos; publique quando estiver pronto." },
+  meal_plan_updated: { type: "success", message: "Plano atualizado." },
+  meal_plan_version_created: { type: "success", message: "Nova versão criada.", description: "A versão publicada continua visível para o paciente até você publicar esta." },
+  meal_plan_published: { type: "success", message: "Plano publicado.", description: "O paciente já vê esta versão no portal." },
+  meal_plan_archived: { type: "success", message: "Plano arquivado." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

@@ -30,10 +30,14 @@ export default defineConfig({
   // `E2E_SKIP_BUILD=1` usa o build já gerado (`npm run build` rodado antes,
   // em sequência) em vez de compilar de novo; ao terminar, o Playwright
   // encerra o `next start` que ele mesmo subiu.
-  webServer: {
-    command: process.env.E2E_SKIP_BUILD ? "npm run start" : "npm run build && npm run start",
-    url: "http://localhost:3000",
-    reuseExistingServer: false,
-    timeout: 180_000,
-  },
+  // `E2E_DEV_SERVER=1` (só para iterar localmente num spec com `next dev`
+  // já rodando) desliga o webServer; a validação final NUNCA usa isso.
+  webServer: process.env.E2E_DEV_SERVER
+    ? undefined
+    : {
+        command: process.env.E2E_SKIP_BUILD ? "npm run start" : "npm run build && npm run start",
+        url: "http://localhost:3000",
+        reuseExistingServer: false,
+        timeout: 180_000,
+      },
 });

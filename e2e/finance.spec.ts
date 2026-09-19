@@ -101,8 +101,9 @@ test.describe("nutricionista — financeiro", () => {
     await page.getByLabel("Método de pagamento").selectOption("BANK_TRANSFER");
     await page.getByRole("button", { name: "Criar lançamento" }).click();
 
-    await expect(page).toHaveURL(/\/dashboard\/financeiro\?toast=transaction_created/);
+    // O FlashToast remove `?toast=` da URL logo após exibir: afirmar o toast, não o query param.
     await expect(page.getByText("Lançamento criado.")).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard\/financeiro(\?|$)/);
     const row = page.getByRole("row").filter({ hasText: `${TAG} — aluguel` });
     await expect(row).toBeVisible();
     await expect(row).toContainText("1.080,00");
@@ -130,8 +131,8 @@ test.describe("nutricionista — financeiro", () => {
     await expect(page.getByLabel("Valor (R$)")).toHaveValue("1080,00");
     await page.getByLabel("Valor (R$)").fill("1.100,00");
     await page.getByRole("button", { name: "Salvar alterações" }).click();
-    await expect(page).toHaveURL(/toast=transaction_updated/);
     await expect(page.getByText("Lançamento atualizado.")).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard\/financeiro(\?|$)/);
 
     await page.goto(`/dashboard/financeiro?q=${encodeURIComponent(TAG)}`);
     const updated = page.getByRole("row").filter({ hasText: `${TAG} — aluguel` });
@@ -170,8 +171,8 @@ test.describe("nutricionista — financeiro", () => {
     // Parcial de R$ 100.
     await page.getByLabel("Valor (R$)").fill("100,00");
     await page.getByRole("button", { name: "Registrar pagamento" }).click();
-    await expect(page).toHaveURL(/tab=financeiro&toast=payment_recorded|toast=payment_recorded/);
     await expect(page.getByText("Pagamento registrado.")).toBeVisible();
+    await expect(page).toHaveURL(/tab=financeiro/);
 
     const partialRow = page.getByRole("row").filter({ hasText: "4/6" });
     await expect(partialRow).toContainText("Parcial");

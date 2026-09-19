@@ -1133,3 +1133,142 @@ dado plausível/inventado.
     conteúdo de não encontrado, como em `/dashboard/pacientes/[id]`), então
     o E2E afirma a página "Registro financeiro não encontrado", não o
     status HTTP.
+
+## Decisões técnicas da Fase 8 (Cardápios + plano alimentar)
+
+1. **Modelagem da Fase 2 mantida; uma migration mínima**
+   (`20260921120000_meal_plan_management.sql`): observações (plano,
+   versão, dia, refeição, substituição), `start_date`, arquivamento do
+   plano (`archived_at/archived_by`), `published_by`, `sort_order` das
+   substituições. Nenhuma migration anterior editada; tipos regenerados.
+
+2. **Um plano ATIVO por paciente** (índice único parcial
+   `meal_plans_one_active_per_patient`). "Múltiplos planos ao longo do
+   tempo" = arquivar o atual e criar outro (podendo usar uma versão
+   anterior como base — `create_meal_plan(p_source_version_id)`). A
+   evolução normal é por versão, não por plano novo.
+
+3. **Versionamento e publicação (§3/§22–§25/§67):** DRAFT (editável) →
+   PUBLISHED (o que o paciente vê; índice único parcial da Fase 2 garante
+   uma por plano) → ARCHIVED (histórico). `create_meal_plan_version` copia
+   a estrutura inteira (dias → refeições → alimentos → substituições) da
+   publicada (ou da mais recente) num rascunho novo; só um rascunho por
+   vez (`MEAL_PLAN_DRAFT_EXISTS`). `publish_meal_plan_version` é uma
+   transação com `select … for update` no plano: serializa tentativas
+   concorrentes, relê o status depois do lock (segunda tentativa recebe
+   `MEAL_PLAN_ALREADY_PUBLISHED`), exige estrutura mínima (um dia com uma
+   refeição com um alimento — `INVALID_MEAL_PLAN_STRUCTURE`), arquiva a
+   publicada anterior e publica a nova. `unique_violation` residual vira
+   `PUBLISH_CONFLICT`. Testado com duas publicações simultâneas via API
+   (1 sucesso, 1 recusa, sempre uma PUBLISHED).
+
+4. **Histórico imutável por trigger (§57):** conteúdo só muda em versão
+   DRAFT (`guard_meal_plan_content` em dias/refeições/itens/
+   substituições → `MEAL_PLAN_VERSION_NOT_EDITABLE`); transições de status
+   só DRAFT→PUBLISHED, DRAFT→ARCHIVED, PUBLISHED→ARCHIVED; `version_number`
+   e `meal_plan_id` imutáveis; só rascunho pode ser apagado
+   (`discard_meal_plan_version`, nunca a v1 — o plano não fica sem
+   versão); DELETE de planos revogado. Insert direto de versão já
+   PUBLISHED continua permitido (seed/fixtures) — o índice único protege;
+   a aplicação só insere DRAFT.
+
+5. **Dias = dia da semana (0–6), plano parcial permitido.** A convenção da
+   Fase 2 (`unique (version_id, weekday)`) é a "ordem/data lógica"; o
+   label vem do domínio (segunda → domingo na exibição). Reordenar dia não
+   faz sentido; "duplicar dia" copia para outro dia da semana e só
+   sobrescreve destino com conteúdo mediante `p_replace = true` (a UI
+   pede confirmação).
+
+6. **Ordem explícita** (`sort_order`, desempate por id) em refeições,
+   alimentos e substituições — nunca `created_at`. Reordenação por botões
+   subir/descer (`moveInOrder` normaliza para 1..n); sem drag & drop.
+
+7. **Quantidades e unidades:** `numeric(10,2)` com lista controlada de
+   unidades (g, ml, unidade, fatia, colher de sopa/chá, xícara, copo,
+   porção, concha, pedaço, prato, punhado, pitada, a gosto) com singular/
+   plural na leitura ("2 unidades", "1 fatia", "100 g"). Nada é convertido
+   nem calculado; calorias/macros são opcionais, digitados pelo
+   nutricionista e exibidos só quando preenchidos (no portal ficam
+   ocultos por padrão). A lista real de unidades e os nomes padrão de
+   refeição do Enzo continuam `PENDENTE DE DEFINIÇÃO` (nome de refeição é
+   livre).
+
+8. **Substituições e "opções":** `meal_substitutions` por alimento cobre
+   "no lugar de X use Y" com quantidade/unidade/observação próprias, sem
+   equivalência automática. Não foi criada estrutura separada de "Opção
+   1/Opção 2" — substituições por item resolvem o caso de uso sem
+   duplicar modelagem (§16).
+
+9. **Concorrência otimista na edição (§66):** cada update de dia/refeição/
+   alimento/substituição envia o `updated_at` que a tela carregou
+   (`.eq("updated_at", expected)`); 0 linhas atualizadas =
+   `CONCURRENT_UPDATE` ("alterado em outra sessão, recarregue"). Salvar é
+   explícito (sem autosave). Testado por integração.
+
+10. **Visibilidade do paciente:** RLS da Fase 2 (só `status = PUBLISHED`
+    em cascata) + query do portal (`getPublishedMealPlan`: PUBLISHED de
+    plano não arquivado, nunca "a última criada"). Paciente não vê
+    rascunho nem histórico (só a versão atual — regra de histórico para o
+    paciente fica `PENDENTE DE DEFINIÇÃO`), não escreve nada e não chama
+    as funções de publicação (`PATIENT_NOT_FOUND`/permissão negada).
+    Portal abre no dia de hoje no fuso do nutricionista.
+
+11. **Segurança de dado de saúde (§63–§65):** auditoria só com ids e o
+    tipo de operação (`MEAL_PLAN_UPDATED` + `{entity, op}`), nunca
+    alimento/observação (o E2E confirma que nenhum nome de alimento
+    aparece em `audit_logs.metadata`); logs de erro não incluem conteúdo;
+    páginas `force-dynamic`, sem ISR/cache público; rotas privadas
+    continuam noindex. Ownership: nutricionista → paciente → plano →
+    versão → dia → refeição → item → substituição reconferido no serviço
+    (queries `!inner` até o plano) além da RLS; ids adulterados caem em
+    "Plano alimentar não encontrado" sem revelar existência.
+
+12. **Editor como página dedicada** (`/dashboard/pacientes/[id]/cardapio/
+    [versionId]`), não em Dialog: versão publicada/arquivada abre em
+    leitura (`MealPlanView`, o mesmo componente do portal) com "Criar nova
+    versão"; formulários inline por elemento; diálogos de confirmação para
+    remover dia/refeição/alimento/substituição, publicar quando substitui a
+    atual, descartar rascunho e arquivar plano. Toasts só após a resposta
+    do servidor; `router.refresh()` mantém o estado local (dia aberto,
+    formulários).
+
+13. **Limpeza de dados de teste com versões imutáveis:** os scripts de
+    integração/E2E apagam o que criaram com `session_replication_role =
+    replica` (triggers desligados) e exclusão em ordem manual, porque os
+    triggers de imutabilidade também valem para o superusuário — decisão
+    consciente: histórico nunca é apagado pela aplicação.
+
+14. **Playwright — `E2E_DEV_SERVER=1`** desliga o webServer para iterar
+    num spec contra um `next dev` já aberto; a validação final continua
+    `db:reset → build → E2E_SKIP_BUILD=1 playwright test --workers=1`
+    (`reuseExistingServer: false`, Fase 7 item 15).
+
+15. **QA visual — problemas encontrados e corrigidos:** no mobile o
+    cabeçalho da refeição quebrava o nome por causa das 5 ações na mesma
+    linha (ações passam para a linha de baixo em `< sm`) e a quantidade
+    do alimento quebrava separada do nome (vira linha própria em `< sm`);
+    locators ambíguos no script de screenshots (`getByLabel("Alimento")`
+    pegava a lista `aria-label="Alimentos de …"`). Portal, aba Cardápio,
+    histórico e diálogo de publicação aprovados sem ajuste.
+
+16. **Deadlock legítimo na exclusion constraint (flake das Fases 7–8
+    explicado).** `test:db:concurrency` e `test:scheduling:concurrency`
+    falhavam esporadicamente com "1 sucesso, 1 falha" cuja falha era
+    `40P01 deadlock_detected`, não `23P01`: quando duas inserções entram na
+    `appointments_no_overlap` ao mesmo tempo, cada transação espera a
+    outra na checagem de sobreposição e o Postgres aborta uma por
+    deadlock. O invariante (nunca duas consultas ativas no horário) valeu
+    em 100% das execuções. Correção: `domainErrorFromDatabase` mapeia
+    `40P01` para `APPOINTMENT_SLOT_UNAVAILABLE` (quem perde a corrida vê
+    "o horário acabou de ser reservado", não um erro genérico) e os dois
+    scripts aceitam 23P01 ou 40P01 como a recusa — continuam exigindo
+    exatamente 1 sucesso e 1 linha ativa. Reproduzido em ~1 a cada 4–6
+    execuções antes; 8/8 e 5/5 depois. Substitui a observação do item 14
+    da Fase 7.
+
+17. **Asserções de toast no E2E:** `FlashToast` remove `?toast=` da URL
+    logo depois de exibir a mensagem, então `toHaveURL(/toast=.../)`
+    disputa com essa limpeza (falhou 1× na bateria final da Fase 8, em
+    `finance.spec`). Os specs passam a afirmar o texto do toast (o
+    comportamento real) e a rota base; `patients.spec` passou a esperar a
+    aba Cardápio real (o placeholder que resta é Avaliações).

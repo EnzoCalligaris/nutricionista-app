@@ -38,6 +38,23 @@ export type DomainErrorCode =
   | "INSTALLMENT_NOT_PAYABLE"
   | "PAYMENT_EXCEEDS_INSTALLMENT"
   | "CATEGORY_NOT_FOUND"
+  | "MEAL_PLAN_NOT_FOUND"
+  | "MEAL_PLAN_NOT_EDITABLE"
+  | "MEAL_PLAN_ARCHIVED"
+  | "MEAL_PLAN_ACTIVE_EXISTS"
+  | "MEAL_PLAN_VERSION_NOT_FOUND"
+  | "MEAL_PLAN_VERSION_NOT_EDITABLE"
+  | "MEAL_PLAN_ALREADY_PUBLISHED"
+  | "MEAL_PLAN_DRAFT_EXISTS"
+  | "INVALID_MEAL_PLAN_STRUCTURE"
+  | "MEAL_PLAN_DAY_NOT_FOUND"
+  | "MEAL_PLAN_DAY_EXISTS"
+  | "MEAL_PLAN_DAY_NOT_EMPTY"
+  | "MEAL_NOT_FOUND"
+  | "MEAL_ITEM_NOT_FOUND"
+  | "MEAL_SUBSTITUTION_NOT_FOUND"
+  | "PUBLISH_CONFLICT"
+  | "CONCURRENT_UPDATE"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -72,6 +89,23 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   INSTALLMENT_NOT_PAYABLE: "Esta parcela já está quitada ou cancelada.",
   PAYMENT_EXCEEDS_INSTALLMENT: "O valor excede o restante da parcela. Registre o excedente como pagamento avulso.",
   CATEGORY_NOT_FOUND: "Categoria inválida.",
+  MEAL_PLAN_NOT_FOUND: "Plano alimentar não encontrado.",
+  MEAL_PLAN_NOT_EDITABLE: "Este plano alimentar não pode ser alterado.",
+  MEAL_PLAN_ARCHIVED: "Este plano alimentar está arquivado. Crie um novo plano para continuar.",
+  MEAL_PLAN_ACTIVE_EXISTS: "O paciente já tem um plano alimentar ativo. Arquive o plano atual antes de criar outro.",
+  MEAL_PLAN_VERSION_NOT_FOUND: "Versão do plano alimentar não encontrada.",
+  MEAL_PLAN_VERSION_NOT_EDITABLE: "Esta versão já foi publicada ou arquivada e não pode ser alterada. Crie uma nova versão.",
+  MEAL_PLAN_ALREADY_PUBLISHED: "Esta versão já está publicada.",
+  MEAL_PLAN_DRAFT_EXISTS: "Já existe um rascunho em andamento para este plano. Publique ou descarte antes de criar outro.",
+  INVALID_MEAL_PLAN_STRUCTURE: "Para publicar, o plano precisa de pelo menos um dia com uma refeição e um alimento.",
+  MEAL_PLAN_DAY_NOT_FOUND: "Dia não encontrado nesta versão.",
+  MEAL_PLAN_DAY_EXISTS: "Este dia da semana já existe nesta versão.",
+  MEAL_PLAN_DAY_NOT_EMPTY: "O dia de destino já tem refeições. Confirme a substituição para continuar.",
+  MEAL_NOT_FOUND: "Refeição não encontrada.",
+  MEAL_ITEM_NOT_FOUND: "Alimento não encontrado.",
+  MEAL_SUBSTITUTION_NOT_FOUND: "Substituição não encontrada.",
+  PUBLISH_CONFLICT: "Outra versão foi publicada ao mesmo tempo. Recarregue a página e tente de novo.",
+  CONCURRENT_UPDATE: "Este registro foi alterado em outra sessão. Recarregue a página para ver a versão atual.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };
@@ -109,9 +143,27 @@ export function domainErrorFromDatabase(error: { message?: string; code?: string
   if (error?.code === "23505" && message.includes("patients_nutritionist_email_unique_idx")) {
     return new DomainError("PATIENT_EMAIL_ALREADY_EXISTS");
   }
+  if (error?.code === "23505" && message.includes("meal_plan_days_version_id_weekday_key")) {
+    return new DomainError("MEAL_PLAN_DAY_EXISTS");
+  }
+  if (error?.code === "23505" && message.includes("meal_plan_versions_one_published_per_plan")) {
+    return new DomainError("PUBLISH_CONFLICT");
+  }
+  if (error?.code === "23505" && message.includes("meal_plans_one_active_per_patient")) {
+    return new DomainError("MEAL_PLAN_ACTIVE_EXISTS");
+  }
   // 23P01 = exclusion_violation: a constraint anti-double-booking da Fase 2
   // (`appointments_no_overlap`) recusou o horário — nunca mostrar o SQL.
   if (error?.code === "23P01" || message.includes("appointments_no_overlap")) {
+    return new DomainError("APPOINTMENT_SLOT_UNAVAILABLE");
+  }
+  // 40P01 = deadlock_detected: com duas inserções realmente simultâneas na
+  // exclusion constraint, o Postgres pode abortar uma delas por deadlock
+  // em vez de 23P01 (cada uma espera a outra ao checar a sobreposição).
+  // O invariante (nunca duas consultas no horário) está garantido; para
+  // quem perdeu a corrida a resposta é a mesma: o horário acabou de ser
+  // reservado.
+  if (error?.code === "40P01") {
     return new DomainError("APPOINTMENT_SLOT_UNAVAILABLE");
   }
   return new DomainError("UNKNOWN");

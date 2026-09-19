@@ -109,8 +109,26 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   (`test:financial:integration`), E2E `e2e/finance.spec.ts`, screenshots
   em 1440/1280/1024/768/390. Sem gateway, PIX automático, cartão, webhook,
   e-mail/WhatsApp ou exportação (Fases 12–13).
-- **FASE 8 — Cardápios.** CRUD de plano alimentar, versionamento, visão do
-  paciente.
+- **FASE 8 — Cardápios.** ✅ Concluída. Plano alimentar real por paciente:
+  aba Cardápio (`/dashboard/pacientes/[id]?tab=cardapio` — plano atual,
+  status, versão publicada/rascunho, conteúdo, ações, histórico de versões,
+  planos arquivados), `/cardapio/novo` (paciente do contexto, plano anterior
+  como base), `/cardapio/dados`, editor por versão
+  `/cardapio/[versionId]` (dias seg–dom opcionais em abas, refeições com nome
+  livre/horário/ordem explícita, alimentos com quantidade + unidade
+  controlada, observações em plano/versão/dia/refeição/alimento,
+  substituições explícitas, subir/descer, duplicar refeição e dia com
+  confirmação, salvar explícito, concorrência otimista por `updated_at`),
+  versionamento DRAFT → PUBLISHED → ARCHIVED com publicação atômica
+  (`publish_meal_plan_version`, lock no plano, nunca duas publicadas,
+  histórico imutável por trigger), `/dashboard/cardapios` (visão por
+  paciente), portal `/paciente/cardapio` (só a versão publicada, abas de
+  dia, cards de refeição, substituições expansíveis, mobile-first) e
+  "Cardápio do dia" no início do portal. Sem cálculo nutricional, IA,
+  templates globais ou PDF. 1 migration nova, 37 testes unitários, 54
+  pgTAP, 48 checks de integração (`test:meal-plans:integration`, incl.
+  duas publicações simultâneas), 17 E2E, screenshots em
+  1440/1280/1024/768/390/375/430.
 - **FASE 9 — Bioimpedância/evolução.** Registro de avaliação, gráficos no
   portal do paciente.
 - **FASE 10 — Suplementos, feedbacks e materiais.** CRUD + notificação in-app.
@@ -224,6 +242,17 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    despesa (o seed só tem exemplos), política de cobrança da consulta
    avulsa (`APPOINTMENT_CHARGE_POLICY`, hoje `MANUAL`), política de
    parcela em atraso (juros/multa não existem — `PENDENTE DE DEFINIÇÃO`).
-3. **Aguardando aprovação explícita do usuário** — não iniciar cardápios,
-   bioimpedância, IA, gateway de pagamento ou notificações externas sem
-   sinal verde (prompt Fase 7 §115).
+3. Aprovação formal da Fase 7 recebida em 2026-09-19. Fase 8 concluída em
+   2026-09-19.
+
+## Critérios para iniciar a Fase 9
+
+1. Usuário revisou o cardápio (aba do paciente, editor, versionamento,
+   portal, screenshots) e aprovou explicitamente.
+2. Pendências que continuam configuráveis/`PENDENTE`: nomes padrão de
+   refeição do Enzo (hoje nome livre, sem lista fixa), lista de unidades
+   real, se o paciente pode ver versões anteriores (hoje só a atual),
+   templates globais (hoje duplicação/plano anterior como base).
+3. **Aguardando aprovação explícita do usuário** — não iniciar
+   bioimpedância/evolução, suplementos, IA de foto ou notificações
+   externas sem sinal verde (prompt Fase 8 §95).

@@ -110,11 +110,17 @@ async function main() {
 
   await cleanup();
 
-  const exclusionFailure = failures.find((f) => f.code === "23P01");
+  // 23P01 = exclusion_violation. 40P01 = deadlock_detected: quando as duas
+  // inserções entram na exclusion constraint ao mesmo tempo, o Postgres pode
+  // abortar uma por deadlock (cada uma espera a outra na checagem de
+  // sobreposição). Ambas são recusas legítimas — o invariante é 1 sucesso e
+  // 1 consulta ativa (a aplicação mapeia os dois códigos para a mesma
+  // mensagem amigável, ver src/lib/errors/domain.ts).
+  const exclusionFailure = failures.find((f) => f.code === "23P01" || f.code === "40P01");
 
   if (successes.length === 1 && failures.length === 1 && exclusionFailure && finalCount === 1) {
     console.log(
-      "✅ PASS — exatamente 1 sucesso, 1 conflito (23P01 exclusion_violation), 1 consulta ativa no horário.",
+      `✅ PASS — exatamente 1 sucesso, 1 conflito (${exclusionFailure.code} — exclusion_violation ou deadlock entre as duas inserções), 1 consulta ativa no horário.`,
     );
     process.exit(0);
   }

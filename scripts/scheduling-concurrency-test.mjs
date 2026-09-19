@@ -106,7 +106,10 @@ async function cleanup(dateISO) {
 
 function summarize(results) {
   const ok = results.filter((r) => r.status === 200 && typeof r.body === "string");
-  const slotTaken = results.filter((r) => r.status >= 400 && (r.body?.code === "23P01" || String(r.body?.message ?? "").includes("appointments_no_overlap")));
+  // 23P01 (exclusion_violation) ou 40P01 (deadlock entre as duas inserções
+  // simultâneas na exclusion constraint) — ambas viram "horário indisponível"
+  // na aplicação (src/lib/errors/domain.ts). O invariante é 1 sucesso.
+  const slotTaken = results.filter((r) => r.status >= 400 && (r.body?.code === "23P01" || r.body?.code === "40P01" || String(r.body?.message ?? "").includes("appointments_no_overlap")));
   return { ok: ok.length, slotTaken: slotTaken.length, raw: results.map((r) => [r.status, typeof r.body === "string" ? "uuid" : r.body?.message ?? r.body?.code]) };
 }
 

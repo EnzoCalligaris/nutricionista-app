@@ -208,8 +208,10 @@ insert into public.appointment_notes (patient_id, appointment_id, author_id, con
 insert into public.meal_plans (id, patient_id, nutritionist_id, title) values
   ('90000000-0000-0000-0000-000000000501', '90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000001', 'Cardápio — Fulana de Tal');
 
-insert into public.meal_plan_versions (id, meal_plan_id, version_number, status, published_at, created_by) values
-  ('90000000-0000-0000-0000-000000000510', '90000000-0000-0000-0000-000000000501', 1, 'PUBLISHED', now() - interval '30 days', '90000000-0000-0000-0000-000000000001');
+-- Fase 8: conteúdo só entra em versão DRAFT (trigger); a publicação vem no
+-- fim deste bloco, como a aplicação faz.
+insert into public.meal_plan_versions (id, meal_plan_id, version_number, status, created_by) values
+  ('90000000-0000-0000-0000-000000000510', '90000000-0000-0000-0000-000000000501', 1, 'DRAFT', '90000000-0000-0000-0000-000000000001');
 
 -- weekday: 1 = segunda, 3 = quarta, 5 = sexta
 insert into public.meal_plan_days (id, version_id, weekday) values
@@ -241,6 +243,10 @@ insert into public.meal_items (id, meal_id, food_name, quantity, unit, calories,
 insert into public.meal_substitutions (meal_item_id, substitute_food_name, quantity, unit, calories, protein_g, carbs_g, fat_g) values
   ('90000000-0000-0000-0000-000000000534', 'Peixe grelhado', 120, 'g', 180, 32, 0, 4),
   ('90000000-0000-0000-0000-000000000539', 'Tilápia grelhada', 120, 'g', 150, 28, 0, 4);
+
+update public.meal_plan_versions
+  set status = 'PUBLISHED', published_at = now() - interval '30 days', published_by = '90000000-0000-0000-0000-000000000001'
+where id = '90000000-0000-0000-0000-000000000510';
 
 -- Avaliações (Fulana de Tal) — 2 encontros, mostrando evolução -------------
 insert into public.assessments (id, patient_id, assessed_at, notes, created_by) values
