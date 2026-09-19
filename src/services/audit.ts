@@ -11,7 +11,18 @@ export type AuditAction =
   | "PATIENT_INVITED"
   | "CONTRACT_CREATED"
   | "CONTRACT_CANCELLED"
-  | "CONTRACT_COMPLETED";
+  | "CONTRACT_COMPLETED"
+  | "APPOINTMENT_CREATED"
+  | "APPOINTMENT_UPDATED"
+  | "APPOINTMENT_CONFIRMED"
+  | "APPOINTMENT_COMPLETED"
+  | "APPOINTMENT_NO_SHOW"
+  | "APPOINTMENT_CANCELLED"
+  | "APPOINTMENT_RESCHEDULED"
+  | "BLOCKED_TIME_CREATED"
+  | "BLOCKED_TIME_REMOVED"
+  | "AVAILABILITY_UPDATED"
+  | "SCHEDULING_SETTINGS_UPDATED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -19,15 +30,16 @@ export type AuditAction =
  * o quê" — nunca dado sensível completo (nem e-mail, nem telefone, nem
  * nascimento): só identificadores e campos alterados por NOME.
  *
- * A policy exige `actor_id = auth.uid()` e role NUTRITIONIST, então usamos
- * o cliente de sessão (não o admin). Uma falha ao auditar é logada no
+ * A policy exige `actor_id = auth.uid()` (role NUTRITIONIST, ou PATIENT só
+ * para `entity_type = 'appointment'` — Fase 6), então usamos o cliente de
+ * sessão (não o admin): o ator é sempre quem está autenticado. Uma falha ao auditar é logada no
  * servidor e NÃO desfaz a operação de negócio (não há transação cobrindo as
  * duas escritas) — decisão registrada em docs/DECISIONS.md.
  */
 export async function recordAudit(input: {
   actorId: string;
   action: AuditAction;
-  entityType: "patient" | "contract";
+  entityType: "patient" | "contract" | "appointment" | "blocked_time" | "availability" | "scheduling_settings";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

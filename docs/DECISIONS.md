@@ -827,3 +827,168 @@ dado plausível/inventado.
     full-page, análise e correção antes de considerar a interface pronta;
     `screenshots/` no `.gitignore`). Script desta fase:
     `scripts/screenshots-fase-5.mjs`.
+
+## Decisões técnicas da Fase 6 (Agenda + disponibilidade + agendamento)
+
+1. **Regras comerciais NÃO definidas continuam configuráveis/pendentes.**
+   Horários reais de trabalho, duração real da consulta, granularidade,
+   antecedência mínima para agendar/cancelar, horizonte máximo, plataforma
+   da consulta online, periodicidade fixa das presenciais e endereço são
+   `PENDENTE DE DEFINIÇÃO`. Tudo isso é configuração (`availability_rules`
+   + nova tabela `scheduling_settings`, editáveis em
+   `/dashboard/agenda/configuracoes`), nunca constante. Os defaults de
+   coluna de `scheduling_settings` (60 min, slots a cada 30 min) são valores
+   TÉCNICOS de desenvolvimento, documentados como tal na migration e na UI
+   ("Ainda não configurado — valores padrão técnicos"); o seed insere a
+   mesma configuração fictícia e uma disponibilidade fictícia (seg–sex
+   08–12/14–18) só para o ambiente local.
+
+2. **Uma migration nova, sem tocar na anti-double-booking da Fase 2**
+   (`supabase/migrations/20260919120000_scheduling_management.sql`). A
+   exclusion constraint `appointments_no_overlap` continua a fonte final
+   da verdade (10–11 e 11–12 ok; 10–11 e 10:30–11:30 conflito; CANCELLED e
+   RESCHEDULED liberam o horário). A migration adiciona:
+   - `scheduling_settings` (por nutricionista; leitura por qualquer
+     autenticado — o paciente precisa dela para ver horários — e escrita só
+     do dono);
+   - `appointments.cancellation_reason` (motivo livre, opcional) e
+     `appointments.created_by`;
+   - trigger `validate_appointment_ownership`: `nutritionist_id` sempre igual
+     ao responsável pelo paciente (fecha a brecha da policy da Fase 2, que
+     deixava o paciente informar qualquer nutritionist_id) e, quando quem
+     escreve é PATIENT, só INSERT com `SCHEDULED` sem valor, e UPDATE só
+     para `CANCELLED`/`RESCHEDULED` a partir de `SCHEDULED`/`CONFIRMED` — sem
+     mudar paciente, nutricionista, contrato ou valor;
+   - trigger `validate_blocked_time_conflicts`: bloqueio não cobre consulta
+     SCHEDULED/CONFIRMED (§50 — sem inconsistência invisível; cancele ou
+     reagende antes);
+   - `busy_intervals()` SECURITY DEFINER: devolve só início/fim/tipo dos
+     intervalos ocupados — o paciente calcula horários livres sem ler
+     consultas de outros pacientes;
+   - `validate_booking_window()`, `book_appointment()`,
+     `reschedule_appointment()` (SECURITY INVOKER): a janela de
+     disponibilidade (regra ativa do dia da semana no fuso configurado,
+     modalidade, fora de bloqueio, futuro + antecedência, horizonte) é
+     validada NO BANCO antes do INSERT (§11/§88); sobreposição é decidida
+     pela constraint (23P01 → `APPOINTMENT_SLOT_UNAVAILABLE`);
+   - policy de INSERT em `audit_logs` para PATIENT limitada a
+     `entity_type = 'appointment'` e `actor_id = auth.uid()`;
+   - índice `appointments (status, starts_at)`.
+
+3. **Slots: domínio puro + validação no banco.**
+   `src/domain/scheduling/slots.ts#generateSlots` (entrada: data, fuso,
+   regras, intervalos ocupados, duração, granularidade, agora, antecedência,
+   horizonte) é a única implementação de "horário livre" na aplicação —
+   dashboard e portal usam a mesma; testada com bloqueio 12–14 em 08–18,
+   consulta 10–11 removendo 09:30/10:00/10:30 e mantendo 09:00/11:00,
+   horário já passado no dia, antecedência, horizonte, modalidade. Duração
+   e granularidade são independentes (60 min começando a cada 30). A
+   confirmação (paciente) recomputa os slots no servidor e depois o banco
+   revalida tudo de novo — a UI é só conveniência.
+
+4. **Intervalos adjacentes na disponibilidade são permitidos, não
+   consolidados.** 08–12 e 12–16 ficam como duas regras (podem ter
+   modalidades diferentes); duplicados e sobrepostos no mesmo dia são
+   rejeitados (validação igual no client e no server). Consequência
+   documentada: uma consulta não atravessa a fronteira entre dois
+   intervalos (11:30–12:30 não existe nesse caso) nem a meia-noite.
+
+5. **Timezone: `America/Sao_Paulo` da configuração, nunca da máquina.**
+   `src/lib/timezone.ts` converte relógio de parede ↔ instante só com
+   `Intl` (offset calculado instante a instante; suporta DST, testado com
+   `America/New_York`), a UI só manipula datas civis (`YYYY-MM-DD`) e
+   `HH:mm`, e o banco compara `starts_at AT TIME ZONE settings.timezone`.
+   Testes unitários rodam idênticos com `TZ=UTC` e `TZ=Asia/Tokyo`. Nenhum
+   `new Date("YYYY-MM-DD")` sem fuso explícito.
+
+6. **Reagendamento preserva histórico**: a consulta original vira
+   `RESCHEDULED` (libera o horário) e uma NOVA consulta é criada, ligada por
+   `rescheduled_to_id`, na mesma transação (`reschedule_appointment`),
+   copiando contrato e valor — reagendar nunca gera nova cobrança (§26). A
+   coluna já existia desde a Fase 2; nenhuma tabela de histórico extra.
+   "Editar" (data/hora/duração/tipo sem trocar identidade) continua
+   disponível para correções — o UPDATE direto continua sob a constraint e,
+   sem override, sob `validate_booking_window`.
+
+7. **Máquina de estados sobre o enum real** (`src/domain/scheduling/
+   state-machine.ts`): SCHEDULED → CONFIRMED | COMPLETED | NO_SHOW |
+   CANCELLED | RESCHEDULED; CONFIRMED → COMPLETED | NO_SHOW | CANCELLED |
+   RESCHEDULED; finais não voltam. Paciente só CANCELLED/RESCHEDULED (e só
+   consulta própria, ativa e futura, respeitando a antecedência configurada
+   — NULL = sem regra). Reforçada no banco pelo trigger (§67).
+
+8. **Override administrativo com confirmação explícita** (§51): o
+   nutricionista pode marcar "Permitir fora da disponibilidade" para criar/
+   editar/reagendar ignorando regras e bloqueios; não ignora sobreposição
+   nem passado. Sem o checkbox, o nutricionista segue as mesmas regras do
+   paciente (exceto antecedência/horizonte, que são regras do portal).
+
+9. **Elegibilidade do paciente é permissiva dentro das relações válidas**
+   (§41): pode agendar quem é paciente do nutricionista, com cadastro
+   ACTIVE, se `patient_can_book` estiver ligado — contrato NÃO é exigido
+   (consulta avulsa e paciente antigo continuam possíveis). Saldo de
+   consultas do plano (3+2 / 6+5) NÃO bloqueia nada: `PENDENTE DE
+   DEFINIÇÃO` comercial, sem contagem automática nesta fase (§42).
+
+10. **Pagamento na agenda é só leitura do que já existe**
+    (`payments.appointment_id`): "Pago"/"Pendente"/"Sem registro". Nada de
+    lançamento manual, valor da consulta é snapshot informativo
+    (`amount_cents`) — Fase 7.
+
+11. **Observação administrativa da consulta vive em `appointment_notes`**
+    (RLS só do nutricionista), não numa coluna de `appointments` que o
+    paciente lê. Motivo de cancelamento fica em `appointments.
+    cancellation_reason` (o paciente pode ver o próprio).
+
+12. **Eventos internos de notificação sem entrega** (§59):
+    `notification_events` recebe `APPOINTMENT_CREATED/RESCHEDULED/
+    CANCELLED/CONFIRMED` via service role (como a Fase 2 modelou); nenhum
+    e-mail/WhatsApp/lembrete — Fase 12 consome esses eventos.
+
+13. **Público `/agendar` continua sem calendário** (§43): o CTA "Já sou
+    paciente — agendar online" aponta para `/login?next=/paciente/agendar`;
+    `/login` passou a honrar `next` (sanitizado por `sanitizeRedirectPath`
+    da Fase 3) também para quem já está logado, só dentro da área do
+    próprio papel — nutricionista nunca é levado ao portal (o proxy o manda
+    ao dashboard). A página pública continua estática/ISR.
+
+14. **Calendário próprio, sem biblioteca.** Grade semana/dia (colunas por
+    dia, posição por minutos no fuso, disponibilidade/bloqueios como fundo)
+    e grade mês (contagem por dia) em Server Components com links —
+    nenhuma dependência nova, sem JS para navegar, acessível (blocos com
+    nome completo, `aria-current`, tabelas com `scope`). Uma lib de
+    calendário só se justificaria com drag-and-drop, que não foi pedido.
+    Realtime não foi usado (§46): a confirmação revalida no servidor e o
+    banco decide; conflito vira mensagem amigável e recarga dos slots.
+
+15. **Correções descobertas no QA visual/hidratação**: contador de chaves
+    em módulo no editor de disponibilidade causava mismatch de hidratação
+    (servidor mantém estado entre requisições) — chaves determinísticas
+    para linhas iniciais + contador de cliente só em evento; `Toaster`
+    faltava no layout do portal; seed de consultas trocado de `now()` para
+    horários fixos no fuso (cai na disponibilidade fictícia); `min-w-0` no
+    `SidebarInset` do portal; lista de datas do agendamento rola até a data
+    selecionada; cabeçalhos da semana compactos e blocos com texto empilhado
+    em colunas estreitas.
+
+16. **Rate limit de login passa a contar só tentativas FALHAS.** Ao rodar
+    a suíte E2E completa contra o build (11 logins válidos do nutricionista
+    em poucos minutos), o 11º login era bloqueado pelo limitador da Fase 3
+    (10/5 min por IP+e-mail, que contava também os logins com sucesso). O
+    objetivo do limite é força bruta, então `loginAction` agora zera o
+    contador da chave após um login válido (`RateLimiter.reset`) — quem sabe
+    a senha não é o alvo, e um usuário legítimo que entra e sai várias vezes
+    não fica trancado. O limite de 10 tentativas falhas/5 min continua.
+    Registro do E2E: agenda usa 1 login do nutricionista (o teste
+    "nutricionista com `next` do portal" reutiliza a sessão do bloco).
+
+17. **E2E em série (`workers: 1`) — causa raiz da "troca esporádica de
+    sessão" da Fase 3 encontrada.** `logoutAction` faz `signOut()` com
+    escopo GLOBAL (revoga todas as sessões do usuário no Supabase — decisão
+    de segurança mantida). Com arquivos rodando em paralelo, o teste de
+    logout de `auth.spec.ts` derrubava a sessão compartilhada do
+    nutricionista que outro arquivo tinha acabado de abrir — exatamente a
+    flakiness registrada na Fase 3 (item 14), que ficou determinística com
+    mais arquivos usando o mesmo usuário. Em vez de enfraquecer o logout
+    para escopo local, a suíte roda com um único worker (`fullyParallel:
+    false`, ~1 min): cada arquivo loga depois de qualquer logout anterior.

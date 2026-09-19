@@ -29,7 +29,8 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const { email, password, next } = parsed.data;
 
   const ip = await getClientIp();
-  const rate = await loginRateLimiter.consume(`${ip}:${email.toLowerCase()}`);
+  const rateKey = `${ip}:${email.toLowerCase()}`;
+  const rate = await loginRateLimiter.consume(rateKey);
   if (!rate.success) {
     return { error: authErrorMessage("RATE_LIMITED") };
   }
@@ -42,6 +43,10 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   if (error || !data.user) {
     return { error: authErrorMessage("INVALID_CREDENTIALS") };
   }
+
+  // O limite é contra força bruta (tentativas FALHAS): um login válido zera
+  // o contador — quem sabe a senha não é o alvo (Fase 6, docs/DECISIONS.md).
+  await loginRateLimiter.reset(rateKey);
 
   const { data: profile } = await supabase
     .from("profiles")

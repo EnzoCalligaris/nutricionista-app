@@ -20,6 +20,9 @@
     "test:auth:integration": "node scripts/auth-integration-test.mjs",
     "test:public:integration": "node scripts/public-content-integration-test.mjs",
     "test:patients:integration": "node scripts/patients-integration-test.mjs",
+    "test:scheduling:integration": "node scripts/scheduling-integration-test.mjs",
+    "test:scheduling:concurrency": "node scripts/scheduling-concurrency-test.mjs",
+    "screenshots:fase-6": "node scripts/screenshots-fase-6.mjs",
     "screenshots:fase-5": "node scripts/screenshots-fase-5.mjs",
     "bootstrap:nutritionist": "node scripts/bootstrap-nutritionist.mjs"
   },

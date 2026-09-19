@@ -22,8 +22,6 @@ const PAYMENT_STATUS_LABEL: Record<PatientPaymentRow["status"], string> = {
 
 function summaryFor(section: PatientSectionId, counts: PatientModuleCounts): { count: number; noun: [string, string]; phase: string } | null {
   switch (section) {
-    case "consultas":
-      return { count: counts.appointments, noun: ["consulta registrada", "consultas registradas"], phase: "Fase 6" };
     case "cardapio":
       return { count: counts.mealPlans, noun: ["cardápio", "cardápios"], phase: "Fase 8" };
     case "avaliacoes":

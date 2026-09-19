@@ -74,18 +74,23 @@ src/
   domain/            # regras puras, sem I/O — plans/ (preço, visibilidade),
                      # blog/ (visibilidade), site-settings/ (contato) desde a Fase 4;
                      # patients/ (idade, status, ticket médio, acesso ao portal,
-                     # timeline) e contracts/ (parcelas, datas, status) desde a Fase 5
+                     # timeline) e contracts/ (parcelas, datas, status) desde a Fase 5;
+                     # scheduling/ (intervalos, slots, regras de disponibilidade,
+                     # máquina de estados, visões/geometria do calendário) desde a Fase 6
   services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
                      # (convite, compartilhado com a Fase 3), audit.ts — validam
-                     # ownership e chamam data/ + funções SQL transacionais
+                     # ownership e chamam data/ + funções SQL transacionais;
+                     # scheduling.ts + notifications.ts (eventos internos) desde a Fase 6
   data/              # queries Supabase: públicas (plans, blog, results, site-settings,
                      # cliente anônimo — Fase 4) e do dashboard (patients.ts,
-                     # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5)
+                     # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5;
+                     # appointments.ts, scheduling.ts — Fase 6)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
   actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
-                     # (Fase 4), patients.ts, contracts.ts (Fase 5)
+                     # (Fase 4), patients.ts, contracts.ts (Fase 5), scheduling.ts
+                     # (nutricionista) e patient-booking.ts (paciente) (Fase 6)
   validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
-                     # patients.ts, contracts.ts
+                     # patients.ts, contracts.ts, scheduling.ts
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
@@ -96,7 +101,8 @@ src/
   lib/               # utils, cliente Supabase (server/browser/admin/public), auth/
                      # (session, redirect, errors, rate-limit(er) — Fase 3),
                      # dates (pt-BR, America/Sao_Paulo), calendar (aritmética de
-                     # data civil), money (centavos <-> BRL), errors/domain (Fase 5), env
+                     # data civil), timezone (relógio de parede <-> instante via Intl,
+                     # Fase 6), money (centavos <-> BRL), errors/domain (Fase 5), env
   config/            # configuração pública (siteConfig, timezone)
   hooks/             # hooks compartilhados (ex.: use-mobile)
   types/             # tipos compartilhados gerados/derivados do banco
@@ -187,3 +193,29 @@ para `America/Sao_Paulo` acontece só na camada de apresentação e nas regras d
 disponibilidade (ex.: "10h" significa 10h em São Paulo, não no fuso do servidor).
 Nunca usar `new Date()` do servidor para decidir "hoje" sem converter
 explicitamente para o fuso do negócio.
+
+**Implementado (Fase 6):** o fuso vem de `scheduling_settings.timezone`
+(default `America/Sao_Paulo`, nunca da máquina). `src/lib/calendar.ts` faz a
+aritmética de datas civis (`YYYY-MM-DD`), `src/lib/timezone.ts` converte
+relógio de parede ↔ instante só com `Intl` (offset por instante, DST
+suportado), páginas e formulários só trocam data civil + `HH:mm`, a conversão
+para instante acontece no service e o banco revalida com `starts_at AT TIME
+ZONE settings.timezone` (`validate_booking_window`). Os testes de domínio
+passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
+
+## Agenda (Fase 6) — quem decide o quê
+
+- **Domínio puro** (`src/domain/scheduling`): slots livres, validação da
+  disponibilidade semanal, máquina de estados, faixas das visões e geometria
+  da grade. Sem I/O; testado.
+- **Banco** (migration Fase 6): fonte final da verdade — `book_appointment`/
+  `reschedule_appointment` validam a janela de disponibilidade e a exclusion
+  constraint decide sobreposição; triggers garantem `nutritionist_id`
+  coerente com o paciente, restrições do PATIENT e bloqueio sem consulta
+  ativa; `busy_intervals` expõe só intervalos.
+- **Services** (`src/services/scheduling.ts`): ownership explícito,
+  recomputam slots antes da confirmação do paciente, chamam as funções SQL,
+  auditam e registram eventos internos de notificação (sem entrega).
+- **Actions**: `scheduling.ts` (nutricionista, `requireNutritionist`) e
+  `patient-booking.ts` (paciente, `requirePatient`; `patient_id` nunca vem do
+  browser). UI nunca acessa Supabase.

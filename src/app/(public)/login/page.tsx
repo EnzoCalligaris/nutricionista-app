@@ -4,6 +4,7 @@ import { Container } from "@/components/shared/container";
 import { LoginForm } from "@/components/auth/login-form";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
+import { sanitizeRedirectPath } from "@/lib/auth/redirect";
 
 export const metadata: Metadata = {
   title: "Entrar — Método EM",
@@ -21,7 +22,12 @@ export default async function LoginPage({
   // §55) — vai direto para a própria área.
   const profile = await getCurrentProfile();
   if (profile) {
-    redirect(profile.role === "NUTRITIONIST" ? "/dashboard" : "/paciente");
+    // Fase 6: `?next=` também vale para quem já está logado (ex.: /agendar
+    // -> /login?next=/paciente/agendar). Só dentro da área do próprio
+    // papel — um nutricionista nunca é mandado ao portal do paciente.
+    const home = profile.role === "NUTRITIONIST" ? "/dashboard" : "/paciente";
+    const next = sanitizeRedirectPath(params.next, home);
+    redirect(next === home || next.startsWith(`${home}/`) ? next : home);
   }
 
   return (

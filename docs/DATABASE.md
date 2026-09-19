@@ -65,6 +65,7 @@ fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
 | `20260917120000_auth_profile_provisioning` | trigger em `auth.users` | Profile PATIENT automático (Fase 3) |
 | `20260917120001_fix_validate_patient_profile_roles_rls` | — | Trigger de `patients` como SECURITY DEFINER (Fase 3) |
 | `20260918120000_patients_contracts_management` | `patient_contracts.notes`, índice único de e-mail, view `patient_overview`, funções `create_contract_with_installments`/`cancel_contract`/`complete_contract` | Gestão de pacientes/contratos (Fase 5) |
+| `20260919120000_scheduling_management` | `scheduling_settings`, `appointments.cancellation_reason`/`created_by`, triggers `validate_appointment_ownership`/`validate_blocked_time_conflicts`, funções `busy_intervals`/`validate_booking_window`/`book_appointment`/`reschedule_appointment`, policy de auditoria do paciente | Agenda e agendamento (Fase 6) |
 
 ## Decisão de modelagem: avaliações flexíveis (não colunas fixas)
 
@@ -93,6 +94,39 @@ alter table public.appointments
 - Validado por teste real de duas conexões concorrentes
   (`scripts/db-concurrency-test.mjs`, `npm run test:db:concurrency`): das duas
   gravações simultâneas para o mesmo horário, exatamente uma sucede.
+
+## Agenda e agendamento (Fase 6)
+
+- **`scheduling_settings`** (uma linha por nutricionista): duração padrão,
+  granularidade de início dos slots, antecedência mínima para agendar e para
+  cancelar/reagendar (NULL = sem regra), horizonte máximo, `patient_can_book`,
+  `patient_can_choose_modality`, `timezone`. Defaults de coluna (60/30 min)
+  são técnicos — os reais são PENDENTE DE DEFINIÇÃO. Leitura por qualquer
+  autenticado, escrita só do dono.
+- **`appointments`** ganhou `cancellation_reason` e `created_by`. A exclusion
+  constraint da Fase 2 continua intocada. Trigger
+  `validate_appointment_ownership` (SECURITY DEFINER): `nutritionist_id` =
+  responsável pelo paciente; PATIENT só insere `SCHEDULED` sem valor e só
+  atualiza para `CANCELLED`/`RESCHEDULED` a partir de ativo, sem trocar
+  paciente/nutricionista/contrato/valor.
+- **`blocked_times`**: trigger `validate_blocked_time_conflicts` recusa
+  bloqueio sobre consulta SCHEDULED/CONFIRMED (`BLOCKED_TIME_CONFLICT`).
+- **`busy_intervals(nutritionist, from, to)`** (SECURITY DEFINER): só
+  `starts_at`/`ends_at`/`kind` de consultas ativas + bloqueios — base do
+  cálculo de horários livres do paciente sem ler consultas alheias.
+- **`validate_booking_window`**: futuro (+ antecedência), horizonte, regra
+  ativa do dia da semana no fuso configurado (consulta inteira dentro de UMA
+  regra, mesmo dia civil), modalidade compatível, fora de bloqueio.
+  **`book_appointment`**: PATIENT só para si (cadastro ACTIVE e
+  `patient_can_book`), sempre validado; NUTRITIONIST para paciente próprio,
+  validado salvo `p_allow_outside_availability = true` (override explícito;
+  passado nunca). **`reschedule_appointment`**: original → `RESCHEDULED` +
+  nova consulta ligada por `rescheduled_to_id`, copiando contrato/valor, numa
+  transação. Sobreposição em qualquer caso é decidida pela constraint
+  (23P01).
+- Policy `audit_logs_insert_patient_appointment`: paciente audita só
+  `entity_type = 'appointment'` com `actor_id = auth.uid()`.
+- Índice novo: `appointments (status, starts_at)`.
 
 ## Gestão de pacientes e contratos (Fase 5)
 
@@ -211,5 +245,14 @@ erDiagram
 - `scripts/patients-integration-test.mjs` (`npm run test:patients:integration`)
   — o mesmo via PostgREST/GoTrue com JWTs reais de dois nutricionistas e de
   um paciente.
+- `080_scheduling.test.sql` — ownership de appointments, restrições do
+  paciente, bloqueio x consulta, busy_intervals, book/reschedule (janela,
+  ids adulterados, histórico), adjacência, cancelamento liberando horário,
+  auditoria do paciente, override do nutricionista.
+- `scripts/scheduling-integration-test.mjs` (`npm run
+  test:scheduling:integration`) e `scripts/scheduling-concurrency-test.mjs`
+  (`npm run test:scheduling:concurrency` — 2 pacientes no mesmo slot,
+  nutricionista + paciente, 2 reagendamentos para o mesmo destino: sempre 1
+  sucesso e 1 recusa 23P01).
 
 Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test:db:concurrency`.

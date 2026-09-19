@@ -14,6 +14,8 @@ export interface RateLimitResult {
 
 export interface RateLimiter {
   consume(key: string): Promise<RateLimitResult>;
+  /** Zera o contador da chave (ex.: login bem-sucedido — o limite é para tentativas falhas). */
+  reset(key: string): Promise<void>;
 }
 
 interface Bucket {
@@ -64,5 +66,9 @@ export class InMemoryRateLimiter implements RateLimiter {
       remaining: this.max - bucket.count,
       resetAt: bucket.resetAt,
     };
+  }
+
+  async reset(key: string): Promise<void> {
+    this.buckets.delete(key);
   }
 }

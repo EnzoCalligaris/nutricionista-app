@@ -57,3 +57,64 @@ export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   return instantDateTime.format(new Date(iso));
 }
+
+function civilDateAsUtc(iso: string): Date | null {
+  const parsed = parseISODate(iso);
+  return parsed ? new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day)) : null;
+}
+
+const monthYear = new Intl.DateTimeFormat(siteConfig.locale, { month: "long", year: "numeric", timeZone: "UTC" });
+const dayMonth = new Intl.DateTimeFormat(siteConfig.locale, { day: "2-digit", month: "short", timeZone: "UTC" });
+const weekdayShort = new Intl.DateTimeFormat(siteConfig.locale, { weekday: "short", timeZone: "UTC" });
+const weekdayLong = new Intl.DateTimeFormat(siteConfig.locale, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const instantTime = new Intl.DateTimeFormat(siteConfig.locale, { hour: "2-digit", minute: "2-digit", timeZone: siteConfig.timeZone });
+const instantWeekdayDate = new Intl.DateTimeFormat(siteConfig.locale, {
+  weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: siteConfig.timeZone,
+});
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/** "setembro de 2026" -> "Setembro de 2026" (data civil). */
+export function formatMonthYear(iso: string): string {
+  const date = civilDateAsUtc(iso);
+  return date ? capitalize(monthYear.format(date)) : "—";
+}
+
+/** "18 de set." (data civil). */
+export function formatDayMonth(iso: string): string {
+  const date = civilDateAsUtc(iso);
+  return date ? dayMonth.format(date).replace(".", "") : "—";
+}
+
+/** "seg." -> "Seg" (data civil). */
+export function formatWeekdayShort(iso: string): string {
+  const date = civilDateAsUtc(iso);
+  return date ? capitalize(weekdayShort.format(date).replace(".", "")) : "—";
+}
+
+/** "sexta-feira, 18 de setembro" (data civil). */
+export function formatWeekdayLong(iso: string): string {
+  const date = civilDateAsUtc(iso);
+  return date ? capitalize(weekdayLong.format(date)) : "—";
+}
+
+/** "14:30" de um instante em America/Sao_Paulo. */
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return instantTime.format(new Date(iso));
+}
+
+/** "sex., 18/09" de um instante em America/Sao_Paulo. */
+export function formatInstantWeekdayDate(iso: string): string {
+  return capitalize(instantWeekdayDate.format(new Date(iso)).replace(".", ""));
+}
+
+/** "14:00 – 15:00". */
+export function formatTimeRange(startISO: string, endISO: string): string {
+  return `${formatTime(startISO)} – ${formatTime(endISO)}`;
+}

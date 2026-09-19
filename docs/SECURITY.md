@@ -106,7 +106,7 @@
 ### Rate limiting
 
 - `src/lib/auth/rate-limiter.ts` (lógica pura) + `src/lib/auth/rate-limit.ts`
-  (instâncias por fluxo, `server-only`): login (10/5min), esqueci-senha
+  (instâncias por fluxo, `server-only`): login (10 tentativas falhas/5min por IP+e-mail — um login válido zera o contador, Fase 6), esqueci-senha
   (5/15min), convite de paciente (20/hora), chave = IP + identificador.
   **Limitação documentada**: implementação em memória do processo — correta
   para dev local e um servidor Node único, não confiável sozinha em
@@ -177,8 +177,32 @@ outro. Rodar com `npm run test:db`.
   (`scripts/patients-integration-test.mjs`: Nutricionista B tenta ler,
   editar, desativar, criar contrato e cancelar contrato de paciente de A;
   PATIENT tenta inserir paciente/contrato/auditoria) e E2E.
+- **Implementado na Fase 6 (agenda)**: o paciente é sempre derivado da
+  sessão (`requirePatient()` → `patients.profile_id`), nunca de um
+  `patient_id` do browser; `book_appointment`/`reschedule_appointment` no
+  banco reconferem `is_patient_self`/`nutritionist_id = auth.uid()`; o
+  trigger `validate_appointment_ownership` impede `nutritionist_id`
+  adulterado e status privilegiado (COMPLETED/NO_SHOW/CONFIRMED) ou valor
+  alterado por PATIENT mesmo via API direta; `busy_intervals` (SECURITY
+  DEFINER) devolve só intervalos, sem paciente; consulta alheia é
+  indistinguível de inexistente (`*_NOT_FOUND`). Fora da disponibilidade,
+  dentro de bloqueio e passado são negados no servidor
+  (`validate_booking_window`), não só escondidos na UI. Testado em pgTAP
+  (`080_*`), integração (`scripts/scheduling-integration-test.mjs`: Paciente
+  B x consulta de A, Nutri B x agenda de A, status/valor pelo paciente,
+  bloqueio forjado, configuração alheia), concorrência real
+  (`scripts/scheduling-concurrency-test.mjs`) e E2E.
 
-## Concorrência / anti double-booking — implementada na Fase 2
+## Concorrência / anti double-booking — implementada na Fase 2, exercitada pela Fase 6
+
+Na Fase 6 toda criação/reagendamento passa por `book_appointment`/
+`reschedule_appointment` e o INSERT continua protegido pela exclusion
+constraint: `scripts/scheduling-concurrency-test.mjs` prova que dois
+pacientes no mesmo slot, nutricionista + paciente, e dois reagendamentos
+simultâneos para o mesmo destino terminam sempre com exatamente 1 sucesso e
+1 recusa (23P01 → "Esse horário acabou de ser reservado"), com rollback
+atômico do reagendamento recusado. A checagem de disponibilidade em memória
+é só UX — o banco decide.
 
 - Constraint `EXCLUDE USING gist` em `appointments` sobre
   `(nutritionist_id, tstzrange(starts_at, ends_at, '[)'))`, restrita a status

@@ -185,17 +185,20 @@ insert into public.financial_transactions (type, category_id, description, amoun
 values ('EXPENSE', '90000000-0000-0000-0000-000000000202', 'Assinatura de software de gestão (exemplo)', 15000, current_date - interval '3 days', 'CARD', 'MANUAL', '90000000-0000-0000-0000-000000000001');
 
 -- Consultas ---------------------------------------------------------------
+-- Horários fixos no fuso America/Sao_Paulo (não now()): as futuras caem
+-- dentro da disponibilidade fictícia de seed (seg–sex 08–12 / 14–18) quando
+-- o dia é útil — assim a agenda de desenvolvimento tem o que mostrar.
 insert into public.appointments (id, nutritionist_id, patient_id, contract_id, starts_at, ends_at, modality, status, amount_cents) values
   ('90000000-0000-0000-0000-000000000401', '90000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000301',
-   now() - interval '40 days', now() - interval '40 days' + interval '50 minutes', 'IN_PERSON', 'COMPLETED', 22679),
+   (((current_date - 40)::timestamp + time '09:00') at time zone 'America/Sao_Paulo'), (((current_date - 40)::timestamp + time '10:00') at time zone 'America/Sao_Paulo'), 'IN_PERSON', 'COMPLETED', 22679),
   ('90000000-0000-0000-0000-000000000402', '90000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000301',
-   now() + interval '5 days', now() + interval '5 days' + interval '50 minutes', 'ONLINE', 'SCHEDULED', 22679),
+   (((current_date + 5)::timestamp + time '10:00') at time zone 'America/Sao_Paulo'), (((current_date + 5)::timestamp + time '11:00') at time zone 'America/Sao_Paulo'), 'ONLINE', 'SCHEDULED', 22679),
   ('90000000-0000-0000-0000-000000000403', '90000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000011', '90000000-0000-0000-0000-000000000302',
-   now() - interval '10 days', now() - interval '10 days' + interval '50 minutes', 'IN_PERSON', 'COMPLETED', 21460),
+   (((current_date - 10)::timestamp + time '14:00') at time zone 'America/Sao_Paulo'), (((current_date - 10)::timestamp + time '15:00') at time zone 'America/Sao_Paulo'), 'IN_PERSON', 'COMPLETED', 21460),
   ('90000000-0000-0000-0000-000000000404', '90000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000011', '90000000-0000-0000-0000-000000000302',
-   now() + interval '15 days', now() + interval '15 days' + interval '50 minutes', 'IN_PERSON', 'CONFIRMED', 21460),
+   (((current_date + 15)::timestamp + time '15:00') at time zone 'America/Sao_Paulo'), (((current_date + 15)::timestamp + time '16:00') at time zone 'America/Sao_Paulo'), 'IN_PERSON', 'CONFIRMED', 21460),
   ('90000000-0000-0000-0000-000000000405', '90000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000012', '90000000-0000-0000-0000-000000000303',
-   now() - interval '5 days', now() - interval '5 days' + interval '50 minutes', 'IN_PERSON', 'COMPLETED', 23000);
+   (((current_date - 5)::timestamp + time '11:00') at time zone 'America/Sao_Paulo'), (((current_date - 5)::timestamp + time '12:00') at time zone 'America/Sao_Paulo'), 'IN_PERSON', 'COMPLETED', 23000);
 
 insert into public.appointment_notes (patient_id, appointment_id, author_id, content) values
   ('90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000401', '90000000-0000-0000-0000-000000000001',
@@ -290,3 +293,26 @@ insert into public.blog_posts (id, title, slug, excerpt, content, category_id, a
 insert into public.blog_post_tags (post_id, tag_id) values
   ('90000000-0000-0000-0000-000000000721', '90000000-0000-0000-0000-000000000711'),
   ('90000000-0000-0000-0000-000000000722', '90000000-0000-0000-0000-000000000712');
+
+-- Agenda (Fase 6) — DADO FICTÍCIO DE DESENVOLVIMENTO --------------------
+-- Os horários de trabalho, duração e granularidade reais de Enzo são
+-- PENDENTE DE DEFINIÇÃO (docs/DECISIONS.md, Fase 6). O que está aqui só
+-- serve para exercitar a agenda localmente: seg–sex, 08:00–12:00 e
+-- 14:00–18:00, consulta de 60 min com slots a cada 30 min.
+insert into public.scheduling_settings (nutritionist_id, default_duration_minutes, slot_granularity_minutes)
+values ('90000000-0000-0000-0000-000000000001', 60, 30);
+
+insert into public.availability_rules (nutritionist_id, weekday, start_time, end_time, modality, active)
+select '90000000-0000-0000-0000-000000000001', d.weekday, r.start_time, r.end_time, null, true
+from (values (1), (2), (3), (4), (5)) as d(weekday),
+     (values (time '08:00', time '12:00'), (time '14:00', time '18:00')) as r(start_time, end_time);
+
+-- Um bloqueio fictício de dia inteiro daqui a 30 dias (sem consulta nesse dia).
+insert into public.blocked_times (nutritionist_id, starts_at, ends_at, reason, all_day)
+values (
+  '90000000-0000-0000-0000-000000000001',
+  ((current_date + 30)::timestamp at time zone 'America/Sao_Paulo'),
+  ((current_date + 31)::timestamp at time zone 'America/Sao_Paulo'),
+  'Compromisso (dado fictício de seed)',
+  true
+);

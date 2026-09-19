@@ -39,3 +39,14 @@ describe("InMemoryRateLimiter", () => {
     expect((await limiter.consume(key)).success).toBe(true);
   });
 });
+
+describe("InMemoryRateLimiter.reset (Fase 6)", () => {
+  it("zera o contador da chave — login válido não consome o limite de tentativas falhas", async () => {
+    const limiter = new InMemoryRateLimiter(2, 60_000);
+    await limiter.consume("k");
+    await limiter.consume("k");
+    expect((await limiter.consume("k")).success).toBe(false);
+    await limiter.reset("k");
+    expect((await limiter.consume("k")).success).toBe(true);
+  });
+});

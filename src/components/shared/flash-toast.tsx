@@ -17,7 +17,14 @@ export type FlashToastCode =
   | "patient_created_invited"
   | "patient_created_invite_failed"
   | "patient_updated"
-  | "contract_created";
+  | "contract_created"
+  | "appointment_created"
+  | "appointment_updated"
+  | "appointment_rescheduled"
+  | "blocked_time_created"
+  | "settings_saved"
+  | "booking_created"
+  | "booking_rescheduled";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -33,6 +40,13 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   },
   patient_updated: { type: "success", message: "Paciente atualizado." },
   contract_created: { type: "success", message: "Contrato criado." },
+  appointment_created: { type: "success", message: "Consulta agendada." },
+  appointment_updated: { type: "success", message: "Consulta atualizada." },
+  appointment_rescheduled: { type: "success", message: "Consulta reagendada.", description: "A consulta original foi mantida no histórico como reagendada." },
+  blocked_time_created: { type: "success", message: "Bloqueio criado." },
+  settings_saved: { type: "success", message: "Configurações da agenda salvas." },
+  booking_created: { type: "success", message: "Consulta agendada com sucesso." },
+  booking_rescheduled: { type: "success", message: "Consulta reagendada com sucesso." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

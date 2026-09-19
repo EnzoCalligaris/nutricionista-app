@@ -11,6 +11,8 @@ import { PatientSectionNav, parsePatientSection } from "@/components/patients/pa
 import { PatientOverviewSection } from "@/components/patients/patient-overview-section";
 import { PatientContractsSection } from "@/components/patients/patient-contracts-section";
 import { PatientPaymentsSection, PatientPlaceholderSection } from "@/components/patients/patient-placeholder-section";
+import { PatientAppointmentsSection } from "@/components/patients/patient-appointments-section";
+import { listPatientAppointments } from "@/data/appointments";
 import { requireNutritionist } from "@/lib/auth/session";
 import { getPatientAuditEvents, getPatientById, getPatientModuleCounts, getPatientOverview, getPatientPayments } from "@/data/patients";
 import { getPatientContracts } from "@/data/contracts";
@@ -144,6 +146,8 @@ export default async function PacientePage({ params, searchParams }: PageProps<"
         />
       ) : section === "contratos" ? (
         <PatientContractsSection patientId={patient.id} contracts={contracts} today={today} canCreate={canCreateContract} />
+      ) : section === "consultas" ? (
+        <PatientAppointmentsSection patientId={patient.id} appointments={await listPatientAppointments(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "financeiro" ? (
         <PatientPaymentsSection payments={payments} planNameByContract={planNameByContract} />
       ) : (

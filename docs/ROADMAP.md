@@ -70,8 +70,25 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   adulterados), 14 E2E novos, screenshots reais em 1440/768/390
   (+375/430/1024/1280) revisadas e corrigidas. Registro manual de pagamento
   fica para a Fase 7.
-- **FASE 6 — Agenda.** Disponibilidade, bloqueios, agendamento do paciente,
-  constraint anti-overlap, próximas sessões, status de consulta.
+- **FASE 6 — Agenda.** ✅ Concluída. `/dashboard/agenda` real (dia/semana/
+  mês, grade por minutos no fuso, disponibilidade e bloqueios no fundo,
+  próximas sessões com filtro), detalhe da consulta com máquina de estados
+  (confirmar/realizada/faltou/cancelar com motivo/reagendar com histórico/
+  editar), nova consulta (autocomplete de paciente server-side, slots
+  livres, contrato opcional, override administrativo), bloqueios (horário,
+  intervalo, dia inteiro, vários dias), `/dashboard/agenda/configuracoes`
+  (disponibilidade semanal com múltiplos intervalos, duração/granularidade/
+  antecedências/horizonte/permissões — tudo configurável, nada real
+  inventado), portal do paciente (`/paciente/consultas` com próxima/futuras/
+  histórico, `/paciente/agendar` mobile-first data → horário → tipo →
+  confirmar, reagendar/cancelar próprias consultas), `/agendar` público com
+  CTA + `next` seguro. Slots por domínio puro + validação no banco
+  (`book_appointment`/`reschedule_appointment`), `busy_intervals` sem vazar
+  pacientes, triggers de ownership/status do paciente/bloqueio x consulta,
+  eventos internos de notificação sem entrega. 46 testes unitários novos
+  (rodam em `TZ=UTC` e `TZ=Asia/Tokyo`), 36 pgTAP novos, 36 checks de
+  integração, 12 de concorrência real (2 pacientes, nutri+paciente, 2
+  reagendamentos), 17 E2E novos, screenshots em 1440/1024/768/390/375/430.
 - **FASE 7 — Financeiro.** Lançamentos manuais + automáticos a partir de
   consulta/pagamento, previsão de recebimentos, relatórios (contratado/
   recebido/pendente/previsto).
@@ -168,5 +185,17 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    presenciais por plano (`docs/DECISIONS.md`, inconsistência 1), formato da
    consulta online, horários de trabalho de Enzo — podem seguir como
    `PENDENTE DE DEFINIÇÃO` configurável.
-3. **Aguardando aprovação explícita do usuário** — não iniciar agenda,
-   financeiro completo, cardápios ou IA sem sinal verde (prompt Fase 5 §80).
+3. Aprovação formal da Fase 5 recebida em 2026-09-18. Fase 6 concluída em
+   2026-09-19.
+
+## Critérios para iniciar a Fase 7
+
+1. Usuário revisou a agenda (dashboard e portal), a configuração de
+   disponibilidade e os fluxos de agendamento/reagendamento/cancelamento e
+   aprovou explicitamente.
+2. Definições que o financeiro vai precisar: categorias reais de receita/
+   despesa, política de baixa manual, se consulta avulsa gera lançamento na
+   criação ou na realização — podem entrar como configuração/`PENDENTE`.
+3. **Aguardando aprovação explícita do usuário** — não iniciar financeiro
+   completo, cardápios, notificações externas ou IA sem sinal verde
+   (prompt Fase 6 §107).

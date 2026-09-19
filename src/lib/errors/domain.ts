@@ -20,6 +20,15 @@ export type DomainErrorCode =
   | "INVALID_INSTALLMENTS"
   | "INVALID_STATUS_TRANSITION"
   | "INVITE_NOT_SENT"
+  | "APPOINTMENT_NOT_FOUND"
+  | "APPOINTMENT_NOT_AUTHORIZED"
+  | "APPOINTMENT_SLOT_UNAVAILABLE"
+  | "APPOINTMENT_IN_PAST"
+  | "INVALID_APPOINTMENT_STATUS_TRANSITION"
+  | "INVALID_AVAILABILITY"
+  | "BLOCKED_TIME_CONFLICT"
+  | "BLOCKED_TIME_NOT_FOUND"
+  | "PATIENT_NOT_ELIGIBLE"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -36,6 +45,15 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   INVALID_INSTALLMENTS: "Parcelamento inválido: verifique quantidade, valores e vencimentos.",
   INVALID_STATUS_TRANSITION: "Esta ação não é permitida no status atual do contrato.",
   INVITE_NOT_SENT: "O paciente foi salvo, mas o convite não pôde ser enviado: já existe uma conta ou convite pendente para este e-mail.",
+  APPOINTMENT_NOT_FOUND: "Consulta não encontrada.",
+  APPOINTMENT_NOT_AUTHORIZED: "Você não tem permissão para alterar esta consulta.",
+  APPOINTMENT_SLOT_UNAVAILABLE: "Esse horário acabou de ser reservado. Escolha outro horário.",
+  APPOINTMENT_IN_PAST: "Escolha um horário futuro (respeitando a antecedência mínima configurada).",
+  INVALID_APPOINTMENT_STATUS_TRANSITION: "Esta ação não é permitida no status atual da consulta.",
+  INVALID_AVAILABILITY: "Esse horário está fora da disponibilidade da agenda.",
+  BLOCKED_TIME_CONFLICT: "O período conflita com um bloqueio ou com uma consulta ativa.",
+  BLOCKED_TIME_NOT_FOUND: "Bloqueio não encontrado.",
+  PATIENT_NOT_ELIGIBLE: "O agendamento online não está disponível para este paciente no momento.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };
@@ -72,6 +90,11 @@ export function domainErrorFromDatabase(error: { message?: string; code?: string
   }
   if (error?.code === "23505" && message.includes("patients_nutritionist_email_unique_idx")) {
     return new DomainError("PATIENT_EMAIL_ALREADY_EXISTS");
+  }
+  // 23P01 = exclusion_violation: a constraint anti-double-booking da Fase 2
+  // (`appointments_no_overlap`) recusou o horário — nunca mostrar o SQL.
+  if (error?.code === "23P01" || message.includes("appointments_no_overlap")) {
+    return new DomainError("APPOINTMENT_SLOT_UNAVAILABLE");
   }
   return new DomainError("UNKNOWN");
 }

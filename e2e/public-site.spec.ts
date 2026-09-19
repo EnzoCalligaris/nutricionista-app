@@ -79,7 +79,7 @@ test.describe("site público — páginas", () => {
     await page.goto("/agendar?plano=trimestral");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/pré-consulta gratuita/i);
     await expect(page.getByText(/Você se interessou pelo Plano Trimestral/)).toBeVisible();
-    await expect(page.getByRole("link", { name: /Já sou paciente/ })).toHaveAttribute("href", "/login");
+    await expect(page.getByRole("link", { name: /Já sou paciente/ })).toHaveAttribute("href", "/login?next=%2Fpaciente%2Fagendar");
   });
 
   test("páginas legais existem e não inventam CNPJ", async ({ page }) => {

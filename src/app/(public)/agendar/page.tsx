@@ -9,15 +9,17 @@ import { hasAnyContactChannel, whatsappHref } from "@/domain/site-settings/conta
 export const metadata: Metadata = {
   title: "Agendar pré-consulta",
   description:
-    "Comece o acompanhamento com uma pré-consulta gratuita com Enzo Mangili. O agendamento online está sendo preparado.",
+    "Comece o acompanhamento com uma pré-consulta gratuita com Enzo Mangili. Pacientes agendam online pelo portal.",
   alternates: { canonical: "/agendar" },
 };
 
 /**
- * Porta de entrada do agendamento (prompt Fase 4 §30). A agenda funcional é
- * Fase 6 — aqui não existe calendário falso: explicamos o próximo passo e
- * apontamos para os canais que já existem. `?plano=` só personaliza o
- * texto (vem de /planos).
+ * Porta de entrada do agendamento (prompt Fase 4 §30 / Fase 6 §43). Sem
+ * calendário para visitante anônimo: quem ainda não é paciente segue pelos
+ * canais de contato; quem já é paciente entra e cai direto no fluxo do
+ * portal (`/login?next=/paciente/agendar` — `next` sanitizado no login;
+ * nutricionista logado nunca é levado ao portal do paciente, o proxy o
+ * manda ao dashboard). `?plano=` só personaliza o texto (vem de /planos).
  */
 export default async function AgendarPage({ searchParams }: { searchParams: Promise<{ plano?: string }> }) {
   const [{ plano }, plans, contact] = await Promise.all([searchParams, getPublicPlans(), getContactInfo()]);
@@ -78,9 +80,8 @@ export default async function AgendarPage({ searchParams }: { searchParams: Prom
             </ul>
           ) : (
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              O agendamento online com horários em tempo real está sendo preparado e será conectado a
-              esta página. Por enquanto, envie uma mensagem pela página de contato — respondemos
-              para combinar o melhor horário.
+              Ainda não é paciente? Envie uma mensagem pela página de contato — respondemos para
+              combinar a pré-consulta. Já é paciente? Entre no portal e escolha um horário livre.
             </p>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -90,7 +91,7 @@ export default async function AgendarPage({ searchParams }: { searchParams: Prom
               </Button>
             ) : null}
             <Button asChild variant="outline">
-              <Link href="/login">Já sou paciente — entrar</Link>
+              <Link href="/login?next=%2Fpaciente%2Fagendar">Já sou paciente — agendar online</Link>
             </Button>
           </div>
         </div>

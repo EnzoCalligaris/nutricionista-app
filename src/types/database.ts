@@ -103,9 +103,11 @@ export type Database = {
       appointments: {
         Row: {
           amount_cents: number | null
+          cancellation_reason: string | null
           cancelled_at: string | null
           contract_id: string | null
           created_at: string
+          created_by: string | null
           ends_at: string
           id: string
           modality: Database["public"]["Enums"]["appointment_modality"]
@@ -118,9 +120,11 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number | null
+          cancellation_reason?: string | null
           cancelled_at?: string | null
           contract_id?: string | null
           created_at?: string
+          created_by?: string | null
           ends_at: string
           id?: string
           modality: Database["public"]["Enums"]["appointment_modality"]
@@ -133,9 +137,11 @@ export type Database = {
         }
         Update: {
           amount_cents?: number | null
+          cancellation_reason?: string | null
           cancelled_at?: string | null
           contract_id?: string | null
           created_at?: string
+          created_by?: string | null
           ends_at?: string
           id?: string
           modality?: Database["public"]["Enums"]["appointment_modality"]
@@ -167,6 +173,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "patient_overview"
             referencedColumns: ["current_contract_id"]
+          },
+          {
+            foreignKeyName: "appointments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "appointments_nutritionist_id_fkey"
@@ -1927,6 +1940,56 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduling_settings: {
+        Row: {
+          created_at: string
+          default_duration_minutes: number
+          max_booking_horizon_days: number | null
+          min_booking_notice_hours: number | null
+          min_cancellation_notice_hours: number | null
+          nutritionist_id: string
+          patient_can_book: boolean
+          patient_can_choose_modality: boolean
+          slot_granularity_minutes: number
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_duration_minutes?: number
+          max_booking_horizon_days?: number | null
+          min_booking_notice_hours?: number | null
+          min_cancellation_notice_hours?: number | null
+          nutritionist_id: string
+          patient_can_book?: boolean
+          patient_can_choose_modality?: boolean
+          slot_granularity_minutes?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_duration_minutes?: number
+          max_booking_horizon_days?: number | null
+          min_booking_notice_hours?: number | null
+          min_cancellation_notice_hours?: number | null
+          nutritionist_id?: string
+          patient_can_book?: boolean
+          patient_can_choose_modality?: boolean
+          slot_granularity_minutes?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduling_settings_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_settings: {
         Row: {
           is_public: boolean
@@ -2154,6 +2217,27 @@ export type Database = {
       }
     }
     Functions: {
+      book_appointment: {
+        Args: {
+          p_allow_outside_availability?: boolean
+          p_amount_cents?: number
+          p_contract_id?: string
+          p_ends_at: string
+          p_modality: Database["public"]["Enums"]["appointment_modality"]
+          p_patient_id: string
+          p_starts_at: string
+          p_status?: Database["public"]["Enums"]["appointment_status"]
+        }
+        Returns: string
+      }
+      busy_intervals: {
+        Args: { p_from: string; p_nutritionist_id: string; p_to: string }
+        Returns: {
+          ends_at: string
+          kind: string
+          starts_at: string
+        }[]
+      }
       cancel_contract: { Args: { p_contract_id: string }; Returns: undefined }
       complete_contract: { Args: { p_contract_id: string }; Returns: undefined }
       create_contract_with_installments: {
@@ -2182,7 +2266,27 @@ export type Database = {
         Returns: boolean
       }
       is_patient_self: { Args: { target_patient_id: string }; Returns: boolean }
+      reschedule_appointment: {
+        Args: {
+          p_allow_outside_availability?: boolean
+          p_appointment_id: string
+          p_ends_at: string
+          p_modality?: Database["public"]["Enums"]["appointment_modality"]
+          p_starts_at: string
+        }
+        Returns: string
+      }
       safe_uuid: { Args: { value: string }; Returns: string }
+      validate_booking_window: {
+        Args: {
+          p_as_patient: boolean
+          p_ends_at: string
+          p_modality: Database["public"]["Enums"]["appointment_modality"]
+          p_nutritionist_id: string
+          p_starts_at: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       appointment_modality: "IN_PERSON" | "ONLINE"

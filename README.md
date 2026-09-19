@@ -92,6 +92,11 @@ Abre em [http://localhost:3000](http://localhost:3000):
   dashboard ainda são shells (Agenda = Fase 6, Financeiro = Fase 7...)
 - `/dashboard/pacientes/convidar` — convite de paciente por e-mail (Fase 3;
   a mesma lógica é usada por "Novo paciente + convite" e pelo perfil)
+- `/dashboard/agenda` (dia/semana/mês, próximas sessões), `/dashboard/agenda/nova`,
+  `/dashboard/agenda/[id]` (+ `/editar`, `/reagendar`), `/dashboard/agenda/bloqueios/novo`,
+  `/dashboard/agenda/configuracoes` — agenda, disponibilidade e bloqueios (Fase 6)
+- `/paciente/consultas`, `/paciente/agendar` — consultas e agendamento online do
+  paciente (Fase 6); `/agendar` público leva ao login com `next` seguro
 - `/paciente` — portal do paciente, exige login com role `PATIENT`
 
 Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
@@ -119,6 +124,9 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:public:integration` | Testes de integração do conteúdo público (plano anual invisível, DRAFT oculto, consentimento de resultados) |
 | `npm run test:patients:integration` | Testes de integração de pacientes/contratos contra Supabase local real (RLS via API, ownership entre dois nutricionistas, ids adulterados, funções SQL de contrato, e-mail único) |
 | `npm run screenshots:fase-5` | Gera as screenshots reais de QA visual da Fase 5 em `screenshots/fase-5/` (app rodando em :3000; `--extra` para 375/430/1024/1280 px) |
+| `npm run test:scheduling:integration` | Integração da agenda contra Supabase local real (ownership paciente x paciente e nutri x nutri, disponibilidade/bloqueio negados no servidor, status pelo paciente, busy_intervals) |
+| `npm run test:scheduling:concurrency` | Concorrência real de agendamento via API (2 pacientes, nutri + paciente, 2 reagendamentos): sempre 1 sucesso e 1 recusa |
+| `npm run screenshots:fase-6` | Screenshots reais da agenda (dashboard) e do agendamento (portal) em `screenshots/fase-6/` |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)
@@ -133,10 +141,10 @@ src/
     paciente/          # portal do paciente — exige login + role PATIENT
   actions/             # server actions (auth, onboarding, contact, patients, contracts)
   validators/          # schemas Zod (auth, contact, patients, contracts)
-  services/            # casos de uso (patients, contracts, onboarding, audit) — ownership + regras
+  services/            # casos de uso (patients, contracts, onboarding, audit, scheduling, notifications) — ownership + regras
   data/                # queries: públicas (plans, blog, results, site-settings) e do dashboard (patients, contracts)
   domain/              # regras puras (planos, blog, contato; pacientes: idade/status/ticket/timeline;
-                       # contratos: parcelas/datas/status)
+                       # contratos: parcelas/datas/status; agenda: slots/intervalos/regras/estados/calendário)
   content/             # conteúdo editorial do site (origem: PDF de referência)
   components/
     ui/                # primitivos shadcn/ui
@@ -145,6 +153,8 @@ src/
     auth/              # formulários de login/senha, gate de reset, menu de logout
     patients/          # listagem, cards de métricas, filtros, formulário, perfil, timeline, ações
     contracts/         # formulário de contrato (pré-visualização de parcelas), card, ações
+    scheduling/        # agenda do nutricionista (toolbar, grade semana/dia, mês, próximas sessões, formulários)
+    portal/            # portal do paciente (cards de consulta, fluxo de agendamento)
     marketing/         # seções do site público (hero, fases, pilares, planos, CTA...)
     blog/              # card de post e renderizador de rich text
     seo/               # JSON-LD
@@ -153,7 +163,7 @@ src/
   lib/                 # utils, env.ts, supabase/ (client/server/admin/public), auth/ (session,
                        # redirect, errors, rate-limit(er)), calendar.ts, money.ts, errors/domain.ts
   types/               # database.ts (gerado — nunca editar à mão)
-e2e/                   # testes Playwright (smoke, auth, public-site, patients)
+e2e/                   # testes Playwright (smoke, auth, public-site, patients, scheduling)
 public/                # brand/ (logo recortado, monograma) e images/enzo/ (5 fotos WebP selecionadas)
 supabase/              # migrations, seed.sql, tests/database (pgTAP), config.toml
 scripts/               # scripts fora do Next.js (concorrência, integrações, bootstrap do nutricionista, screenshots)
