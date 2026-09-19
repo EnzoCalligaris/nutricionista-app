@@ -36,7 +36,15 @@ export type AuditAction =
   | "MEAL_PLAN_VERSION_DISCARDED"
   | "MEAL_PLAN_ARCHIVED"
   | "MEAL_DUPLICATED"
-  | "MEAL_PLAN_DAY_DUPLICATED";
+  | "MEAL_PLAN_DAY_DUPLICATED"
+  | "ASSESSMENT_CREATED"
+  | "ASSESSMENT_UPDATED"
+  | "ASSESSMENT_PUBLISHED"
+  | "ASSESSMENT_UNPUBLISHED"
+  | "ASSESSMENT_ARCHIVED"
+  | "ASSESSMENT_DELETED"
+  | "BIOIMPEDANCE_REPORT_UPLOADED"
+  | "BIOIMPEDANCE_REPORT_REMOVED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -64,7 +72,8 @@ export async function recordAudit(input: {
     | "payment"
     | "installment"
     | "meal_plan"
-    | "meal_plan_version";
+    | "meal_plan_version"
+    | "assessment";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

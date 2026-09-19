@@ -307,7 +307,11 @@ sessão — a policy exige `actor_id = auth.uid()` e role NUTRITIONIST):
 `MEAL_PLAN_CREATED`/`UPDATED`/`ARCHIVED`, `MEAL_PLAN_VERSION_CREATED`/
 `PUBLISHED`/`DISCARDED`, `MEAL_DUPLICATED`, `MEAL_PLAN_DAY_DUPLICATED`
 (só ids e o tipo de operação — nunca alimento, quantidade ou observação:
-o E2E verifica que nenhum nome de alimento chega ao metadata). Metadata é o mínimo para
+o E2E verifica que nenhum nome de alimento chega ao metadata); desde a
+Fase 9: `ASSESSMENT_CREATED/UPDATED/PUBLISHED/UNPUBLISHED/ARCHIVED/DELETED`,
+`BIOIMPEDANCE_REPORT_UPLOADED/REMOVED` (ids, contagem de métricas, mime e
+tamanho — nunca peso, percentuais, circunferências, observações ou nome do
+relatório; verificado no E2E). Metadata é o mínimo para
 rastrear "quem fez o quê" — ids, NOMES dos campos alterados, código do
 plano, valor/quantidade de parcelas — nunca e-mail, telefone, nascimento ou
 qualquer dado clínico. Falta (fases futuras): avaliação, publicação de
@@ -351,6 +355,26 @@ antes/depois.
 - Logs: erros não incluem conteúdo do plano; auditoria só com ids.
 - Sem cache público/ISR nas rotas do cardápio (dashboard e portal são
   `force-dynamic`, privados, noindex). Nada é gravado em Storage.
+
+## Avaliações e bioimpedância — dado pessoal de saúde (Fase 9)
+
+- RLS: nutricionista só nos próprios pacientes; paciente só avaliações
+  próprias **visíveis e não arquivadas** (tabelas e bucket, via helper
+  SECURITY DEFINER). Paciente não escreve nem chama a função de medidas.
+  `internal_notes` nunca é selecionada pelas queries do portal.
+- Ownership no servidor em toda rota/action/route handler (paciente da
+  rota → avaliação desse paciente); `patient_id` do portal vem da sessão;
+  ids adulterados = "não encontrado"; `patient_id` imutável por trigger.
+- Relatório: bucket privado `bioimpedance-reports`, path
+  `<patient_id>/<assessment_id>/<uuid>.<ext>` validado por trigger, tipo
+  conferido pela assinatura do arquivo, 10 MB, nome saneado; substituição
+  remove o anterior; remoção limpa metadados antes de apagar o objeto.
+  Download só por URL assinada de 60 s gerada server-side após checagem,
+  com `Cache-Control: no-store`; nunca persistida, logada ou auditada.
+- Sem service role. Sem OCR/IA/diagnóstico. Nada de valor de saúde em logs
+  de aplicação (só mensagens técnicas) nem em `audit_logs.metadata`.
+- Rotas privadas `force-dynamic`, sem ISR, noindex. IMC derivado só como
+  número, sem faixa/interpretação.
 
 ## Clientes Supabase — implementados na Fase 2
 

@@ -199,13 +199,15 @@ test.describe("perfil, cadastro e contratos", () => {
     await expect(page.getByRole("cell", { name: "1/3" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "3/3" })).toBeVisible();
 
-    // Consultas passou a ser real na Fase 6 e Cardápio na Fase 8; o
-    // placeholder que resta é Avaliações (Fase 9).
+    // Consultas (Fase 6), Cardápio (Fase 8) e Avaliações (Fase 9) são reais;
+    // o placeholder que resta é Comentários (Fase 10).
     await sectionNav(page).getByRole("link", { name: "Consultas" }).click();
     await expect(page.getByRole("columnheader", { name: "Pagamento" })).toBeVisible();
     await sectionNav(page).getByRole("link", { name: "Cardápio" }).click();
     await expect(page.getByRole("heading", { name: "Histórico de versões" })).toBeVisible();
     await sectionNav(page).getByRole("link", { name: "Avaliações" }).click();
+    await expect(page.getByRole("heading", { name: "Evolução" })).toBeVisible();
+    await sectionNav(page).getByRole("link", { name: "Comentários" }).click();
     await expect(page.getByText("Disponível em uma próxima etapa")).toBeVisible();
   });
 

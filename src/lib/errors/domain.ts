@@ -55,6 +55,17 @@ export type DomainErrorCode =
   | "MEAL_SUBSTITUTION_NOT_FOUND"
   | "PUBLISH_CONFLICT"
   | "CONCURRENT_UPDATE"
+  | "ASSESSMENT_NOT_FOUND"
+  | "ASSESSMENT_NOT_AUTHORIZED"
+  | "ASSESSMENT_ARCHIVED"
+  | "ASSESSMENT_NOT_DELETABLE"
+  | "ASSESSMENT_NOT_VISIBLE"
+  | "INVALID_MEASUREMENT"
+  | "INVALID_ASSESSMENT_DATE"
+  | "REPORT_UPLOAD_FAILED"
+  | "REPORT_INVALID_FILE"
+  | "REPORT_NOT_FOUND"
+  | "REPORT_PATH_INVALID"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -106,6 +117,17 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   MEAL_SUBSTITUTION_NOT_FOUND: "Substituição não encontrada.",
   PUBLISH_CONFLICT: "Outra versão foi publicada ao mesmo tempo. Recarregue a página e tente de novo.",
   CONCURRENT_UPDATE: "Este registro foi alterado em outra sessão. Recarregue a página para ver a versão atual.",
+  ASSESSMENT_NOT_FOUND: "Avaliação não encontrada.",
+  ASSESSMENT_NOT_AUTHORIZED: "Você não tem permissão para acessar esta avaliação.",
+  ASSESSMENT_ARCHIVED: "Esta avaliação está arquivada e não pode ser alterada.",
+  ASSESSMENT_NOT_DELETABLE: "Esta avaliação já foi exibida ao paciente e não pode ser excluída. Arquive-a.",
+  ASSESSMENT_NOT_VISIBLE: "Esta avaliação ainda não está disponível.",
+  INVALID_MEASUREMENT: "Valor de medida inválido: use números maiores que zero (percentuais até 100).",
+  INVALID_ASSESSMENT_DATE: "A data da avaliação não pode estar no futuro.",
+  REPORT_UPLOAD_FAILED: "Não foi possível enviar o relatório. Tente novamente.",
+  REPORT_INVALID_FILE: "Envie um PDF ou imagem (JPG/PNG) de até 10 MB.",
+  REPORT_NOT_FOUND: "Relatório não encontrado.",
+  REPORT_PATH_INVALID: "Caminho de arquivo inválido.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };

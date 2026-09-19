@@ -129,8 +129,25 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   pgTAP, 48 checks de integração (`test:meal-plans:integration`, incl.
   duas publicações simultâneas), 17 E2E, screenshots em
   1440/1280/1024/768/390/375/430.
-- **FASE 9 — Bioimpedância/evolução.** Registro de avaliação, gráficos no
-  portal do paciente.
+- **FASE 9 — Bioimpedância/evolução.** ✅ Concluída. Aba Avaliações do
+  paciente (evolução com variação vs anterior, gráficos Recharts, histórico,
+  comparação, relatórios), `/avaliacoes/nova` e `/[assessmentId]` (+
+  `/editar`, `/comparar`, `/relatorio`), `/dashboard/avaliacoes` (visão por
+  paciente), portal `/paciente/evolucao` (+ detalhe e download) e card
+  "Última avaliação" no início. Catálogo flexível da Fase 2 mantido
+  (medidas por `measurement_types`, nenhuma obrigatória, ranges técnicos —
+  nunca clínicos), data civil em America/Sao_Paulo (sem futuro),
+  observação visível x nota interna, visibilidade por avaliação (paciente
+  só vê liberada e não arquivada — RLS de tabela e de bucket), relatório
+  PDF/JPG/PNG no bucket privado `bioimpedance-reports` com assinatura de
+  arquivo conferida, path seguro e URL assinada de 60 s server-side,
+  arquivamento (histórico) e exclusão só de avaliação nunca exibida,
+  comparação A→B com deltas em kg/cm/p.p. e direção descritiva (sem
+  "melhorou/piorou"), IMC derivado só como valor. Sem OCR, IA, protocolos
+  de dobras, PDF de evolução ou CSV. 1 migration nova, 31 testes unitários,
+  43 pgTAP (incl. RLS do storage), 43 checks de integração com upload/
+  download reais (`test:assessments:integration`), 15 E2E, screenshots em
+  1440/1280/1024/768/390/375/430.
 - **FASE 10 — Suplementos, feedbacks e materiais.** CRUD + notificação in-app.
 - **FASE 11 — IA de refeições.** `FoodAnalysisProvider`, upload de foto,
   estimativa, fluxo de confirmação/correção pelo paciente.
@@ -253,6 +270,17 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    refeição do Enzo (hoje nome livre, sem lista fixa), lista de unidades
    real, se o paciente pode ver versões anteriores (hoje só a atual),
    templates globais (hoje duplicação/plano anterior como base).
-3. **Aguardando aprovação explícita do usuário** — não iniciar
-   bioimpedância/evolução, suplementos, IA de foto ou notificações
-   externas sem sinal verde (prompt Fase 8 §95).
+3. Aprovação formal da Fase 8 recebida em 2026-09-19. Fase 9 concluída em
+   2026-09-19.
+
+## Critérios para iniciar a Fase 10
+
+1. Usuário revisou avaliações/evolução (aba, formulário, comparação,
+   gráficos, relatório, portal, screenshots) e aprovou explicitamente.
+2. Pendências configuráveis/`PENDENTE`: quais métricas o Enzo usa de fato
+   (o catálogo é ampliável por migration), protocolo/dobras cutâneas (não
+   modelado), histórico de versões de avaliação (edição administrativa só
+   auditada), PDF/CSV de evolução.
+3. **Aguardando aprovação explícita do usuário** — não iniciar suplementos,
+   feedbacks/materiais, IA de foto, gateway ou notificações externas sem
+   sinal verde (prompt Fase 9 §101).

@@ -13,6 +13,8 @@ import { PatientContractsSection } from "@/components/patients/patient-contracts
 import { PatientPlaceholderSection } from "@/components/patients/patient-placeholder-section";
 import { PatientFinanceSection } from "@/components/patients/patient-finance-section";
 import { PatientMealPlanSection } from "@/components/meal-plans/patient-meal-plan-section";
+import { PatientAssessmentsSection } from "@/components/assessments/patient-assessments-section";
+import { listPatientAssessments } from "@/data/assessments";
 import { listPatientMealPlans } from "@/data/meal-plans";
 import { PatientAppointmentsSection } from "@/components/patients/patient-appointments-section";
 import { listPatientAppointments } from "@/data/appointments";
@@ -155,6 +157,8 @@ export default async function PacientePage({ params, searchParams }: PageProps<"
         <PatientAppointmentsSection patientId={patient.id} appointments={await listPatientAppointments(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "cardapio" ? (
         <PatientMealPlanSection patientId={patient.id} plans={await listPatientMealPlans(patient.id)} canCreate={patient.status === "ACTIVE"} />
+      ) : section === "avaliacoes" ? (
+        <PatientAssessmentsSection patientId={patient.id} assessments={await listPatientAssessments(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "financeiro" ? (
         <PatientFinanceSection
           patient={{ id: patient.id, name: patient.full_name, status: patient.status }}

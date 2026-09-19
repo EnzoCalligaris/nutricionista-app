@@ -262,33 +262,76 @@ export type Database = {
       }
       assessments: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           assessed_at: string
+          assessment_date: string
           created_at: string
           created_by: string | null
           id: string
+          internal_notes: string | null
           notes: string | null
           patient_id: string
+          published_at: string | null
+          report_mime: string | null
+          report_name: string | null
+          report_path: string | null
+          report_size_bytes: number | null
+          report_uploaded_at: string | null
           updated_at: string
+          updated_by: string | null
+          visible_to_patient: boolean
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           assessed_at?: string
+          assessment_date: string
           created_at?: string
           created_by?: string | null
           id?: string
+          internal_notes?: string | null
           notes?: string | null
           patient_id: string
+          published_at?: string | null
+          report_mime?: string | null
+          report_name?: string | null
+          report_path?: string | null
+          report_size_bytes?: number | null
+          report_uploaded_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          visible_to_patient?: boolean
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           assessed_at?: string
+          assessment_date?: string
           created_at?: string
           created_by?: string | null
           id?: string
+          internal_notes?: string | null
           notes?: string | null
           patient_id?: string
+          published_at?: string | null
+          report_mime?: string | null
+          report_name?: string | null
+          report_path?: string | null
+          report_size_bytes?: number | null
+          report_uploaded_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          visible_to_patient?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "assessments_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assessments_created_by_fkey"
             columns: ["created_by"]
@@ -315,6 +358,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2369,6 +2419,10 @@ export type Database = {
     }
     Functions: {
       archive_meal_plan: { Args: { p_plan_id: string }; Returns: undefined }
+      assessment_visible_to_patient: {
+        Args: { p_assessment_id: string }
+        Returns: boolean
+      }
       book_appointment: {
         Args: {
           p_allow_outside_availability?: boolean
@@ -2526,6 +2580,10 @@ export type Database = {
         Returns: string
       }
       safe_uuid: { Args: { value: string }; Returns: string }
+      set_assessment_measurements: {
+        Args: { p_assessment_id: string; p_values: Json }
+        Returns: undefined
+      }
       validate_booking_window: {
         Args: {
           p_as_patient: boolean

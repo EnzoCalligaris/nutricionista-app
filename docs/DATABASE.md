@@ -65,6 +65,7 @@ fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
 | `20260917120000_auth_profile_provisioning` | trigger em `auth.users` | Profile PATIENT automático (Fase 3) |
 | `20260917120001_fix_validate_patient_profile_roles_rls` | — | Trigger de `patients` como SECURITY DEFINER (Fase 3) |
 | `20260918120000_patients_contracts_management` | `patient_contracts.notes`, índice único de e-mail, view `patient_overview`, funções `create_contract_with_installments`/`cancel_contract`/`complete_contract` | Gestão de pacientes/contratos (Fase 5) |
+| `20260922120000_assessment_management` | `assessments.assessment_date/visible_to_patient/published_at/internal_notes/archived_at/by/updated_by/report_*`, catálogo ampliado (altura, massa de gordura, metabolismo basal, circunferências) e `BMI` inativo, helper `assessment_visible_to_patient`, RLS do paciente por visibilidade (tabelas e bucket `bioimpedance-reports`), triggers `guard_assessment`/`guard_assessment_measurement`, função `set_assessment_measurements` | Avaliações/evolução (Fase 9) |
 | `20260921120000_meal_plan_management` | `meal_plans.notes/start_date/archived_at/archived_by` + índice único de plano ativo por paciente, `meal_plan_versions.notes/published_by/archived_at`, `notes` em dias/refeições/substituições, `meal_substitutions.sort_order`, triggers de imutabilidade (`guard_meal_plan_content`, `guard_meal_plan_version`, `guard_meal_plan`), funções `create_meal_plan`/`create_meal_plan_version`/`publish_meal_plan_version`/`archive_meal_plan`/`discard_meal_plan_version`/`duplicate_meal`/`duplicate_meal_plan_day`, DELETE de planos revogado | Cardápio funcional (Fase 8) |
 | `20260920120000_financial_management` | `financial_transactions.nutritionist_id`/`patient_id`/`notes`/cancelamento + trigger `guard_financial_transaction` + policies por dono, `payments.idempotency_key`/`notes`/`recorded_by`/cancelamento, view `installment_payment_summary`, `contract_financial_summary` com parciais, funções `record_manual_payment`/`cancel_payment`/`financial_period_summary`/`monthly_financial_series`, DELETE revogado | Financeiro completo (Fase 7) |
 | `20260919120000_scheduling_management` | `scheduling_settings`, `appointments.cancellation_reason`/`created_by`, triggers `validate_appointment_ownership`/`validate_blocked_time_conflicts`, funções `busy_intervals`/`validate_booking_window`/`book_appointment`/`reschedule_appointment`, policy de auditoria do paciente | Agenda e agendamento (Fase 6) |
@@ -252,6 +253,11 @@ erDiagram
   arquivada ao publicar v2, nunca duas publicadas), imutabilidade da
   versão publicada, descarte só de rascunho, paciente A só PUBLISHED /
   paciente B nada, nutri B nada, arquivamento e novo plano com base.
+- `110_assessments.test.sql` — data futura, ranges técnicos (0/negativo/
+  101%), função de medidas (upsert + remoção, precisão), mass assignment
+  (patient_id, report_path), visibilidade (paciente só liberada; medidas
+  idem), paciente/nutri B nada, arquivar/excluir (só nunca exibida), RLS do
+  bucket privado (paciente só objeto de avaliação visível).
 - `050_public_visibility.test.sql` — blog e antes/depois só públicos quando
   deveriam.
 - `070_patients_contracts_management.test.sql` — índice único de e-mail,

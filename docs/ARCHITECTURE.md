@@ -49,7 +49,7 @@ app/
     pacientes/[id]/
     pacientes/convidar/      # Fase 3 — núcleo mínimo de onboarding, não gestão completa
     cardapios/               # Fase 8 — visão por paciente; editor em pacientes/[id]/cardapio/[versionId]
-    avaliacoes/
+    avaliacoes/              # Fase 9 — visão por paciente; fluxo em pacientes/[id]/avaliacoes/*
     comentarios/
     consultas/
     financeiro/              # Fase 7 — lançamentos, novo/[id]/editar, pagamentos/novo, previsao
@@ -79,25 +79,30 @@ src/
                      # máquina de estados, visões/geometria do calendário) desde a Fase 6;
                      # finance/ (definições, saldo de parcela/alocação de pagamento,
                      # períodos, resumos) desde a Fase 7; meal-plans/ (definições/unidades,
-                     # estrutura+ordenação+duplicação, versionamento, quantidades) — Fase 8
+                     # estrutura+ordenação+duplicação, versionamento, quantidades) — Fase 8;
+                     # assessments/ (métricas/ranges técnicos/IMC, números pt-BR, evolução/
+                     # comparação/séries) — Fase 9
   services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
                      # (convite, compartilhado com a Fase 3), audit.ts — validam
                      # ownership e chamam data/ + funções SQL transacionais;
                      # scheduling.ts + notifications.ts (eventos internos) desde a Fase 6;
                      # finance.ts (lançamentos manuais, pagamento/estorno via funções SQL) — Fase 7;
-                     # meal-plans.ts (plano/versão/dia/refeição/item/substituição, funções SQL) — Fase 8
+                     # meal-plans.ts (plano/versão/dia/refeição/item/substituição, funções SQL) — Fase 8;
+                     # assessments.ts (avaliação, medidas, visibilidade, relatório no bucket privado,
+                     # URL assinada) — Fase 9
   data/              # queries Supabase: públicas (plans, blog, results, site-settings,
                      # cliente anônimo — Fase 4) e do dashboard (patients.ts,
                      # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5;
                      # appointments.ts, scheduling.ts — Fase 6; financial.ts,
-                     # payments.ts — Fase 7; meal-plans.ts — Fase 8)
+                     # payments.ts — Fase 7; meal-plans.ts — Fase 8; assessments.ts — Fase 9)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
   actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
                      # (Fase 4), patients.ts, contracts.ts (Fase 5), scheduling.ts
                      # (nutricionista) e patient-booking.ts (paciente) (Fase 6), finance.ts (Fase 7),
-                     # meal-plans.ts (Fase 8)
+                     # meal-plans.ts (Fase 8), assessments.ts (Fase 9)
   validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
-                     # patients.ts, contracts.ts, scheduling.ts, finance.ts, meal-plans.ts
+                     # patients.ts, contracts.ts, scheduling.ts, finance.ts, meal-plans.ts,
+                     # assessments.ts
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
@@ -281,3 +286,33 @@ passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
   ações de versionamento, editor (abas de dia, refeições colapsáveis,
   formulários inline, confirmações), `MealPlanView` compartilhado entre
   portal e leitura no dashboard (Radix Tabs, substituições expansíveis).
+
+## Avaliações e evolução (Fase 9) — quem decide o quê
+
+- **Domínio puro** (`src/domain/assessments`): grupos/ordem das métricas,
+  ranges técnicos, IMC derivado, tipo inferido, parsing/formatação pt-BR
+  (p.p. para percentual), ordenação por data civil, tendência (última x
+  anterior com a métrica), séries sem zeros fictícios, comparação A→B,
+  visibilidade e regra de exclusão. Sem I/O; testado.
+- **Banco** (migration Fase 9): data civil sem futuro, visibilidade +
+  `published_at`, nota interna, arquivamento, metadados do relatório com
+  path validado, `set_assessment_measurements` (transacional), guards de
+  valor, RLS do paciente por visibilidade (tabelas + bucket via helper
+  SECURITY DEFINER).
+- **Data** (`src/data/assessments.ts`): selects distintos para nutricionista
+  (`internal_notes`) e portal (sem nota interna), lista/detalhe com medidas
+  numa query, versão visível do paciente, visão geral por paciente.
+- **Services** (`src/services/assessments.ts`): ownership, criação/edição
+  com a função SQL, visibilidade, arquivar/excluir, relatório (assinatura do
+  arquivo, path seguro, substituição sem órfão, remoção), URLs assinadas de
+  60 s para nutricionista e paciente; auditoria só com ids.
+- **Actions** (`src/actions/assessments.ts`): `requireNutritionist`, parsing
+  pt-BR por métrica com erro por campo, Zod (data ≤ hoje em
+  America/Sao_Paulo), upload multipart via Server Action, revalidação.
+- **Route handlers** (`…/relatorio`): download server-side com
+  `Cache-Control: no-store` (dashboard: ownership; portal: `patient_id` da
+  sessão + avaliação visível).
+- **UI** (`src/components/assessments`): formulário por seções (composição e
+  medidas colapsáveis, campos sempre no DOM), cards de tendência com ícone +
+  texto de direção, gráficos com tabela `sr-only`, histórico tabela/cards,
+  comparação, ações (visibilidade, arquivar/excluir, relatório).

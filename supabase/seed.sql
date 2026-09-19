@@ -249,18 +249,20 @@ update public.meal_plan_versions
 where id = '90000000-0000-0000-0000-000000000510';
 
 -- Avaliações (Fulana de Tal) — 2 encontros, mostrando evolução -------------
-insert into public.assessments (id, patient_id, assessed_at, notes, created_by) values
-  ('90000000-0000-0000-0000-000000000601', '90000000-0000-0000-0000-000000000010', now() - interval '40 days', 'Avaliação inicial (dado fictício de seed).', '90000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000602', '90000000-0000-0000-0000-000000000010', now() - interval '10 days', 'Reavaliação quinzenal (dado fictício de seed).', '90000000-0000-0000-0000-000000000001');
+-- Fase 9: data civil + visibilidade. A inicial está visível ao paciente; a
+-- reavaliação fica só com o nutricionista (mostra o fluxo de publicação).
+insert into public.assessments (id, patient_id, assessed_at, assessment_date, notes, internal_notes, visible_to_patient, created_by) values
+  ('90000000-0000-0000-0000-000000000601', '90000000-0000-0000-0000-000000000010', now() - interval '40 days', ((now() at time zone 'America/Sao_Paulo') - interval '40 days')::date, 'Avaliação inicial (dado fictício de seed).', 'Nota interna de exemplo — nunca aparece no portal.', true, '90000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000602', '90000000-0000-0000-0000-000000000010', now() - interval '10 days', ((now() at time zone 'America/Sao_Paulo') - interval '10 days')::date, 'Reavaliação quinzenal (dado fictício de seed).', null, false, '90000000-0000-0000-0000-000000000001');
 
 insert into public.assessment_measurements (assessment_id, measurement_type_id, value)
 select '90000000-0000-0000-0000-000000000601', id, v.value
-from public.measurement_types, (values ('WEIGHT', 78.4), ('BODY_FAT_PCT', 28.5), ('WAIST_CIRCUMFERENCE', 92.0)) as v(code, value)
+from public.measurement_types, (values ('WEIGHT', 78.4), ('HEIGHT', 165), ('BODY_FAT_PCT', 28.5), ('MUSCLE_MASS', 24.1), ('WAIST_CIRCUMFERENCE', 92.0)) as v(code, value)
 where measurement_types.code = v.code;
 
 insert into public.assessment_measurements (assessment_id, measurement_type_id, value)
 select '90000000-0000-0000-0000-000000000602', id, v.value
-from public.measurement_types, (values ('WEIGHT', 76.9), ('BODY_FAT_PCT', 27.1), ('WAIST_CIRCUMFERENCE', 89.5)) as v(code, value)
+from public.measurement_types, (values ('WEIGHT', 76.9), ('HEIGHT', 165), ('BODY_FAT_PCT', 27.1), ('MUSCLE_MASS', 24.4), ('WAIST_CIRCUMFERENCE', 89.5)) as v(code, value)
 where measurement_types.code = v.code;
 
 -- Suplementos e feedback (Fulana de Tal) ------------------------------------

@@ -89,7 +89,7 @@ Abre em [http://localhost:3000](http://localhost:3000):
 - `/dashboard/pacientes`, `/dashboard/pacientes/novo`,
   `/dashboard/pacientes/[id]` (+ `/editar`, `/contratos/novo`) — gestão de
   pacientes, planos e contratos com parcelas (Fase 5); os demais módulos do
-  dashboard ainda são shells (Avaliações = Fase 9, Comentários/Feedbacks/Materiais = Fase 10...)
+  dashboard ainda são shells (Comentários/Feedbacks/Materiais = Fase 10, Blog/Resultados/Configurações = Fase 14)
 - `/dashboard/pacientes/convidar` — convite de paciente por e-mail (Fase 3;
   a mesma lógica é usada por "Novo paciente + convite" e pelo perfil)
 - `/dashboard/agenda` (dia/semana/mês, próximas sessões), `/dashboard/agenda/nova`,
@@ -101,6 +101,10 @@ Abre em [http://localhost:3000](http://localhost:3000):
   (plano atual + histórico), `/dashboard/pacientes/[id]/cardapio/novo`, `/cardapio/dados`,
   `/cardapio/[versionId]` (editor do rascunho / leitura da versão publicada) e
   `/paciente/cardapio` (versão publicada, mobile-first) — cardápio versionado (Fase 8)
+- `/dashboard/avaliacoes` (visão por paciente), `/dashboard/pacientes/[id]?tab=avaliacoes`
+  (evolução, gráficos, histórico), `/avaliacoes/nova`, `/avaliacoes/[assessmentId]` (+ `/editar`,
+  `/relatorio`), `/avaliacoes/comparar` e `/paciente/evolucao` (+ `/[assessmentId]`,
+  `/relatorio`) — avaliações físicas, bioimpedância e evolução (Fase 9)
 - `/dashboard/financeiro` (lançamentos, filtros, cards), `/dashboard/financeiro/novo`,
   `/dashboard/financeiro/[id]/editar`, `/dashboard/financeiro/pagamentos/novo`,
   `/dashboard/financeiro/previsao` — financeiro completo sem gateway (Fase 7);
@@ -139,6 +143,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run screenshots:fase-7` | Screenshots reais do financeiro (dashboard, lançamentos, pagamento, previsão, aba do paciente) em `screenshots/fase-7/` |
 | `npm run test:meal-plans:integration` | Integração do cardápio contra Supabase local real (estrutura, duplicação com ids novos, versionamento, publicação atômica + duas publicações simultâneas, concorrência otimista, imutabilidade, ownership nutri/paciente, auditoria) |
 | `npm run screenshots:fase-8` | Screenshots reais do cardápio (aba do paciente, editor, histórico, publicação, portal) em `screenshots/fase-8/` |
+| `npm run test:assessments:integration` | Integração das avaliações contra Supabase local real (medidas/ranges, data futura, visibilidade, mass assignment, upload/download no bucket privado com acesso cruzado negado, arquivar/excluir, auditoria) |
+| `npm run screenshots:fase-9` | Screenshots reais de avaliações/evolução (aba, formulário, detalhe com relatório, comparação, portal) em `screenshots/fase-9/` |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)

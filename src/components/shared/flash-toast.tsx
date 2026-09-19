@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 /**
@@ -32,7 +32,9 @@ export type FlashToastCode =
   | "meal_plan_updated"
   | "meal_plan_version_created"
   | "meal_plan_published"
-  | "meal_plan_archived";
+  | "meal_plan_archived"
+  | "assessment_created"
+  | "assessment_updated";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -63,6 +65,8 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   meal_plan_version_created: { type: "success", message: "Nova versão criada.", description: "A versão publicada continua visível para o paciente até você publicar esta." },
   meal_plan_published: { type: "success", message: "Plano publicado.", description: "O paciente já vê esta versão no portal." },
   meal_plan_archived: { type: "success", message: "Plano arquivado." },
+  assessment_created: { type: "success", message: "Avaliação registrada.", description: "Anexe o relatório e libere para o paciente quando quiser." },
+  assessment_updated: { type: "success", message: "Avaliação atualizada." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {
@@ -72,7 +76,6 @@ function isFlashToastCode(value: string | null): value is FlashToastCode {
 export function FlashToast() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const router = useRouter();
   const shown = useRef<string | null>(null);
 
   const code = searchParams.get("toast");
@@ -85,11 +88,15 @@ export function FlashToast() {
     if (entry.type === "success") toast.success(entry.message, { description: entry.description });
     else toast.warning(entry.message, { description: entry.description });
 
+    // Limpa `?toast=` sem navegar: `router.replace` disparava uma navegação do
+    // App Router que podia descartar uma Server Action enviada no mesmo
+    // instante (ex.: anexar relatório logo após chegar pelo redirect — Fase 9).
+    // O App Router integra `history.replaceState` com `useSearchParams`.
     const next = new URLSearchParams(searchParams.toString());
     next.delete("toast");
     const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [code, pathname, router, searchParams]);
+    window.history.replaceState(window.history.state, "", query ? `${pathname}?${query}` : pathname);
+  }, [code, pathname, searchParams]);
 
   return null;
 }

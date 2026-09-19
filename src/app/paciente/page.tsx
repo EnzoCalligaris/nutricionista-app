@@ -8,16 +8,17 @@ import { listPatientAppointments } from "@/data/appointments";
 import { getPatientBookingContext } from "@/services/scheduling";
 import { isActive } from "@/domain/scheduling/state-machine";
 import { getPublishedMealPlan } from "@/data/meal-plans";
+import { listVisibleAssessments } from "@/data/assessments";
+import { findValue, latestAndPrevious } from "@/domain/assessments/evolution";
+import { formatMetric } from "@/domain/assessments/numbers";
+import { formatCalendarDate } from "@/lib/dates";
 import { formatTimeOfDay } from "@/domain/meal-plans/quantities";
 import { formatTimeRange, formatWeekdayLong } from "@/lib/dates";
 import { instantToDateISO, weekdayOfDate } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
-const futureCards = [
-  { title: "Último feedback", icon: MessageSquare, phase: "Fase 10" },
-  { title: "Última avaliação", icon: LineChart, phase: "Fase 9" },
-] as const;
+const futureCards = [{ title: "Último feedback", icon: MessageSquare, phase: "Fase 10" }] as const;
 
 /** Início do portal: próxima consulta real (Fase 6) e cardápio do dia (Fase 8); demais cards continuam previstos para fases futuras. */
 export default async function PatientHomePage() {
@@ -33,6 +34,8 @@ export default async function PatientHomePage() {
   const today = instantToDateISO(now, timeZone);
   const mealPlan = context ? await getPublishedMealPlan(context.patientId) : null;
   const todayMeals = mealPlan?.days.find((day) => day.weekday === weekdayOfDate(today))?.meals ?? [];
+  const { latest: latestAssessment } = latestAndPrevious(context ? await listVisibleAssessments(context.patientId) : []);
+  const latestWeight = latestAssessment ? findValue(latestAssessment, "WEIGHT") : null;
 
   return (
     <div className="space-y-6">
@@ -93,6 +96,25 @@ export default async function PatientHomePage() {
                 </ul>
                 <Link href="/paciente/cardapio" className="text-sm underline underline-offset-4">
                   Ver o cardápio completo
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="font-sans text-sm font-normal text-muted-foreground">Última avaliação</CardTitle>
+            <LineChart className="size-4 text-muted-foreground" aria-hidden="true" />
+          </CardHeader>
+          <CardContent>
+            {!latestAssessment ? (
+              <p className="text-sm text-muted-foreground">Nenhuma avaliação disponível ainda.</p>
+            ) : (
+              <div className="space-y-2">
+                <p className="font-heading text-lg font-medium">{formatCalendarDate(latestAssessment.assessmentDate)}</p>
+                <p className="text-sm text-muted-foreground tabular-nums">{latestWeight != null ? `Peso: ${formatMetric(latestWeight, "kg")}` : `${latestAssessment.measurements.length} medida(s) registrada(s)`}</p>
+                <Link href="/paciente/evolucao" className="text-sm underline underline-offset-4">
+                  Ver evolução
                 </Link>
               </div>
             )}

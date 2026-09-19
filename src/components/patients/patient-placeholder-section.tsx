@@ -4,8 +4,6 @@ import type { PatientSectionId } from "@/components/patients/patient-section-nav
 
 function summaryFor(section: PatientSectionId, counts: PatientModuleCounts): { count: number; noun: [string, string]; phase: string } | null {
   switch (section) {
-    case "avaliacoes":
-      return { count: counts.assessments, noun: ["avaliação", "avaliações"], phase: "Fase 9" };
     case "comentarios":
       return { count: counts.appointmentNotes, noun: ["comentário", "comentários"], phase: "Fase 6" };
     case "feedbacks":

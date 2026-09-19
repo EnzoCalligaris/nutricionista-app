@@ -1272,3 +1272,129 @@ dado plausível/inventado.
     `finance.spec`). Os specs passam a afirmar o texto do toast (o
     comportamento real) e a rota base; `patients.spec` passou a esperar a
     aba Cardápio real (o placeholder que resta é Avaliações).
+
+## Decisões técnicas da Fase 9 (Avaliações físicas + bioimpedância + evolução)
+
+1. **Modelagem flexível da Fase 2 mantida; uma migration mínima**
+   (`20260922120000_assessment_management.sql`). Sem enum de tipo (o
+   "tipo" — Bioimpedância/Medidas/Geral — é derivado das métricas
+   presentes), sem colunas fixas por métrica, sem protocolo de dobras nem
+   fórmula: `assessments` ganha `assessment_date` (data civil, obrigatória,
+   backfill a partir de `assessed_at` no fuso; o trigger deriva quando o
+   chamador não informa), `visible_to_patient` + `published_at`,
+   `internal_notes`, `archived_at/by`, `updated_by` e os metadados do
+   relatório (`report_path/name/mime/size_bytes/uploaded_at`, sempre todos
+   ou nenhum). Catálogo ampliado por migration (dado de produto): altura,
+   massa de gordura, metabolismo basal, circunferências de abdômen/tórax/
+   coxa/panturrilha. `BMI` desativado no catálogo — IMC é derivado de peso
+   + altura na apresentação (1 casa, só valor, nunca faixa) e nunca gravado.
+
+2. **Métricas suportadas** = catálogo `measurement_types` ativo, agrupado na
+   UI em Dados básicos (peso kg, altura cm), Composição corporal (% gordura,
+   massa de gordura, massa magra, massa muscular, água corporal %, gordura
+   visceral nível, metabolismo basal kcal) e Medidas corporais (cintura,
+   abdômen, quadril, tórax, braço, coxa, panturrilha em cm). Nenhuma é
+   obrigatória; dados parciais são normais. Unidade vem do catálogo, nunca
+   misturada ao valor. `numeric(10,3)`: 78,45 kg fica 78.450 (§51).
+   Quais métricas o Enzo usa de fato e dobras/protocolo continuam
+   `PENDENTE DE DEFINIÇÃO` (novas métricas entram por migration).
+
+3. **Ranges técnicos, não clínicos:** valor > 0 sempre; percentual ≤ 100;
+   limite do `numeric`. Trigger `guard_assessment_measurement` + Zod
+   (`validateMetricValue`). Nada de "peso saudável".
+
+4. **Parsing pt-BR seguro** (`parseDecimalPtBr`): 78 / 78,5 / 78.5 /
+   1.234,56 — vírgula é decimal quando presente, pontos são milhar; sem
+   vírgula, um ponto é decimal; até 3 casas; nunca `parseFloat`. Deltas via
+   `subtractPrecise` (sem ruído binário). Formatação pt-BR sem zeros à
+   direita; delta com sinal e unidade; percentual em **p.p.** (§34).
+
+5. **Observação visível x nota interna:** `notes` aparece no portal quando
+   a avaliação está visível; `internal_notes` nunca é selecionada pelas
+   queries do portal (`PATIENT_SELECT`) e o portal só recebe DTOs sem ela.
+   A RLS de linha do paciente permite ler a linha (não há RLS por coluna);
+   a garantia é a query + o E2E ("Nota interna" ausente no portal).
+
+6. **Visibilidade por avaliação (§18):** nasce oculta; "Liberar para o
+   paciente" grava `published_at` (primeira liberação). RLS do paciente
+   (tabelas e bucket) exige `visible_to_patient = true and archived_at is
+   null` — helper SECURITY DEFINER `assessment_visible_to_patient`
+   (CLAUDE.md regra 11). Query do portal repete o filtro. Histórico do
+   paciente = só avaliações liberadas.
+
+7. **Relatório de bioimpedância:** bucket privado `bioimpedance-reports`
+   (já existia), path `<patient_id>/<assessment_id>/<uuid>.<ext>` (trigger
+   recusa path fora desse prefixo — `REPORT_PATH_INVALID`; nunca nome do
+   paciente nem filename original). Tipo real conferido pela assinatura do
+   arquivo (`%PDF-`, JPEG, PNG), não pelo MIME do browser; até 10 MB; nome
+   exibido saneado. Upload pelo cliente de sessão (RLS do bucket: só o
+   nutricionista do paciente escreve). Substituir = enviar o novo, gravar
+   metadados e só então apagar o anterior (sem órfão silencioso); remover =
+   limpar metadados (paciente perde acesso na hora) e apagar o objeto.
+   Download por route handlers server-side (`…/relatorio`): ownership/
+   visibilidade → `createSignedUrl(60 s)` → redirect com `Cache-Control:
+   no-store`; a URL nunca vai a log, auditoria ou banco. Sem OCR/IA.
+
+8. **Edição, arquivamento e exclusão (§28–§29):** edição administrativa
+   controlada (formulário = estado completo; `set_assessment_measurements`
+   faz upsert + remoção numa transação; `updated_at/updated_by` + auditoria
+   `ASSESSMENT_UPDATED`). Arquivar = `archived_at` (sai da evolução e do
+   portal, dado preservado, irreversível por trigger). Exclusão física só
+   quando `published_at is null` (nunca exibida ao paciente) — trigger
+   `ASSESSMENT_NOT_DELETABLE`; o objeto do relatório é removido antes.
+   Histórico de versões de avaliação não existe nesta fase (documentado
+   como pendência).
+
+9. **Ordenação e evolução:** sempre por `assessment_date` desc (desempate
+   por `created_at`), nunca `created_at`. Cards de variação comparam a
+   última avaliação com a anterior QUE TEM a mesma métrica; sem baseline =
+   "Primeira avaliação com esta métrica" (nunca 0%). Séries por métrica só
+   com os pontos existentes (null nunca vira zero); gráfico só com ≥ 2
+   pontos; altura não é graficada (`NON_CHARTABLE_CODES`). Comparação A→B
+   pela URL (`?a=&b=`), união das métricas, "sem par" quando falta um lado,
+   direção descritiva subiu/desceu/sem alteração com ícone + texto — nenhum
+   "melhorou/piorou".
+
+10. **Auditoria sem dado de saúde:** `ASSESSMENT_CREATED/UPDATED/PUBLISHED/
+    UNPUBLISHED/ARCHIVED/DELETED`, `BIOIMPEDANCE_REPORT_UPLOADED/REMOVED`
+    com metadata só de ids, contagem de métricas, mime/tamanho e flags — o
+    E2E verifica que peso, gordura, circunferência, nota interna e nome do
+    relatório não aparecem em `audit_logs.metadata`. Logs de erro da action
+    registram só a mensagem técnica.
+
+11. **Storage no pgTAP e na integração:** o pgTAP insere linhas em
+    `storage.objects` como superusuário para provar a policy do bucket
+    (paciente A só o objeto de avaliação visível; paciente B e nutri B
+    nada). A limpeza da integração usa a API do Storage (a tabela recusa
+    DELETE direto: "Direct deletion from storage tables is not allowed").
+
+12. **FlashToast sem navegação:** o `router.replace` que limpava `?toast=`
+    disparava uma navegação do App Router; agora usa
+    `window.history.replaceState` (integrado ao `useSearchParams`), que não
+    compete com uma Server Action enviada logo após a chegada pelo redirect.
+
+13. **QA visual — problemas encontrados e corrigidos:** mismatch de
+    hidratação (`encType="multipart/form-data"` explícito num `<form
+    action={fn}>` — o React gerencia esse atributo); seletor de "outras
+    métricas" abria em Altura (linha reta inútil) — altura não é graficada e
+    circunferências vêm primeiro; rótulos "Circunferência da panturrilha"
+    quebrando no formulário/lista — nome curto dentro do grupo Medidas
+    (catálogo intacto); "0.00 MB" para arquivo pequeno — KB abaixo de 1 MB.
+    No script de screenshots: `count()` antes da página renderizar e
+    `getByText("Relatório anexado.")` casando com "Nenhum relatório
+    anexado." (substring) — o upload nunca acontecia; corrigidos com
+    `waitFor` + `exact: true`. No E2E: `getByRole("table")` pegava a tabela
+    sr-only do gráfico antes do histórico (escopo na seção) e clicar numa
+    seção já aberta a fechava (`ensureOpen` por `aria-expanded`).
+
+14. **Sessão do Claude Code reiniciada no meio da fase:** o `next dev`
+    ficou órfão sem stdout (EPIPE, workers quebrados) — foi encerrado e
+    recriado; nenhum dado foi perdido (tudo em arquivos/banco local).
+
+15. **Bateria final da Fase 9:** `test:db:concurrency` e
+    `test:scheduling:concurrency` passaram na primeira execução (com
+    captura de payload preparada caso falhassem). E2E: 93/100 na primeira
+    rodada contra o build — a única falha foi o `patients.spec` da Fase 5
+    esperando "Avaliações" ainda como placeholder (agora é real; o
+    placeholder que resta é Comentários) — 100/100 na segunda rodada, sem
+    skip.
