@@ -266,12 +266,30 @@ from public.measurement_types, (values ('WEIGHT', 76.9), ('HEIGHT', 165), ('BODY
 where measurement_types.code = v.code;
 
 -- Suplementos e feedback (Fulana de Tal) ------------------------------------
-insert into public.supplement_recommendations (patient_id, name, brand, instructions, schedule_text, active, created_by) values
-  ('90000000-0000-0000-0000-000000000010', 'Whey Protein', 'Exemplo Nutrition (fictício)', 'Diluir 1 dose em água ou leite.', 'Após o treino', true, '90000000-0000-0000-0000-000000000001');
+-- Fase 10: ativa (com dose/frequência/link fictício), encerrada e arquivada —
+-- o portal só mostra a ativa.
+insert into public.supplement_recommendations (id, patient_id, name, brand, instructions, dose_text, schedule_text, starts_on, purchase_url, active, created_by) values
+  ('90000000-0000-0000-0000-000000000801', '90000000-0000-0000-0000-000000000010', 'Whey Protein', 'Exemplo Nutrition (fictício)', 'Diluir 1 dose em água ou leite.', '1 dose (30 g)', 'Após o treino', ((now() at time zone 'America/Sao_Paulo') - interval '20 days')::date, 'https://example.com/produto-ficticio', true, '90000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000802', '90000000-0000-0000-0000-000000000010', 'Creatina', null, 'Tomar com água, em qualquer horário.', '3 g', '1x ao dia', ((now() at time zone 'America/Sao_Paulo') - interval '90 days')::date, null, false, '90000000-0000-0000-0000-000000000001');
+update public.supplement_recommendations set ends_on = ((now() at time zone 'America/Sao_Paulo') - interval '30 days')::date where id = '90000000-0000-0000-0000-000000000802';
 
-insert into public.feedback_messages (patient_id, author_id, content, created_at) values
-  ('90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000001',
-   'Parabéns pela evolução nas duas últimas semanas! Continue com a hidratação combinada na consulta.', now() - interval '9 days');
+-- Fase 10: um feedback disponibilizado e um rascunho (o portal só mostra o primeiro).
+insert into public.feedback_messages (id, patient_id, author_id, title, content, created_at, published_at) values
+  ('90000000-0000-0000-0000-000000000811', '90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000001',
+   'Duas semanas de acompanhamento',
+   'Parabéns pela evolução nas duas últimas semanas! Continue com a hidratação combinada na consulta.', now() - interval '9 days', now() - interval '9 days'),
+  ('90000000-0000-0000-0000-000000000812', '90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000001',
+   null,
+   'Rascunho fictício de seed — nunca deve aparecer no portal enquanto não for disponibilizado.', now() - interval '1 day', null);
+
+-- Fase 10: materiais fictícios — um link externo atribuído à Fulana e um
+-- ainda sem atribuição. Material com ARQUIVO só nasce pelo app (upload
+-- real no bucket privado), nunca por seed.
+insert into public.patient_materials (id, nutritionist_id, kind, title, description, external_url) values
+  ('90000000-0000-0000-0000-000000000821', '90000000-0000-0000-0000-000000000001', 'LINK', 'Exemplo: guia de hidratação (link fictício)', 'Página externa de demonstração usada só no ambiente local.', 'https://example.com/guia-hidratacao-ficticio'),
+  ('90000000-0000-0000-0000-000000000822', '90000000-0000-0000-0000-000000000001', 'LINK', 'Exemplo: lista de compras (link fictício)', null, 'https://example.com/lista-compras-ficticia');
+insert into public.material_assignments (material_id, patient_id, assigned_by) values
+  ('90000000-0000-0000-0000-000000000821', '90000000-0000-0000-0000-000000000010', '90000000-0000-0000-0000-000000000001');
 
 -- Blog (fictício) -----------------------------------------------------------
 insert into public.blog_categories (id, name, slug) values

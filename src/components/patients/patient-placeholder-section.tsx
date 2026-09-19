@@ -6,10 +6,6 @@ function summaryFor(section: PatientSectionId, counts: PatientModuleCounts): { c
   switch (section) {
     case "comentarios":
       return { count: counts.appointmentNotes, noun: ["comentário", "comentários"], phase: "Fase 6" };
-    case "feedbacks":
-      return { count: counts.feedbacks, noun: ["feedback", "feedbacks"], phase: "Fase 10" };
-    case "materiais":
-      return { count: counts.materials, noun: ["material atribuído", "materiais atribuídos"], phase: "Fase 10" };
     default:
       return null;
   }

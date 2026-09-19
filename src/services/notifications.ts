@@ -6,18 +6,23 @@ export type NotificationEventType =
   | "APPOINTMENT_CREATED"
   | "APPOINTMENT_RESCHEDULED"
   | "APPOINTMENT_CANCELLED"
-  | "APPOINTMENT_CONFIRMED";
+  | "APPOINTMENT_CONFIRMED"
+  | "SUPPLEMENT_RECOMMENDATION_CREATED"
+  | "FEEDBACK_PUBLISHED"
+  | "MATERIAL_ASSIGNED";
 
 /**
  * Evento interno de notificação (prompt Fase 6 §59): só a linha em
  * `notification_events`, exatamente como a Fase 2 modelou ("escrita feita
  * por rotinas server-side com service role"). NENHUMA entrega acontece
  * aqui — e-mail/WhatsApp/lembrete de 5 dias são Fase 12, que lerá estes
- * eventos. Falha é logada e não desfaz a operação de agenda.
+ * eventos. Falha é logada e não desfaz a operação de agenda. Fase 10 registra
+ * SUPPLEMENT_RECOMMENDATION_CREATED / FEEDBACK_PUBLISHED / MATERIAL_ASSIGNED
+ * do mesmo jeito — só o evento interno, sem e-mail/WhatsApp/push (§52–§53).
  */
 export async function recordNotificationEvent(input: {
   type: NotificationEventType;
-  entityType: "appointment";
+  entityType: "appointment" | "supplement_recommendation" | "feedback_message" | "material_assignment";
   entityId: string;
 }): Promise<void> {
   try {

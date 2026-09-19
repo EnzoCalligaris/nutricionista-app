@@ -65,6 +65,7 @@ fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
 | `20260917120000_auth_profile_provisioning` | trigger em `auth.users` | Profile PATIENT automático (Fase 3) |
 | `20260917120001_fix_validate_patient_profile_roles_rls` | — | Trigger de `patients` como SECURITY DEFINER (Fase 3) |
 | `20260918120000_patients_contracts_management` | `patient_contracts.notes`, índice único de e-mail, view `patient_overview`, funções `create_contract_with_installments`/`cancel_contract`/`complete_contract` | Gestão de pacientes/contratos (Fase 5) |
+| `20260923120000_patient_content_management` | `supplement_recommendations.dose_text/starts_on/ends_on/archived_at/by/updated_by` + check de `purchase_url`, `feedback_messages.title/reference_date/published_at/archived_at/by/updated_at/by`, `patient_materials.kind/description/external_url/file_name/file_size_bytes/archived_at/by/updated_by` (+ `storage_path` nullable, checks arquivo OU link), `material_assignments.assigned_by/revoked_by`, triggers `guard_supplement_recommendation`/`guard_feedback_message`/`guard_patient_material`/`guard_material_assignment`, `prevent_feedback_tampering_by_patient` reescrito, helper `material_visible_to_patient`, RLS do paciente restrita (ativo / disponibilizado / atribuído) em tabelas e bucket, DELETE revogado em suplementos e atribuições | Suplementos, feedbacks e materiais (Fase 10) |
 | `20260922120000_assessment_management` | `assessments.assessment_date/visible_to_patient/published_at/internal_notes/archived_at/by/updated_by/report_*`, catálogo ampliado (altura, massa de gordura, metabolismo basal, circunferências) e `BMI` inativo, helper `assessment_visible_to_patient`, RLS do paciente por visibilidade (tabelas e bucket `bioimpedance-reports`), triggers `guard_assessment`/`guard_assessment_measurement`, função `set_assessment_measurements` | Avaliações/evolução (Fase 9) |
 | `20260921120000_meal_plan_management` | `meal_plans.notes/start_date/archived_at/archived_by` + índice único de plano ativo por paciente, `meal_plan_versions.notes/published_by/archived_at`, `notes` em dias/refeições/substituições, `meal_substitutions.sort_order`, triggers de imutabilidade (`guard_meal_plan_content`, `guard_meal_plan_version`, `guard_meal_plan`), funções `create_meal_plan`/`create_meal_plan_version`/`publish_meal_plan_version`/`archive_meal_plan`/`discard_meal_plan_version`/`duplicate_meal`/`duplicate_meal_plan_day`, DELETE de planos revogado | Cardápio funcional (Fase 8) |
 | `20260920120000_financial_management` | `financial_transactions.nutritionist_id`/`patient_id`/`notes`/cancelamento + trigger `guard_financial_transaction` + policies por dono, `payments.idempotency_key`/`notes`/`recorded_by`/cancelamento, view `installment_payment_summary`, `contract_financial_summary` com parciais, funções `record_manual_payment`/`cancel_payment`/`financial_period_summary`/`monthly_financial_series`, DELETE revogado | Financeiro completo (Fase 7) |
@@ -195,7 +196,7 @@ linha de dado alheio. Detalhe completo em `docs/SECURITY.md`.
 
 | Bucket | Público | Path | Acesso |
 |---|---|---|---|
-| `patient-documents` | não | `<material_id>/arquivo` | nutricionista dono; paciente com `material_assignments` não revogado |
+| `patient-documents` | não | `<material_id>/<uuid>.<ext>` (Fase 10; trigger valida o prefixo) | nutricionista dono; paciente via `material_visible_to_patient` (atribuição não revogada + material não arquivado e completo) |
 | `meal-photos` | não | `<patient_id>/arquivo` | paciente dono; nutricionista responsável |
 | `bioimpedance-reports` | não | `<patient_id>/arquivo` | paciente dono; nutricionista responsável |
 | `before-after` | **não** (mesmo publicado) | `<before_after_results.id>/arquivo` | nutricionista; paciente dono. Entrega pública é server-side (signed URL, Fase 14) — nunca via storage RLS para `anon` |
@@ -258,6 +259,14 @@ erDiagram
   (patient_id, report_path), visibilidade (paciente só liberada; medidas
   idem), paciente/nutri B nada, arquivar/excluir (só nunca exibida), RLS do
   bucket privado (paciente só objeto de avaliação visível).
+- `120_patient_content.test.sql` — suplementos (ativo x encerrado x
+  arquivado, URL insegura, imutabilidade, DELETE negado), feedbacks
+  (rascunho invisível, disponibilizar definitivo, paciente só `read_at`,
+  arquivar, apagar só rascunho), materiais (link x arquivo, path fora do
+  padrão, incompleto não atribuível, atribuição única, material alheio
+  recusado por trigger, revogar/reatribuir, arquivar, delete só sem
+  histórico) e RLS do bucket `patient-documents` (paciente A só quando
+  atribuído; B e nutri B nada).
 - `050_public_visibility.test.sql` — blog e antes/depois só públicos quando
   deveriam.
 - `070_patients_contracts_management.test.sql` — índice único de e-mail,
@@ -281,3 +290,30 @@ erDiagram
   sucesso e 1 recusa 23P01).
 
 Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test:db:concurrency`.
+
+## Suplementos, feedbacks e materiais (Fase 10)
+
+- **`supplement_recommendations`**: status derivado — `archived_at` ⇒
+  ARQUIVADA (irreversível, só leitura), senão `active` ⇒ ATIVA/ENCERRADA.
+  Paciente só lê ATIVA e não arquivada. `purchase_url` só `^https?://`
+  (check). `created_by/updated_by/archived_by` pelo trigger; `patient_id`
+  imutável; DELETE revogado.
+- **`feedback_messages`**: `published_at` null = rascunho (invisível ao
+  paciente); disponibilizar é definitivo; `archived_at` oculta. Paciente só
+  altera `read_at` (trigger compara o resto). Nutricionista edita mesmo
+  após disponibilizar (`updated_at/updated_by`); DELETE só de rascunho
+  (`FEEDBACK_NOT_DELETABLE`); `author_id = auth.uid()` no insert.
+- **`patient_materials`**: `kind` FILE (arquivo no bucket, `storage_path`
+  null enquanto o upload não concluiu = incompleto) ou LINK
+  (`external_url` só `^https?://`) — nunca os dois (check).
+  `storage_path` sempre `<id>/…` (trigger). Arquivado = só leitura, não
+  atribuível, invisível ao paciente; DELETE só sem atribuições.
+- **`material_assignments`**: única por (material, paciente); revogar =
+  `revoked_at/by`; reatribuir = `revoked_at = null` (trigger renova
+  `assigned_at/by`); trigger exige material e paciente do mesmo
+  nutricionista, material não arquivado e completo; DELETE revogado.
+- **`material_visible_to_patient(material_id)`** (SECURITY DEFINER,
+  `search_path = ''`): base das policies do paciente em `patient_materials`,
+  `material_assignments` e `storage.objects` (`patient-documents`).
+- `notification_events`: `SUPPLEMENT_RECOMMENDATION_CREATED`,
+  `FEEDBACK_PUBLISHED`, `MATERIAL_ASSIGNED` (sem entrega).

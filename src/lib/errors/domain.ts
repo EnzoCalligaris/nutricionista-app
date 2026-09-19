@@ -66,6 +66,26 @@ export type DomainErrorCode =
   | "REPORT_INVALID_FILE"
   | "REPORT_NOT_FOUND"
   | "REPORT_PATH_INVALID"
+  | "SUPPLEMENT_NOT_FOUND"
+  | "SUPPLEMENT_NOT_AUTHORIZED"
+  | "SUPPLEMENT_ARCHIVED"
+  | "INVALID_EXTERNAL_URL"
+  | "FEEDBACK_NOT_FOUND"
+  | "FEEDBACK_NOT_AUTHORIZED"
+  | "FEEDBACK_NOT_VISIBLE"
+  | "FEEDBACK_ARCHIVED"
+  | "FEEDBACK_NOT_DELETABLE"
+  | "MATERIAL_NOT_FOUND"
+  | "MATERIAL_NOT_AUTHORIZED"
+  | "MATERIAL_NOT_ASSIGNED"
+  | "MATERIAL_ARCHIVED"
+  | "MATERIAL_INCOMPLETE"
+  | "MATERIAL_NOT_DELETABLE"
+  | "MATERIAL_PATH_INVALID"
+  | "MATERIAL_ALREADY_ASSIGNED"
+  | "MATERIAL_ASSIGNMENT_NOT_FOUND"
+  | "INVALID_MATERIAL_FILE"
+  | "MATERIAL_UPLOAD_FAILED"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -128,6 +148,26 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   REPORT_INVALID_FILE: "Envie um PDF ou imagem (JPG/PNG) de até 10 MB.",
   REPORT_NOT_FOUND: "Relatório não encontrado.",
   REPORT_PATH_INVALID: "Caminho de arquivo inválido.",
+  SUPPLEMENT_NOT_FOUND: "Recomendação de suplemento não encontrada.",
+  SUPPLEMENT_NOT_AUTHORIZED: "Você não tem permissão para alterar esta recomendação.",
+  SUPPLEMENT_ARCHIVED: "Esta recomendação está arquivada e não pode ser alterada.",
+  INVALID_EXTERNAL_URL: "Link inválido. Use um endereço completo começando com https://.",
+  FEEDBACK_NOT_FOUND: "Feedback não encontrado.",
+  FEEDBACK_NOT_AUTHORIZED: "Você não tem permissão para alterar este feedback.",
+  FEEDBACK_NOT_VISIBLE: "Este feedback não está disponível.",
+  FEEDBACK_ARCHIVED: "Este feedback está arquivado e não pode ser alterado.",
+  FEEDBACK_NOT_DELETABLE: "Este feedback já foi disponibilizado ao paciente e não pode ser excluído. Arquive-o.",
+  MATERIAL_NOT_FOUND: "Material não encontrado.",
+  MATERIAL_NOT_AUTHORIZED: "Você não tem permissão para usar este material.",
+  MATERIAL_NOT_ASSIGNED: "Este material não está disponível para você.",
+  MATERIAL_ARCHIVED: "Este material está arquivado e não pode ser alterado nem atribuído.",
+  MATERIAL_INCOMPLETE: "O arquivo deste material ainda não foi enviado. Envie o arquivo antes de atribuir.",
+  MATERIAL_NOT_DELETABLE: "Este material já foi atribuído a pacientes e não pode ser excluído. Arquive-o.",
+  MATERIAL_PATH_INVALID: "Caminho de arquivo inválido.",
+  MATERIAL_ALREADY_ASSIGNED: "Este material já está disponível para o paciente.",
+  MATERIAL_ASSIGNMENT_NOT_FOUND: "Atribuição não encontrada.",
+  INVALID_MATERIAL_FILE: "Envie um PDF ou imagem (JPG/PNG) de até 10 MB.",
+  MATERIAL_UPLOAD_FAILED: "Não foi possível enviar o arquivo. Tente novamente.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };
@@ -173,6 +213,13 @@ export function domainErrorFromDatabase(error: { message?: string; code?: string
   }
   if (error?.code === "23505" && message.includes("meal_plans_one_active_per_patient")) {
     return new DomainError("MEAL_PLAN_ACTIVE_EXISTS");
+  }
+  if (error?.code === "23505" && message.includes("material_assignments_material_id_patient_id_key")) {
+    return new DomainError("MATERIAL_ALREADY_ASSIGNED");
+  }
+  // 23514 = check_violation: URL fora de http(s) recusada pelo banco (defesa em profundidade da Fase 10).
+  if (error?.code === "23514" && (message.includes("purchase_url_check") || message.includes("external_url_check"))) {
+    return new DomainError("INVALID_EXTERNAL_URL");
   }
   // 23P01 = exclusion_violation: a constraint anti-double-booking da Fase 2
   // (`appointments_no_overlap`) recusou o horário — nunca mostrar o SQL.

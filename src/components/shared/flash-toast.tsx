@@ -34,7 +34,14 @@ export type FlashToastCode =
   | "meal_plan_published"
   | "meal_plan_archived"
   | "assessment_created"
-  | "assessment_updated";
+  | "assessment_updated"
+  | "supplement_created"
+  | "supplement_updated"
+  | "feedback_saved"
+  | "feedback_published"
+  | "feedback_updated"
+  | "material_created"
+  | "material_updated";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -67,6 +74,13 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   meal_plan_archived: { type: "success", message: "Plano arquivado." },
   assessment_created: { type: "success", message: "Avaliação registrada.", description: "Anexe o relatório e libere para o paciente quando quiser." },
   assessment_updated: { type: "success", message: "Avaliação atualizada." },
+  supplement_created: { type: "success", message: "Recomendação criada.", description: "O paciente já vê a recomendação no portal." },
+  supplement_updated: { type: "success", message: "Recomendação atualizada." },
+  feedback_saved: { type: "success", message: "Feedback salvo como rascunho.", description: "O paciente só verá quando você disponibilizar." },
+  feedback_published: { type: "success", message: "Feedback disponibilizado.", description: "O paciente já vê o feedback no portal." },
+  feedback_updated: { type: "success", message: "Feedback atualizado." },
+  material_created: { type: "success", message: "Material criado.", description: "Atribua o material aos pacientes que devem recebê-lo." },
+  material_updated: { type: "success", message: "Material atualizado." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

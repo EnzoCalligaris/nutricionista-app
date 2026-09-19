@@ -148,7 +148,31 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   43 pgTAP (incl. RLS do storage), 43 checks de integração com upload/
   download reais (`test:assessments:integration`), 15 E2E, screenshots em
   1440/1280/1024/768/390/375/430.
-- **FASE 10 — Suplementos, feedbacks e materiais.** CRUD + notificação in-app.
+- **FASE 10 — Suplementos, feedbacks e materiais.** ✅ Concluída. Aba
+  Suplementos do paciente (`?tab=suplementos`, `/suplementos/novo`,
+  `/[supplementId]/editar`: produto/marca, orientação, dose e frequência em
+  texto livre, período opcional, link de compra só http(s) validado por
+  helper central + check no banco; status derivado ATIVA/ENCERRADA/
+  ARQUIVADA, encerrar/reativar explícitos, arquivar irreversível, nunca
+  hard delete), aba Feedbacks (`?tab=feedbacks`, `/feedbacks/novo`,
+  `/[feedbackId]/editar`: título/data de referência opcionais, textarea,
+  "Salvar rascunho" x "Disponibilizar ao paciente" — definitivo —, edição
+  auditada mesmo após disponibilizar, arquivar, excluir só rascunho; não é
+  chat), `/dashboard/materiais` (biblioteca reutilizável: arquivo PDF/JPG/
+  PNG até 10 MB no bucket privado `patient-documents` com assinatura
+  conferida e path `<material_id>/<uuid>.<ext>`, OU link externo; detalhe
+  com quem recebeu, atribuir por autocomplete server-side, remover
+  atribuição, substituir arquivo, arquivar) e aba Materiais do paciente
+  (atribuir da biblioteca, histórico de revogados/arquivados). Portal:
+  `/paciente/suplementos` (só ativas), `/paciente/feedbacks` (só
+  disponibilizados), `/paciente/materiais` (só atribuídos, não revogados,
+  material não arquivado; download por route handler com URL assinada de
+  60 s) e cards resumidos no início. Eventos internos
+  `SUPPLEMENT_RECOMMENDATION_CREATED`/`FEEDBACK_PUBLISHED`/
+  `MATERIAL_ASSIGNED` sem entrega. 1 migration, 31 testes unitários, 75
+  pgTAP (incl. RLS do bucket), 76 checks de integração
+  (`test:patient-content:integration`), 17 E2E, screenshots em
+  1440/1280/1024/768/390/375/430. Sem IA, notificações externas, gateway ou CMS.
 - **FASE 11 — IA de refeições.** `FoodAnalysisProvider`, upload de foto,
   estimativa, fluxo de confirmação/correção pelo paciente.
 - **FASE 12 — Notificações.** E-mail (Resend/React Email), WhatsApp oficial,
@@ -281,6 +305,21 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    (o catálogo é ampliável por migration), protocolo/dobras cutâneas (não
    modelado), histórico de versões de avaliação (edição administrativa só
    auditada), PDF/CSV de evolução.
-3. **Aguardando aprovação explícita do usuário** — não iniciar suplementos,
-   feedbacks/materiais, IA de foto, gateway ou notificações externas sem
-   sinal verde (prompt Fase 9 §101).
+3. Aprovação formal da Fase 9 recebida em 2026-09-19. Fase 10 concluída em
+   2026-09-19.
+
+## Critérios para iniciar a Fase 11
+
+1. Usuário revisou suplementos, feedbacks e materiais (abas do paciente,
+   formulários, biblioteca, atribuições, portal, screenshots) e aprovou
+   explicitamente.
+2. Pendências configuráveis/`PENDENTE`: limite de tamanho de material
+   (hoje 10 MB técnico), tipos além de PDF/JPG/PNG, categorias de material
+   (não modeladas), contexto/consulta vinculada ao feedback (não modelado),
+   resposta do paciente ao feedback (chat — fora de escopo), imagem de
+   suplemento (`image_path` existe, sem upload), fornecedor da IA de foto
+   (`FoodAnalysisProvider`) e política de consentimento para fotos de
+   refeição.
+3. **Aguardando aprovação explícita do usuário** — não iniciar IA de foto
+   de comida, notificações externas, gateway ou checkout sem sinal verde
+   (prompt Fase 10 §107).

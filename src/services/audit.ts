@@ -44,7 +44,24 @@ export type AuditAction =
   | "ASSESSMENT_ARCHIVED"
   | "ASSESSMENT_DELETED"
   | "BIOIMPEDANCE_REPORT_UPLOADED"
-  | "BIOIMPEDANCE_REPORT_REMOVED";
+  | "BIOIMPEDANCE_REPORT_REMOVED"
+  | "SUPPLEMENT_RECOMMENDATION_CREATED"
+  | "SUPPLEMENT_RECOMMENDATION_UPDATED"
+  | "SUPPLEMENT_RECOMMENDATION_DEACTIVATED"
+  | "SUPPLEMENT_RECOMMENDATION_REACTIVATED"
+  | "SUPPLEMENT_RECOMMENDATION_ARCHIVED"
+  | "FEEDBACK_CREATED"
+  | "FEEDBACK_UPDATED"
+  | "FEEDBACK_PUBLISHED"
+  | "FEEDBACK_ARCHIVED"
+  | "FEEDBACK_DELETED"
+  | "MATERIAL_CREATED"
+  | "MATERIAL_UPDATED"
+  | "MATERIAL_ARCHIVED"
+  | "MATERIAL_ASSIGNED"
+  | "MATERIAL_UNASSIGNED"
+  | "MATERIAL_FILE_UPLOADED"
+  | "MATERIAL_FILE_REMOVED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -73,7 +90,11 @@ export async function recordAudit(input: {
     | "installment"
     | "meal_plan"
     | "meal_plan_version"
-    | "assessment";
+    | "assessment"
+    | "supplement_recommendation"
+    | "feedback_message"
+    | "patient_material"
+    | "material_assignment";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

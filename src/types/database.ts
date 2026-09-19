@@ -773,30 +773,58 @@ export type Database = {
       }
       feedback_messages: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           author_id: string
           content: string
           created_at: string
           id: string
           patient_id: string
+          published_at: string | null
           read_at: string | null
+          reference_date: string | null
+          title: string | null
+          updated_at: string
+          updated_by: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           author_id: string
           content: string
           created_at?: string
           id?: string
           patient_id: string
+          published_at?: string | null
           read_at?: string | null
+          reference_date?: string | null
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           author_id?: string
           content?: string
           created_at?: string
           id?: string
           patient_id?: string
+          published_at?: string | null
           read_at?: string | null
+          reference_date?: string | null
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "feedback_messages_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "feedback_messages_author_id_fkey"
             columns: ["author_id"]
@@ -823,6 +851,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_messages_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1046,26 +1081,39 @@ export type Database = {
       material_assignments: {
         Row: {
           assigned_at: string
+          assigned_by: string | null
           id: string
           material_id: string
           patient_id: string
           revoked_at: string | null
+          revoked_by: string | null
         }
         Insert: {
           assigned_at?: string
+          assigned_by?: string | null
           id?: string
           material_id: string
           patient_id: string
           revoked_at?: string | null
+          revoked_by?: string | null
         }
         Update: {
           assigned_at?: string
+          assigned_by?: string | null
           id?: string
           material_id?: string
           patient_id?: string
           revoked_at?: string | null
+          revoked_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "material_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "material_assignments_material_id_fkey"
             columns: ["material_id"]
@@ -1092,6 +1140,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_assignments_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1722,36 +1777,74 @@ export type Database = {
       }
       patient_materials: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
+          description: string | null
+          external_url: string | null
+          file_name: string | null
+          file_size_bytes: number | null
           id: string
+          kind: string
           mime_type: string | null
           nutritionist_id: string
-          storage_path: string
+          storage_path: string | null
           title: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
+          description?: string | null
+          external_url?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
           id?: string
+          kind?: string
           mime_type?: string | null
           nutritionist_id: string
-          storage_path: string
+          storage_path?: string | null
           title: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
+          description?: string | null
+          external_url?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
           id?: string
+          kind?: string
           mime_type?: string | null
           nutritionist_id?: string
-          storage_path?: string
+          storage_path?: string | null
           title?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "patient_materials_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "patient_materials_nutritionist_id_fkey"
             columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_materials_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2183,9 +2276,13 @@ export type Database = {
       supplement_recommendations: {
         Row: {
           active: boolean
+          archived_at: string | null
+          archived_by: string | null
           brand: string | null
           created_at: string
           created_by: string | null
+          dose_text: string | null
+          ends_on: string | null
           id: string
           image_path: string | null
           instructions: string | null
@@ -2194,13 +2291,19 @@ export type Database = {
           patient_id: string
           purchase_url: string | null
           schedule_text: string | null
+          starts_on: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           created_at?: string
           created_by?: string | null
+          dose_text?: string | null
+          ends_on?: string | null
           id?: string
           image_path?: string | null
           instructions?: string | null
@@ -2209,13 +2312,19 @@ export type Database = {
           patient_id: string
           purchase_url?: string | null
           schedule_text?: string | null
+          starts_on?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           created_at?: string
           created_by?: string | null
+          dose_text?: string | null
+          ends_on?: string | null
           id?: string
           image_path?: string | null
           instructions?: string | null
@@ -2224,9 +2333,18 @@ export type Database = {
           patient_id?: string
           purchase_url?: string | null
           schedule_text?: string | null
+          starts_on?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplement_recommendations_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplement_recommendations_created_by_fkey"
             columns: ["created_by"]
@@ -2253,6 +2371,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplement_recommendations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2530,6 +2655,10 @@ export type Database = {
         Returns: boolean
       }
       is_patient_self: { Args: { target_patient_id: string }; Returns: boolean }
+      material_visible_to_patient: {
+        Args: { p_material_id: string }
+        Returns: boolean
+      }
       meal_plan_version_status_of_day: {
         Args: { p_day_id: string }
         Returns: Database["public"]["Enums"]["meal_plan_version_status"]

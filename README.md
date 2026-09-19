@@ -89,7 +89,7 @@ Abre em [http://localhost:3000](http://localhost:3000):
 - `/dashboard/pacientes`, `/dashboard/pacientes/novo`,
   `/dashboard/pacientes/[id]` (+ `/editar`, `/contratos/novo`) — gestão de
   pacientes, planos e contratos com parcelas (Fase 5); os demais módulos do
-  dashboard ainda são shells (Comentários/Feedbacks/Materiais = Fase 10, Blog/Resultados/Configurações = Fase 14)
+  dashboard ainda são shells (Comentários = Fase 14 junto com Blog/Resultados/Configurações)
 - `/dashboard/pacientes/convidar` — convite de paciente por e-mail (Fase 3;
   a mesma lógica é usada por "Novo paciente + convite" e pelo perfil)
 - `/dashboard/agenda` (dia/semana/mês, próximas sessões), `/dashboard/agenda/nova`,
@@ -105,6 +105,11 @@ Abre em [http://localhost:3000](http://localhost:3000):
   (evolução, gráficos, histórico), `/avaliacoes/nova`, `/avaliacoes/[assessmentId]` (+ `/editar`,
   `/relatorio`), `/avaliacoes/comparar` e `/paciente/evolucao` (+ `/[assessmentId]`,
   `/relatorio`) — avaliações físicas, bioimpedância e evolução (Fase 9)
+- `/dashboard/pacientes/[id]?tab=suplementos` (+ `/suplementos/novo`, `/suplementos/[supplementId]/editar`),
+  `?tab=feedbacks` (+ `/feedbacks/novo`, `/feedbacks/[feedbackId]/editar`), `?tab=materiais`,
+  `/dashboard/materiais` (biblioteca; `/novo`, `/[materialId]`, `/editar`, `/arquivo`) e, no portal,
+  `/paciente/suplementos`, `/paciente/feedbacks`, `/paciente/materiais` (+ `/[materialId]/arquivo`) —
+  suplementos, feedbacks e materiais do paciente (Fase 10)
 - `/dashboard/financeiro` (lançamentos, filtros, cards), `/dashboard/financeiro/novo`,
   `/dashboard/financeiro/[id]/editar`, `/dashboard/financeiro/pagamentos/novo`,
   `/dashboard/financeiro/previsao` — financeiro completo sem gateway (Fase 7);
@@ -145,6 +150,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run screenshots:fase-8` | Screenshots reais do cardápio (aba do paciente, editor, histórico, publicação, portal) em `screenshots/fase-8/` |
 | `npm run test:assessments:integration` | Integração das avaliações contra Supabase local real (medidas/ranges, data futura, visibilidade, mass assignment, upload/download no bucket privado com acesso cruzado negado, arquivar/excluir, auditoria) |
 | `npm run screenshots:fase-9` | Screenshots reais de avaliações/evolução (aba, formulário, detalhe com relatório, comparação, portal) em `screenshots/fase-9/` |
+| `npm run test:patient-content:integration` | Integração de suplementos/feedbacks/materiais contra Supabase local real (ativo x encerrado x arquivado, rascunho x disponibilizado, paciente só marca como lido, link inseguro recusado, upload/download no bucket privado com acesso cruzado negado, atribuição/revogação/reatribuição, ownership nutri A/B e paciente A/B, auditoria) |
+| `npm run screenshots:fase-10` | Screenshots reais de suplementos/feedbacks/materiais (abas do paciente, formulários, biblioteca, detalhe do material, portal e empty states) em `screenshots/fase-10/` |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)

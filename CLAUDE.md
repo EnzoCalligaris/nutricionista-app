@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASES 0 a 9 concluídas.** Next.js rodando (`src/app`), design system,
+**FASES 0 a 10 concluídas.** Next.js rodando (`src/app`), design system,
 banco Postgres/Supabase local completo (RLS em 100% das tabelas,
 anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
 autorização reais (Fase 3), site público definitivo (Fase 4), o módulo de
@@ -27,9 +27,17 @@ portal `/paciente/evolucao`; catálogo flexível de métricas — nenhuma
 obrigatória, ranges técnicos e nunca clínicos, IMC só derivado; visibilidade
 por avaliação — paciente só vê liberada e não arquivada; relatório no bucket
 privado `bioimpedance-reports` entregue por URL assinada server-side; sem
-OCR/IA/diagnóstico). Suplementos, feedbacks, materiais, IA, gateway de
-pagamento e notificações externas ainda não existem — começam na Fase 10
-(`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
+OCR/IA/diagnóstico) e os **Suplementos + feedbacks + materiais** (Fase
+10: abas Suplementos/Feedbacks/Materiais do paciente,
+`/dashboard/materiais`, portal `/paciente/{suplementos,feedbacks,
+materiais}`; suplemento ATIVA/ENCERRADA/ARQUIVADA derivado de
+`active`+`archived_at`, feedback rascunho → disponibilizado (definitivo) →
+arquivado — não é chat —, material reutilizável arquivo-OU-link no bucket
+privado `patient-documents` (`<material_id>/<uuid>.<ext>`) com atribuição
+por paciente revogável; paciente só vê ativo/disponibilizado/atribuído;
+link externo só via `validateExternalUrl` + `ExternalLink`; download por
+URL assinada server-side). IA de foto, gateway de pagamento e notificações
+externas ainda não existem — começam na Fase 11 (`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
 duração, antecedências, plataforma online), categorias financeiras reais e
 a política de cobrança da consulta avulsa (`APPOINTMENT_CHARGE_POLICY`) são
 configuráveis e continuam `PENDENTE DE DEFINIÇÃO` — nunca hardcodar um
@@ -44,7 +52,8 @@ Integração contra o Supabase local: `npm run test:auth:integration`,
 `npm run test:public:integration`, `npm run test:patients:integration`,
 `npm run test:scheduling:integration`, `npm run test:scheduling:concurrency`,
 `npm run test:financial:integration`, `npm run test:meal-plans:integration`,
-`npm run test:assessments:integration`.
+`npm run test:assessments:integration`,
+`npm run test:patient-content:integration`.
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -116,10 +125,12 @@ aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
   commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
   E2E/build.
 - Referência de script: `scripts/screenshots-fase-5.mjs` a
-  `scripts/screenshots-fase-9.mjs` (`npm run screenshots:fase-N`, com
+  `scripts/screenshots-fase-10.mjs` (`npm run screenshots:fase-N`, com
   `--extra` para as larguras adicionais). Em Playwright, `getByText` é
   substring case-insensitive e `count()` não espera: prefira
-  `exact: true`/`waitFor` (Fase 9, `docs/DECISIONS.md`).
+  `exact: true`/`waitFor` (Fase 9, `docs/DECISIONS.md`). Tabelas do
+  dashboard: com a sidebar aberta, 768 px sobra ~490 px de conteúdo —
+  tabela só a partir de `lg`, cards abaixo (Fase 10).
 - Validação final sempre em sequência e contra o build:
   `npm run db:reset` → `npm run build` →
   `E2E_SKIP_BUILD=1 npx playwright test --workers=1` (nunca reutiliza um

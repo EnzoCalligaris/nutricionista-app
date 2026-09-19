@@ -311,7 +311,13 @@ o E2E verifica que nenhum nome de alimento chega ao metadata); desde a
 Fase 9: `ASSESSMENT_CREATED/UPDATED/PUBLISHED/UNPUBLISHED/ARCHIVED/DELETED`,
 `BIOIMPEDANCE_REPORT_UPLOADED/REMOVED` (ids, contagem de métricas, mime e
 tamanho — nunca peso, percentuais, circunferências, observações ou nome do
-relatório; verificado no E2E). Metadata é o mínimo para
+relatório; verificado no E2E); desde a Fase 10:
+`SUPPLEMENT_RECOMMENDATION_CREATED/UPDATED/DEACTIVATED/REACTIVATED/ARCHIVED`,
+`FEEDBACK_CREATED/UPDATED/PUBLISHED/ARCHIVED/DELETED`,
+`MATERIAL_CREATED/UPDATED/ARCHIVED/ASSIGNED/UNASSIGNED/FILE_UPLOADED/
+FILE_REMOVED` (ids, flags, nomes de campos alterados, mime/tamanho,
+comprimento do texto — nunca produto, dose, orientação, mensagem do
+feedback, nome do arquivo ou URL; verificado no E2E). Metadata é o mínimo para
 rastrear "quem fez o quê" — ids, NOMES dos campos alterados, código do
 plano, valor/quantidade de parcelas — nunca e-mail, telefone, nascimento ou
 qualquer dado clínico. Falta (fases futuras): avaliação, publicação de
@@ -375,6 +381,42 @@ antes/depois.
   de aplicação (só mensagens técnicas) nem em `audit_logs.metadata`.
 - Rotas privadas `force-dynamic`, sem ISR, noindex. IMC derivado só como
   número, sem faixa/interpretação.
+
+## Suplementos, feedbacks e materiais — dado pessoal de saúde (Fase 10)
+
+- RLS: nutricionista só nos próprios pacientes/materiais; paciente só
+  suplemento ATIVO e não arquivado, feedback DISPONIBILIZADO e não
+  arquivado, material ATRIBUÍDO (não revogado), não arquivado e completo —
+  tabelas e bucket `patient-documents`, via helper SECURITY DEFINER
+  `material_visible_to_patient`. Paciente não escreve em nenhuma das
+  tabelas (só `read_at` do feedback, forçado por trigger) e não grava no
+  bucket. Nenhum uso de service role.
+- Ownership no servidor em toda rota/action/route handler: `patient_id`
+  vem da rota (dashboard) ou da sessão (portal), nunca de input;
+  `requireOwnedPatient`/`requireOwnedMaterial`; ids adulterados = "não
+  encontrado"; material de outro nutricionista nunca é atribuído (trigger
+  além da RLS — a FK não passa pela RLS); `patient_id/author_id/
+  nutritionist_id/kind` imutáveis por trigger.
+- Mass assignment: schemas Zod só com campos de negócio;
+  `created_by/author_id/published_at/archived_at/storage_path/
+  assigned_by/revoked_at/active` nunca vêm do client.
+- Links externos: validador central (`validateExternalUrl`) + check no
+  banco; só http(s) absoluto; `javascript:`/`data:`/`file:`/`ftp:`/
+  `//host` recusados (testado em unitário, pgTAP, integração e E2E). Todo
+  link externo abre em nova aba com `rel="noopener noreferrer"` e host
+  visível. Conteúdo (orientação, feedback, descrição) é texto puro — sem
+  `dangerouslySetInnerHTML`.
+- Arquivos: bucket privado, path `<material_id>/<uuid>.<ext>` validado por
+  trigger (nunca nome de paciente/arquivo original), tipo pela assinatura
+  (`%PDF-`/JPEG/PNG), 10 MB, nome exibido saneado; download só por route
+  handler server-side com URL assinada de 60 s e `Cache-Control:
+  no-store`, nunca persistida, logada ou auditada. Revogar/arquivar corta o
+  acesso imediatamente (tabela e bucket — testado).
+- Rascunho/privado nunca vaza: rascunho de feedback e material não
+  atribuído são invisíveis por RLS e pela query do portal; arquivado idem.
+  Nada de conteúdo clínico em logs de aplicação (só mensagens técnicas)
+  nem em `audit_logs.metadata`. Rotas privadas `force-dynamic`, sem ISR,
+  noindex.
 
 ## Clientes Supabase — implementados na Fase 2
 

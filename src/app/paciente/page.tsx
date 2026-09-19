@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Camera, CalendarPlus, LineChart, MessageSquare, UtensilsCrossed } from "lucide-react";
+import { Camera, CalendarPlus, FolderOpen, LineChart, MessageSquare, Pill, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppointmentStatusBadge, ModalityBadge } from "@/components/scheduling/badges";
@@ -9,6 +9,11 @@ import { getPatientBookingContext } from "@/services/scheduling";
 import { isActive } from "@/domain/scheduling/state-machine";
 import { getPublishedMealPlan } from "@/data/meal-plans";
 import { listVisibleAssessments } from "@/data/assessments";
+import { listVisibleFeedbacksForPatient } from "@/data/feedbacks";
+import { listActiveSupplementsForPatient } from "@/data/supplements";
+import { listVisibleMaterialsForPatient } from "@/data/materials";
+import { feedbackDisplayTitle, feedbackExcerpt } from "@/domain/patient-content/feedbacks";
+import { formatInstantDate } from "@/lib/dates";
 import { findValue, latestAndPrevious } from "@/domain/assessments/evolution";
 import { formatMetric } from "@/domain/assessments/numbers";
 import { formatCalendarDate } from "@/lib/dates";
@@ -18,9 +23,11 @@ import { instantToDateISO, weekdayOfDate } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
-const futureCards = [{ title: "Último feedback", icon: MessageSquare, phase: "Fase 10" }] as const;
-
-/** Início do portal: próxima consulta real (Fase 6) e cardápio do dia (Fase 8); demais cards continuam previstos para fases futuras. */
+/**
+ * Início do portal: próxima consulta (Fase 6), cardápio do dia (Fase 8),
+ * última avaliação (Fase 9) e, na Fase 10, último feedback, suplementos
+ * ativos e materiais recentes — cards resumidos, só com dado real (§30/§51).
+ */
 export default async function PatientHomePage() {
   const profile = await requirePatient();
   const context = await getPatientBookingContext(profile.id);
@@ -36,6 +43,10 @@ export default async function PatientHomePage() {
   const todayMeals = mealPlan?.days.find((day) => day.weekday === weekdayOfDate(today))?.meals ?? [];
   const { latest: latestAssessment } = latestAndPrevious(context ? await listVisibleAssessments(context.patientId) : []);
   const latestWeight = latestAssessment ? findValue(latestAssessment, "WEIGHT") : null;
+  const [feedbacks, supplements, materials] = context
+    ? await Promise.all([listVisibleFeedbacksForPatient(context.patientId), listActiveSupplementsForPatient(context.patientId), listVisibleMaterialsForPatient(context.patientId)])
+    : [[], [], []];
+  const latestFeedback = feedbacks[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -120,17 +131,76 @@ export default async function PatientHomePage() {
             )}
           </CardContent>
         </Card>
-        {futureCards.map(({ title, icon: Icon, phase }) => (
-          <Card key={title}>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <CardTitle className="font-sans text-sm font-normal text-muted-foreground">{title}</CardTitle>
-              <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Disponível em uma próxima etapa ({phase}).</p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="font-sans text-sm font-normal text-muted-foreground">Último feedback</CardTitle>
+            <MessageSquare className="size-4 text-muted-foreground" aria-hidden="true" />
+          </CardHeader>
+          <CardContent>
+            {!latestFeedback ? (
+              <p className="text-sm text-muted-foreground">Nenhum feedback disponível ainda.</p>
+            ) : (
+              <div className="space-y-2">
+                <p className="font-heading text-lg font-medium break-words">{feedbackDisplayTitle(latestFeedback, formatInstantDate)}</p>
+                <p className="text-sm text-muted-foreground">{formatInstantDate(latestFeedback.publishedAt ?? latestFeedback.createdAt)} · {feedbackExcerpt(latestFeedback.content, 100)}</p>
+                <Link href="/paciente/feedbacks" className="text-sm underline underline-offset-4">
+                  Ver feedbacks
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="font-sans text-sm font-normal text-muted-foreground">Suplementos ativos</CardTitle>
+            <Pill className="size-4 text-muted-foreground" aria-hidden="true" />
+          </CardHeader>
+          <CardContent>
+            {supplements.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma recomendação de suplemento no momento.</p>
+            ) : (
+              <div className="space-y-2">
+                <ul className="space-y-1 text-sm">
+                  {supplements.slice(0, 3).map((item) => (
+                    <li key={item.id} className="flex items-baseline justify-between gap-2">
+                      <span className="truncate">{item.name}</span>
+                      {item.scheduleText ? <span className="shrink-0 truncate text-muted-foreground">{item.scheduleText}</span> : null}
+                    </li>
+                  ))}
+                  {supplements.length > 3 ? <li className="text-xs text-muted-foreground">+ {supplements.length - 3} recomendação(ões)</li> : null}
+                </ul>
+                <Link href="/paciente/suplementos" className="text-sm underline underline-offset-4">
+                  Ver suplementos
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="font-sans text-sm font-normal text-muted-foreground">Materiais recentes</CardTitle>
+            <FolderOpen className="size-4 text-muted-foreground" aria-hidden="true" />
+          </CardHeader>
+          <CardContent>
+            {materials.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum material disponível ainda.</p>
+            ) : (
+              <div className="space-y-2">
+                <ul className="space-y-1 text-sm">
+                  {materials.slice(0, 3).map((item) => (
+                    <li key={item.id} className="truncate">
+                      {item.material.title}
+                    </li>
+                  ))}
+                  {materials.length > 3 ? <li className="text-xs text-muted-foreground">+ {materials.length - 3} material(is)</li> : null}
+                </ul>
+                <Link href="/paciente/materiais" className="text-sm underline underline-offset-4">
+                  Ver materiais
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">

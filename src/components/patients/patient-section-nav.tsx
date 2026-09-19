@@ -9,6 +9,7 @@ export const PATIENT_SECTIONS = [
   { id: "avaliacoes", label: "Avaliações" },
   { id: "comentarios", label: "Comentários" },
   { id: "financeiro", label: "Financeiro" },
+  { id: "suplementos", label: "Suplementos" },
   { id: "feedbacks", label: "Feedbacks" },
   { id: "materiais", label: "Materiais" },
 ] as const;

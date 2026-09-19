@@ -14,6 +14,12 @@ import { PatientPlaceholderSection } from "@/components/patients/patient-placeho
 import { PatientFinanceSection } from "@/components/patients/patient-finance-section";
 import { PatientMealPlanSection } from "@/components/meal-plans/patient-meal-plan-section";
 import { PatientAssessmentsSection } from "@/components/assessments/patient-assessments-section";
+import { PatientSupplementsSection } from "@/components/supplements/patient-supplements-section";
+import { PatientFeedbacksSection } from "@/components/feedbacks/patient-feedbacks-section";
+import { PatientMaterialsSection } from "@/components/materials/patient-materials-section";
+import { listPatientSupplements } from "@/data/supplements";
+import { listPatientFeedbacks } from "@/data/feedbacks";
+import { listAssignableMaterials, listPatientAssignments } from "@/data/materials";
 import { listPatientAssessments } from "@/data/assessments";
 import { listPatientMealPlans } from "@/data/meal-plans";
 import { PatientAppointmentsSection } from "@/components/patients/patient-appointments-section";
@@ -159,6 +165,18 @@ export default async function PacientePage({ params, searchParams }: PageProps<"
         <PatientMealPlanSection patientId={patient.id} plans={await listPatientMealPlans(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "avaliacoes" ? (
         <PatientAssessmentsSection patientId={patient.id} assessments={await listPatientAssessments(patient.id)} canCreate={patient.status === "ACTIVE"} />
+      ) : section === "suplementos" ? (
+        <PatientSupplementsSection patientId={patient.id} supplements={await listPatientSupplements(patient.id)} canCreate={patient.status === "ACTIVE"} />
+      ) : section === "feedbacks" ? (
+        <PatientFeedbacksSection patientId={patient.id} feedbacks={await listPatientFeedbacks(patient.id)} canCreate={patient.status === "ACTIVE"} />
+      ) : section === "materiais" ? (
+        <PatientMaterialsSection
+          patientId={patient.id}
+          patientName={patient.full_name}
+          assignments={await listPatientAssignments(patient.id)}
+          library={await listAssignableMaterials(nutritionist.id)}
+          canAssign={patient.status === "ACTIVE"}
+        />
       ) : section === "financeiro" ? (
         <PatientFinanceSection
           patient={{ id: patient.id, name: patient.full_name, status: patient.status }}

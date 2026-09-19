@@ -55,15 +55,15 @@ app/
     financeiro/              # Fase 7 — lançamentos, novo/[id]/editar, pagamentos/novo, previsao
     blog/
     resultados/
-    materiais/
+    materiais/               # Fase 10 — biblioteca; novo, [materialId] (+ editar, arquivo)
     configuracoes/
   paciente/                  # portal do paciente — exige role=PATIENT (Fase 3)
     cardapio/
     evolucao/
     consultas/
-    suplementos/
-    feedbacks/
-    materiais/
+    suplementos/             # Fase 10 — só recomendações ativas
+    feedbacks/               # Fase 10 — só disponibilizados
+    materiais/               # Fase 10 — só atribuídos; [materialId]/arquivo (download server-side)
     perfil/
   api/
     webhooks/{payments,whatsapp}/
@@ -81,7 +81,8 @@ src/
                      # períodos, resumos) desde a Fase 7; meal-plans/ (definições/unidades,
                      # estrutura+ordenação+duplicação, versionamento, quantidades) — Fase 8;
                      # assessments/ (métricas/ranges técnicos/IMC, números pt-BR, evolução/
-                     # comparação/séries) — Fase 9
+                     # comparação/séries) — Fase 9; patient-content/ (validador de URL externa,
+                     # status/visibilidade de suplementos, feedbacks e materiais/atribuições) — Fase 10
   services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
                      # (convite, compartilhado com a Fase 3), audit.ts — validam
                      # ownership e chamam data/ + funções SQL transacionais;
@@ -89,20 +90,23 @@ src/
                      # finance.ts (lançamentos manuais, pagamento/estorno via funções SQL) — Fase 7;
                      # meal-plans.ts (plano/versão/dia/refeição/item/substituição, funções SQL) — Fase 8;
                      # assessments.ts (avaliação, medidas, visibilidade, relatório no bucket privado,
-                     # URL assinada) — Fase 9
+                     # URL assinada) — Fase 9; supplements.ts, feedbacks.ts, materials.ts (arquivo no
+                     # bucket privado, atribuições, URL assinada) — Fase 10
   data/              # queries Supabase: públicas (plans, blog, results, site-settings,
                      # cliente anônimo — Fase 4) e do dashboard (patients.ts,
                      # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5;
                      # appointments.ts, scheduling.ts — Fase 6; financial.ts,
-                     # payments.ts — Fase 7; meal-plans.ts — Fase 8; assessments.ts — Fase 9)
+                     # payments.ts — Fase 7; meal-plans.ts — Fase 8; assessments.ts — Fase 9;
+                     # supplements.ts, feedbacks.ts, materials.ts — Fase 10)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
   actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
                      # (Fase 4), patients.ts, contracts.ts (Fase 5), scheduling.ts
                      # (nutricionista) e patient-booking.ts (paciente) (Fase 6), finance.ts (Fase 7),
-                     # meal-plans.ts (Fase 8), assessments.ts (Fase 9)
+                     # meal-plans.ts (Fase 8), assessments.ts (Fase 9), supplements.ts,
+                     # feedbacks.ts, materials.ts (Fase 10)
   validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
                      # patients.ts, contracts.ts, scheduling.ts, finance.ts, meal-plans.ts,
-                     # assessments.ts
+                     # assessments.ts, patient-content.ts (Fase 10)
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
@@ -316,3 +320,42 @@ passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
   medidas colapsáveis, campos sempre no DOM), cards de tendência com ícone +
   texto de direção, gráficos com tabela `sr-only`, histórico tabela/cards,
   comparação, ações (visibilidade, arquivar/excluir, relatório).
+
+## Suplementos, feedbacks e materiais (Fase 10) — quem decide o quê
+
+- **Domínio puro** (`src/domain/patient-content`): validador central de
+  URL externa (`urls.ts` — só http(s) absoluto; recusa `javascript:`,
+  `data:`, `file:`, `ftp:`, `//host`, credenciais), status derivado e
+  visibilidade de suplementos (ATIVA/ENCERRADA/ARQUIVADA), feedbacks
+  (RASCUNHO/DISPONIBILIZADO/ARQUIVADO) e materiais (tipo, completude,
+  atribuição ativa/revogada/material arquivado), tipos e limite técnico de
+  arquivo, nome de arquivo seguro, ordenações. Sem I/O; testado.
+- **Banco** (migration Fase 10): triggers `guard_supplement_recommendation`,
+  `guard_feedback_message` (+ `prevent_feedback_tampering_by_patient`:
+  paciente só `read_at`), `guard_patient_material` (path
+  `<material_id>/…`, delete só sem histórico), `guard_material_assignment`
+  (mesmo nutricionista, material ativo e completo, reatribuição); checks
+  de URL; helper SECURITY DEFINER `material_visible_to_patient` nas policies
+  de tabela e do bucket `patient-documents`; DELETE revogado em suplementos e
+  atribuições; RLS do paciente restrita a ativo/disponibilizado/atribuído.
+- **Data** (`src/data/{supplements,feedbacks,materials}.ts`): selects do
+  nutricionista (histórico completo) e do portal (repetem o filtro de
+  visibilidade da RLS), biblioteca com contagem de atribuições, atribuições
+  com paciente/material por embed.
+- **Services** (`src/services/{supplements,feedbacks,materials}.ts`):
+  ownership explícito (`requireOwnedPatient`, `requireOwnedMaterial`),
+  transições de status via domínio, upload com assinatura conferida +
+  compensação, substituição sem órfão, URLs assinadas de 60 s para
+  nutricionista e paciente, auditoria só com ids, eventos internos de
+  notificação.
+- **Actions** (`src/actions/{supplements,feedbacks,materials}.ts`):
+  `requireNutritionist`, Zod (`validators/patient-content.ts`; patient_id
+  da rota, ids como `z.guid()`; nutritionist_id/author_id/published_at/
+  archived_at/storage_path/assigned_by nunca do client), multipart para o
+  arquivo, `revalidatePath` do perfil, da biblioteca e do portal. Paciente
+  só lê (portal) e baixa (route handler).
+- **UI** (`src/components/{supplements,feedbacks,materials,portal}`):
+  formulários com `useActionState`, badges com ícone + texto, menus de
+  ações com confirmação (encerrar/arquivar/disponibilizar/remover
+  atribuição), tabelas ≥ `lg` e cards abaixo, `ExternalLink` compartilhado
+  (`noopener noreferrer` + host), cards do portal em texto puro.

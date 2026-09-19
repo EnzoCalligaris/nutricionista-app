@@ -1398,3 +1398,124 @@ dado plausível/inventado.
     esperando "Avaliações" ainda como placeholder (agora é real; o
     placeholder que resta é Comentários) — 100/100 na segunda rodada, sem
     skip.
+
+## Decisões técnicas da Fase 10 (Suplementos + feedbacks + materiais do paciente)
+
+1. **Schema da Fase 2 reutilizado; uma migration mínima**
+   (`20260923120000_patient_content_management.sql`). Nenhuma tabela
+   paralela, nenhum enum novo: `supplement_recommendations` ganha
+   `dose_text`, `starts_on/ends_on`, `archived_at/by`, `updated_by` e
+   `check` de `purchase_url` (só `^https?://`); o status é derivado de
+   `active` + `archived_at` (ATIVA / ENCERRADA / ARQUIVADA — §11).
+   `feedback_messages` ganha `title`, `reference_date`, `published_at`
+   (null = rascunho), `archived_at/by`, `updated_at/by`; linhas anteriores à
+   migration recebem `published_at = created_at` (eram visíveis antes).
+   `patient_materials` ganha `kind` (FILE/LINK), `description`,
+   `external_url`, `file_name/file_size_bytes`, `archived_at/by`,
+   `updated_by`, e `storage_path` vira nullable (link não tem arquivo;
+   arquivo nasce sem path). `material_assignments` ganha
+   `assigned_by/revoked_by`. Campos não modelados ficam `PENDENTE DE
+   DEFINIÇÃO`: categoria de material, contexto/consulta do feedback, imagem
+   de suplemento (`image_path` existe, sem upload nesta fase).
+
+2. **Suplementos — princípio clínico (§1):** o sistema só registra e
+   apresenta. Dose e frequência são texto livre (`"1 cápsula"`, `"após o
+   treino"`) — sem engine, sem lista rígida; exemplos só como placeholder.
+   Link de compra é só link (sem cupom/afiliado/comissão — §10). Encerrar
+   (`active = false`) tira do portal e permite reativação explícita;
+   arquivar é definitivo (trigger recusa edição e desarquivamento —
+   `SUPPLEMENT_ARCHIVED`); DELETE revogado de `authenticated` (§14).
+
+3. **Feedback não é chat (§19):** só o nutricionista escreve; o paciente
+   lê e, no máximo, marca como lido (`read_at` — trigger compara todas as
+   outras colunas via `to_jsonb` e recusa qualquer outra mudança:
+   `FEEDBACK_NOT_AUTHORIZED`). Rascunho (`published_at is null`) nunca chega
+   ao portal (RLS + query). "Disponibilizar" grava `published_at` e é
+   **definitivo** (o paciente pode já ter lido; voltar a rascunho →
+   `INVALID_STATUS_TRANSITION`); para ocultar, arquivar. **Edição após
+   disponibilizar é permitida** com `updated_at/updated_by` + auditoria
+   `FEEDBACK_UPDATED` (campos alterados por nome) — sem versionamento pesado
+   (§25, decisão documentada). Exclusão física só de rascunho
+   (`FEEDBACK_NOT_DELETABLE`). Nota interna/clínica não existe em
+   `feedback_messages` — continua em `appointment_notes`/`internal_notes`.
+   O portal mostra "Seu nutricionista" (a RLS de `profiles` não expõe o
+   profile do nutricionista ao paciente; nenhum id interno é exibido — §29).
+
+4. **Materiais: MATERIAL ≠ ATRIBUIÇÃO (§31).** Um material é reutilizável;
+   `material_assignments` é única por (material, paciente): revogar =
+   `revoked_at` (linha nunca some — DELETE revogado), reatribuir = limpar
+   `revoked_at` (trigger renova `assigned_at/by` e zera `revoked_by`).
+   Trigger `guard_material_assignment` exige material e paciente do MESMO
+   nutricionista (a FK não passa pela RLS; `MATERIAL_NOT_AUTHORIZED`),
+   material não arquivado e completo (`MATERIAL_INCOMPLETE`). Arquivar
+   material (§44): paciente perde o acesso mesmo com atribuição ativa
+   (helper de visibilidade exclui arquivado), não é reatribuível, o
+   histórico administrativo permanece e o objeto NÃO é apagado. DELETE de
+   material só se nunca teve atribuição (trigger `MATERIAL_NOT_DELETABLE`)
+   — usado apenas como compensação de upload falho; a UI só arquiva (§45).
+
+5. **Storage de materiais (§36–§40):** bucket privado `patient-documents`
+   da Fase 2 reutilizado; path `<material_id>/<uuid>.<ext>` (por material,
+   não por paciente — o mesmo arquivo serve a vários pacientes; nunca nome
+   de paciente nem filename original; trigger `MATERIAL_PATH_INVALID`).
+   Como o bucket só autoriza escrita quando a linha do material existe, o
+   fluxo é: inserir a linha (FILE, sem path) → upload → gravar
+   `storage_path/mime/file_name/file_size_bytes`; se o upload falhar a
+   linha (nunca atribuída) é apagada. Tipo conferido pela assinatura
+   (`%PDF-`, JPEG, PNG), limite TÉCNICO de 10 MB (mesmo da Fase 9, abaixo
+   dos 50 MB do bucket — não é capacidade comercial, §38). Substituir =
+   enviar o novo, gravar, só então remover o anterior. Download por route
+   handlers server-side (`/dashboard/materiais/[id]/arquivo`,
+   `/paciente/materiais/[id]/arquivo`) com URL assinada de 60 s e
+   `Cache-Control: no-store`; nunca persistida nem logada (§46–§47).
+
+6. **Visibilidade do paciente por helper SECURITY DEFINER** (CLAUDE.md
+   regra 11): `material_visible_to_patient(material_id)` = atribuição não
+   revogada + material não arquivado e completo + `is_patient_self`. Usada
+   nas policies de `patient_materials`, `material_assignments` e do bucket
+   (substitui o `EXISTS` direto da Fase 2). Suplemento: `active and
+   archived_at is null`; feedback: `published_at is not null and
+   archived_at is null` — direto na policy, sem tabela externa.
+
+7. **Validador central de URL externa (§61):**
+   `src/domain/patient-content/urls.ts` (`validateExternalUrl`) é o único
+   ponto que aceita um link: só `http:`/`https:` absolutos com host; recusa
+   `javascript:`, `data:`, `file:`, `ftp:`, `//host`, espaço/controle e
+   credenciais embutidas; nunca reescreve (não força https, só prefere na
+   UX). Usado pelos schemas Zod de suplemento e material; o banco repete
+   com `check (~* '^https?://')` como defesa em profundidade. Todo link
+   externo passa por `components/shared/external-link.tsx`: `target=_blank`
+   + `rel="noopener noreferrer"` + host visível + ícone (§16/§70/§96).
+
+8. **Eventos internos de notificação (§52–§53):**
+   `SUPPLEMENT_RECOMMENDATION_CREATED`, `FEEDBACK_PUBLISHED`,
+   `MATERIAL_ASSIGNED` gravados em `notification_events` pelo mesmo
+   `recordNotificationEvent` da Fase 6 — sem e-mail/WhatsApp/push (Fase 12).
+
+9. **Auditoria sem conteúdo clínico (§54–§56/§83):**
+   `SUPPLEMENT_RECOMMENDATION_CREATED/UPDATED/DEACTIVATED/REACTIVATED/
+   ARCHIVED`, `FEEDBACK_CREATED/UPDATED/PUBLISHED/ARCHIVED/DELETED`,
+   `MATERIAL_CREATED/UPDATED/ARCHIVED/ASSIGNED/UNASSIGNED/FILE_UPLOADED/
+   FILE_REMOVED` com metadata só de ids, flags, nomes de campos alterados,
+   mime/tamanho e comprimento do texto — nunca produto, dose, orientação,
+   mensagem do feedback, nome do arquivo ou URL. O E2E verifica com regex.
+
+10. **UI:** abas Suplementos/Feedbacks/Materiais reais no perfil (nada
+    comprimido em Visão Geral — §3); tabelas só a partir de `lg` (com a
+    sidebar aberta, 768 px fica estreito — problema encontrado no QA visual
+    e corrigido: a tabela cortava Status/Ações; abaixo de `lg` são cards) e
+    colunas secundárias só em `xl`. Feedback no portal em coluna única com
+    `max-w-prose` (§73); materiais em cards com "Abrir" (link) ou "Baixar"
+    (arquivo), sem preview de PDF (§74). Formulário de feedback com dois
+    submits (`intent=draft|publish`) — em feedback já disponibilizado só
+    "Salvar alterações"; a página de edição não repete o botão "Editar"
+    (redundância removida no QA). Toasts só após o servidor (`?toast=`).
+
+11. **Testes:** 31 unitários (validador de URL, status/visibilidade/
+    apresentação, schemas), 75 pgTAP (`120_patient_content.test.sql`, incl.
+    `storage.objects` inserido como superusuário para provar a policy do
+    bucket), 76 checks de integração via PostgREST/Storage com JWTs reais
+    (nutri B com paciente próprio, para provar que não atribui material de
+    A nem ao próprio paciente), 17 E2E com nutricionista e paciente em
+    contextos de browser separados (cria → paciente não vê / vê → edita →
+    arquiva/remove → paciente perde), mobile 390 sem overflow.

@@ -28,6 +28,8 @@
     "screenshots:fase-8": "node scripts/screenshots-fase-8.mjs",
     "test:assessments:integration": "node scripts/assessments-integration-test.mjs",
     "screenshots:fase-9": "node scripts/screenshots-fase-9.mjs",
+    "test:patient-content:integration": "node scripts/patient-content-integration-test.mjs",
+    "screenshots:fase-10": "node scripts/screenshots-fase-10.mjs",
     "screenshots:fase-6": "node scripts/screenshots-fase-6.mjs",
     "screenshots:fase-5": "node scripts/screenshots-fase-5.mjs",
     "bootstrap:nutritionist": "node scripts/bootstrap-nutritionist.mjs"
