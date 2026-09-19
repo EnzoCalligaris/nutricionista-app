@@ -316,3 +316,13 @@ values (
   'Compromisso (dado fictício de seed)',
   true
 );
+
+-- ---------------------------------------------------------------------------
+-- Fase 7: os lançamentos de seed gerados "por pagamento" acima passam a
+-- apontar o paciente (coluna nova; a migration só faz o backfill de dados
+-- que já existiam antes dela — o seed roda depois).
+-- ---------------------------------------------------------------------------
+update public.financial_transactions t
+  set patient_id = p.patient_id
+from public.payments p
+where t.origin_payment_id = p.id and t.patient_id is null;

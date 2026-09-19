@@ -24,7 +24,10 @@ export type FlashToastCode =
   | "blocked_time_created"
   | "settings_saved"
   | "booking_created"
-  | "booking_rescheduled";
+  | "booking_rescheduled"
+  | "transaction_created"
+  | "transaction_updated"
+  | "payment_recorded";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -47,6 +50,9 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   settings_saved: { type: "success", message: "Configurações da agenda salvas." },
   booking_created: { type: "success", message: "Consulta agendada com sucesso." },
   booking_rescheduled: { type: "success", message: "Consulta reagendada com sucesso." },
+  transaction_created: { type: "success", message: "Lançamento criado." },
+  transaction_updated: { type: "success", message: "Lançamento atualizado." },
+  payment_recorded: { type: "success", message: "Pagamento registrado." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

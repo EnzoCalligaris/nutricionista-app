@@ -10,12 +10,15 @@ import { PatientStatusBadge, PortalAccessBadge } from "@/components/patients/sta
 import { PatientSectionNav, parsePatientSection } from "@/components/patients/patient-section-nav";
 import { PatientOverviewSection } from "@/components/patients/patient-overview-section";
 import { PatientContractsSection } from "@/components/patients/patient-contracts-section";
-import { PatientPaymentsSection, PatientPlaceholderSection } from "@/components/patients/patient-placeholder-section";
+import { PatientPlaceholderSection } from "@/components/patients/patient-placeholder-section";
+import { PatientFinanceSection } from "@/components/patients/patient-finance-section";
 import { PatientAppointmentsSection } from "@/components/patients/patient-appointments-section";
 import { listPatientAppointments } from "@/data/appointments";
 import { requireNutritionist } from "@/lib/auth/session";
 import { getPatientAuditEvents, getPatientById, getPatientModuleCounts, getPatientOverview, getPatientPayments } from "@/data/patients";
 import { getPatientContracts } from "@/data/contracts";
+import { listPatientPayments } from "@/data/payments";
+import { listPatientTransactions } from "@/data/financial";
 import { getPatientPortalAccess } from "@/services/patients";
 import { buildPatientTimeline } from "@/domain/patients/timeline";
 import { patientIdSchema } from "@/validators/patients";
@@ -149,7 +152,13 @@ export default async function PacientePage({ params, searchParams }: PageProps<"
       ) : section === "consultas" ? (
         <PatientAppointmentsSection patientId={patient.id} appointments={await listPatientAppointments(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "financeiro" ? (
-        <PatientPaymentsSection payments={payments} planNameByContract={planNameByContract} />
+        <PatientFinanceSection
+          patient={{ id: patient.id, name: patient.full_name, status: patient.status }}
+          contracts={contracts}
+          payments={await listPatientPayments(nutritionist.id, patient.id)}
+          transactions={await listPatientTransactions(nutritionist.id, patient.id, today)}
+          today={today}
+        />
       ) : (
         <PatientPlaceholderSection section={section} counts={counts} />
       )}

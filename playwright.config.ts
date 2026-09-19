@@ -23,10 +23,17 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
+  // Servidor de PRODUÇÃO sempre (Fase 7, docs/DECISIONS.md): nunca reutiliza
+  // algo que já esteja em :3000 — um `next dev` órfão fazia a suíte rodar
+  // contra o servidor errado e ainda inflava a memória. Se a porta estiver
+  // ocupada, o Playwright falha em vez de testar o servidor errado.
+  // `E2E_SKIP_BUILD=1` usa o build já gerado (`npm run build` rodado antes,
+  // em sequência) em vez de compilar de novo; ao terminar, o Playwright
+  // encerra o `next start` que ele mesmo subiu.
   webServer: {
-    command: "npm run build && npm run start",
+    command: process.env.E2E_SKIP_BUILD ? "npm run start" : "npm run build && npm run start",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 180_000,
   },
 });

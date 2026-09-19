@@ -807,16 +807,21 @@ export type Database = {
       financial_transactions: {
         Row: {
           amount_cents: number
+          cancellation_reason: string | null
+          cancelled_at: string | null
           category_id: string | null
           created_at: string
           created_by: string | null
           description: string
           due_on: string | null
           id: string
+          notes: string | null
+          nutritionist_id: string | null
           occurred_on: string
           origin: Database["public"]["Enums"]["financial_origin"]
           origin_payment_id: string | null
           paid_at: string | null
+          patient_id: string | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           status: Database["public"]["Enums"]["financial_transaction_status"]
           type: Database["public"]["Enums"]["financial_type"]
@@ -824,16 +829,21 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           description: string
           due_on?: string | null
           id?: string
+          notes?: string | null
+          nutritionist_id?: string | null
           occurred_on?: string
           origin?: Database["public"]["Enums"]["financial_origin"]
           origin_payment_id?: string | null
           paid_at?: string | null
+          patient_id?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           status?: Database["public"]["Enums"]["financial_transaction_status"]
           type: Database["public"]["Enums"]["financial_type"]
@@ -841,16 +851,21 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string
           due_on?: string | null
           id?: string
+          notes?: string | null
+          nutritionist_id?: string | null
           occurred_on?: string
           origin?: Database["public"]["Enums"]["financial_origin"]
           origin_payment_id?: string | null
           paid_at?: string | null
+          patient_id?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           status?: Database["public"]["Enums"]["financial_transaction_status"]
           type?: Database["public"]["Enums"]["financial_type"]
@@ -872,10 +887,38 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "financial_transactions_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "financial_transactions_origin_payment_id_fkey"
             columns: ["origin_payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
         ]
@@ -1679,45 +1722,60 @@ export type Database = {
         Row: {
           amount_cents: number
           appointment_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
           contract_id: string | null
           created_at: string
           external_id: string | null
           id: string
+          idempotency_key: string | null
           installment_id: string | null
           method: Database["public"]["Enums"]["payment_method"]
+          notes: string | null
           paid_at: string | null
           patient_id: string
           provider: string
+          recorded_by: string | null
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
         }
         Insert: {
           amount_cents: number
           appointment_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           contract_id?: string | null
           created_at?: string
           external_id?: string | null
           id?: string
+          idempotency_key?: string | null
           installment_id?: string | null
           method: Database["public"]["Enums"]["payment_method"]
+          notes?: string | null
           paid_at?: string | null
           patient_id: string
           provider?: string
+          recorded_by?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
         }
         Update: {
           amount_cents?: number
           appointment_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           contract_id?: string | null
           created_at?: string
           external_id?: string | null
           id?: string
+          idempotency_key?: string | null
           installment_id?: string | null
           method?: Database["public"]["Enums"]["payment_method"]
+          notes?: string | null
           paid_at?: string | null
           patient_id?: string
           provider?: string
+          recorded_by?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
         }
@@ -1758,6 +1816,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payments_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payment_summary"
+            referencedColumns: ["installment_id"]
+          },
+          {
             foreignKeyName: "payments_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
@@ -1776,6 +1841,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2132,6 +2204,38 @@ export type Database = {
           },
         ]
       }
+      installment_payment_summary: {
+        Row: {
+          amount_cents: number | null
+          contract_id: string | null
+          installment_id: string | null
+          received_cents: number | null
+          remaining_cents: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_installments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contract_financial_summary"
+            referencedColumns: ["contract_id"]
+          },
+          {
+            foreignKeyName: "contract_installments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_installments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["current_contract_id"]
+          },
+        ]
+      }
       patient_active_status: {
         Row: {
           has_active_contract: boolean | null
@@ -2239,6 +2343,10 @@ export type Database = {
         }[]
       }
       cancel_contract: { Args: { p_contract_id: string }; Returns: undefined }
+      cancel_payment: {
+        Args: { p_payment_id: string; p_reason?: string }
+        Returns: undefined
+      }
       complete_contract: { Args: { p_contract_id: string }; Returns: undefined }
       create_contract_with_installments: {
         Args: {
@@ -2257,6 +2365,18 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["profile_role"]
       }
+      financial_period_summary: {
+        Args: { p_from: string; p_timezone?: string; p_to: string }
+        Returns: {
+          balance_cents: number
+          expense_cents: number
+          forecast_cents: number
+          income_cents: number
+          overdue_cents: number
+          pending_cents: number
+          received_cents: number
+        }[]
+      }
       has_valid_media_consent: {
         Args: { target_consent_id: string }
         Returns: boolean
@@ -2266,6 +2386,37 @@ export type Database = {
         Returns: boolean
       }
       is_patient_self: { Args: { target_patient_id: string }; Returns: boolean }
+      monthly_financial_series: {
+        Args: {
+          p_months?: number
+          p_months_ahead?: number
+          p_timezone?: string
+        }
+        Returns: {
+          due_cents: number
+          expense_cents: number
+          forecast_cents: number
+          income_cents: number
+          month_start: string
+          received_cents: number
+        }[]
+      }
+      record_manual_payment: {
+        Args: {
+          p_amount_cents: number
+          p_appointment_id?: string
+          p_category_id?: string
+          p_contract_id?: string
+          p_idempotency_key: string
+          p_installment_id?: string
+          p_method: Database["public"]["Enums"]["payment_method"]
+          p_notes?: string
+          p_paid_at: string
+          p_patient_id: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
       reschedule_appointment: {
         Args: {
           p_allow_outside_availability?: boolean

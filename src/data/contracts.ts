@@ -19,6 +19,9 @@ export type ContractInstallment = {
   dueDate: string;
   status: InstallmentStatus;
   paidAt: string | null;
+  /** Fase 7: pagamentos CONFIRMED vinculados e saldo restante (view installment_payment_summary). */
+  receivedCents: number;
+  remainingCents: number;
 };
 
 export type ContractFinancials = {
@@ -71,7 +74,9 @@ type ContractQueryRow = {
 
 type SummaryRow = Database["public"]["Views"]["contract_financial_summary"]["Row"];
 
-function toContract(row: ContractQueryRow, summary: SummaryRow | undefined): PatientContract {
+type InstallmentBalanceRow = { installment_id: string | null; received_cents: number | null; remaining_cents: number | null };
+
+function toContract(row: ContractQueryRow, summary: SummaryRow | undefined, balances: Map<string, InstallmentBalanceRow>): PatientContract {
   return {
     id: row.id,
     patientId: row.patient_id,
@@ -93,14 +98,22 @@ function toContract(row: ContractQueryRow, summary: SummaryRow | undefined): Pat
     createdAt: row.created_at,
     installments: [...row.contract_installments]
       .sort((a, b) => a.number - b.number)
-      .map((installment) => ({
-        id: installment.id,
-        number: installment.number,
-        amountCents: installment.amount_cents,
-        dueDate: installment.due_date,
-        status: installment.status,
-        paidAt: installment.paid_at,
-      })),
+      .map((installment) => {
+        const balance = balances.get(installment.id);
+        const received = balance?.received_cents ?? 0;
+        return {
+          id: installment.id,
+          number: installment.number,
+          amountCents: installment.amount_cents,
+          dueDate: installment.due_date,
+          status: installment.status,
+          paidAt: installment.paid_at,
+          receivedCents: received,
+          remainingCents:
+            balance?.remaining_cents ??
+            (installment.status === "PAID" || installment.status === "CANCELLED" ? 0 : Math.max(installment.amount_cents - received, 0)),
+        };
+      }),
     financials: {
       contractedCents: summary?.contracted_amount_cents ?? row.contracted_amount_cents,
       receivedCents: summary?.received_cents ?? 0,
@@ -112,7 +125,8 @@ function toContract(row: ContractQueryRow, summary: SummaryRow | undefined): Pat
 
 /**
  * Todos os contratos do paciente (histórico completo, nunca sobrescrito —
- * §36), com parcelas e resumo financeiro. Duas queries no total, não N+1.
+ * §36), com parcelas (recebido/restante) e resumo financeiro. Três queries
+ * no total, não N+1.
  * O escopo do nutricionista é garantido pela RLS de `patient_contracts`
  * (`is_nutritionist_of_patient`) e, antes disso, pela página que só chama
  * isto depois de `getPatientById(nutritionistId, ...)` confirmar ownership.
@@ -133,9 +147,20 @@ export async function getPatientContracts(patientId: string): Promise<PatientCon
   if (contractsResult.error) throw domainErrorFromDatabase(contractsResult.error);
   if (summaryResult.error) throw domainErrorFromDatabase(summaryResult.error);
 
+  const contractIds = (contractsResult.data ?? []).map((row) => row.id);
+  const balances = new Map<string, InstallmentBalanceRow>();
+  if (contractIds.length > 0) {
+    const { data: balanceRows, error: balanceError } = await supabase
+      .from("installment_payment_summary")
+      .select("installment_id, received_cents, remaining_cents")
+      .in("contract_id", contractIds);
+    if (balanceError) throw domainErrorFromDatabase(balanceError);
+    for (const row of balanceRows ?? []) if (row.installment_id) balances.set(row.installment_id, row);
+  }
+
   const summaries = new Map((summaryResult.data ?? []).map((row) => [row.contract_id, row]));
   return (contractsResult.data as unknown as ContractQueryRow[]).map((row) =>
-    toContract(row, summaries.get(row.id)),
+    toContract(row, summaries.get(row.id), balances),
   );
 }
 

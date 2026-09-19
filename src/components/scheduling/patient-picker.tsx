@@ -13,6 +13,8 @@ type Props = {
   initial?: { id: string; name: string } | null;
   error?: string;
   onSelect?: (patient: PatientSearchResult | null) => void;
+  /** Abre a lista já na montagem (campo obrigatório). `false` = só ao focar (campo opcional, Fase 7). */
+  autoOpen?: boolean;
 };
 
 /**
@@ -20,17 +22,18 @@ type Props = {
  * pacientes do nutricionista autenticado (≤ 10 por consulta), nunca a lista
  * inteira no browser. Envia `patientId` (e `patientName` para repopular).
  */
-export function PatientPicker({ initial = null, error, onSelect }: Props) {
+export function PatientPicker({ initial = null, error, onSelect, autoOpen = true }: Props) {
   const idPrefix = useId();
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<PatientSearchResult[]>([]);
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(initial);
   const [open, setOpen] = useState(false);
+  const [touched, setTouched] = useState(autoOpen);
   const [isPending, startTransition] = useTransition();
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (selected) return;
+    if (selected || !touched) return;
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(() => {
       startTransition(async () => {
@@ -42,7 +45,7 @@ export function PatientPicker({ initial = null, error, onSelect }: Props) {
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [term, selected]);
+  }, [term, selected, touched]);
 
   function choose(patient: PatientSearchResult) {
     setSelected({ id: patient.id, name: patient.fullName });
@@ -85,7 +88,10 @@ export function PatientPicker({ initial = null, error, onSelect }: Props) {
             className="pl-8"
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            onFocus={() => setOpen(true)}
+            onFocus={() => {
+              setTouched(true);
+              setOpen(true);
+            }}
             role="combobox"
             aria-expanded={open}
             aria-controls={`${idPrefix}-listbox`}

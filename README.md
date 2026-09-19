@@ -89,7 +89,7 @@ Abre em [http://localhost:3000](http://localhost:3000):
 - `/dashboard/pacientes`, `/dashboard/pacientes/novo`,
   `/dashboard/pacientes/[id]` (+ `/editar`, `/contratos/novo`) — gestão de
   pacientes, planos e contratos com parcelas (Fase 5); os demais módulos do
-  dashboard ainda são shells (Agenda = Fase 6, Financeiro = Fase 7...)
+  dashboard ainda são shells (Cardápios = Fase 8, Avaliações = Fase 9...)
 - `/dashboard/pacientes/convidar` — convite de paciente por e-mail (Fase 3;
   a mesma lógica é usada por "Novo paciente + convite" e pelo perfil)
 - `/dashboard/agenda` (dia/semana/mês, próximas sessões), `/dashboard/agenda/nova`,
@@ -97,6 +97,10 @@ Abre em [http://localhost:3000](http://localhost:3000):
   `/dashboard/agenda/configuracoes` — agenda, disponibilidade e bloqueios (Fase 6)
 - `/paciente/consultas`, `/paciente/agendar` — consultas e agendamento online do
   paciente (Fase 6); `/agendar` público leva ao login com `next` seguro
+- `/dashboard/financeiro` (lançamentos, filtros, cards), `/dashboard/financeiro/novo`,
+  `/dashboard/financeiro/[id]/editar`, `/dashboard/financeiro/pagamentos/novo`,
+  `/dashboard/financeiro/previsao` — financeiro completo sem gateway (Fase 7);
+  `/dashboard` com cards e gráficos reais
 - `/paciente` — portal do paciente, exige login com role `PATIENT`
 
 Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
@@ -127,6 +131,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:scheduling:integration` | Integração da agenda contra Supabase local real (ownership paciente x paciente e nutri x nutri, disponibilidade/bloqueio negados no servidor, status pelo paciente, busy_intervals) |
 | `npm run test:scheduling:concurrency` | Concorrência real de agendamento via API (2 pacientes, nutri + paciente, 2 reagendamentos): sempre 1 sucesso e 1 recusa |
 | `npm run screenshots:fase-6` | Screenshots reais da agenda (dashboard) e do agendamento (portal) em `screenshots/fase-6/` |
+| `npm run test:financial:integration` | Integração do financeiro contra Supabase local real (lançamento manual, pagamento parcial/total/a maior/idempotente, estorno, previsão, ownership nutri x nutri e paciente, auditoria) |
+| `npm run screenshots:fase-7` | Screenshots reais do financeiro (dashboard, lançamentos, pagamento, previsão, aba do paciente) em `screenshots/fase-7/` |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
 ## Estrutura do projeto (resumo)

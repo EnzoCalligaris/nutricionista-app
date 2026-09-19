@@ -65,6 +65,7 @@ fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
 | `20260917120000_auth_profile_provisioning` | trigger em `auth.users` | Profile PATIENT automático (Fase 3) |
 | `20260917120001_fix_validate_patient_profile_roles_rls` | — | Trigger de `patients` como SECURITY DEFINER (Fase 3) |
 | `20260918120000_patients_contracts_management` | `patient_contracts.notes`, índice único de e-mail, view `patient_overview`, funções `create_contract_with_installments`/`cancel_contract`/`complete_contract` | Gestão de pacientes/contratos (Fase 5) |
+| `20260920120000_financial_management` | `financial_transactions.nutritionist_id`/`patient_id`/`notes`/cancelamento + trigger `guard_financial_transaction` + policies por dono, `payments.idempotency_key`/`notes`/`recorded_by`/cancelamento, view `installment_payment_summary`, `contract_financial_summary` com parciais, funções `record_manual_payment`/`cancel_payment`/`financial_period_summary`/`monthly_financial_series`, DELETE revogado | Financeiro completo (Fase 7) |
 | `20260919120000_scheduling_management` | `scheduling_settings`, `appointments.cancellation_reason`/`created_by`, triggers `validate_appointment_ownership`/`validate_blocked_time_conflicts`, funções `busy_intervals`/`validate_booking_window`/`book_appointment`/`reschedule_appointment`, policy de auditoria do paciente | Agenda e agendamento (Fase 6) |
 
 ## Decisão de modelagem: avaliações flexíveis (não colunas fixas)
@@ -169,6 +170,14 @@ alter table public.appointments
   contratado/recebido/pendente/previsto a partir de `payments` e
   `contract_installments` — nunca do valor total do contrato de uma vez
   (testado com o cenário R$1.200/6x/2 pagas em `040_financial_summary.test.sql`).
+- **Fase 7 (pagamento manual):** `payments.idempotency_key` (índice único
+  parcial) — o formulário gera a chave no servidor e `record_manual_payment`
+  devolve o mesmo pagamento em reenvio/clique duplo. `installment_payment_summary`
+  dá recebido/restante por parcela (parcial permitido; a maior recusado com
+  `PAYMENT_EXCEEDS_INSTALLMENT`); a parcela só vira `PAID` quando quitada e o
+  status `PARTIAL`/`OVERDUE` é derivado na aplicação. `cancel_payment` marca
+  `REFUNDED` (mantém `paid_at`), cancela o lançamento e reabre a parcela.
+  `financial_transactions` e `payments` não aceitam DELETE (histórico).
 
 ## RLS — funções auxiliares
 
@@ -233,6 +242,10 @@ erDiagram
 - `030_rls_patient_isolation.test.sql` — IDOR entre pacientes (7 tabelas) e
   entre nutricionistas.
 - `040_financial_summary.test.sql` — cenário R$1.200/6x/2 pagas.
+- `090_financial.test.sql` — pagamento manual (parcial/total/a maior/
+  idempotente/parcela cancelada), estorno, trigger de lançamentos, DELETE
+  negado, consultas x financeiro (concluir/reagendar não geram receita),
+  RLS/ownership entre nutricionistas, previsão por contrato.
 - `050_public_visibility.test.sql` — blog e antes/depois só públicos quando
   deveriam.
 - `070_patients_contracts_management.test.sql` — índice único de e-mail,

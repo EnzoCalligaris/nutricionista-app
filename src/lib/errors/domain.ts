@@ -29,6 +29,15 @@ export type DomainErrorCode =
   | "BLOCKED_TIME_CONFLICT"
   | "BLOCKED_TIME_NOT_FOUND"
   | "PATIENT_NOT_ELIGIBLE"
+  | "INVALID_AMOUNT"
+  | "FINANCIAL_TRANSACTION_NOT_FOUND"
+  | "FINANCIAL_TRANSACTION_NOT_EDITABLE"
+  | "FINANCIAL_TRANSACTION_NOT_AUTHORIZED"
+  | "PAYMENT_NOT_FOUND"
+  | "INSTALLMENT_NOT_FOUND"
+  | "INSTALLMENT_NOT_PAYABLE"
+  | "PAYMENT_EXCEEDS_INSTALLMENT"
+  | "CATEGORY_NOT_FOUND"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -54,6 +63,15 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   BLOCKED_TIME_CONFLICT: "O período conflita com um bloqueio ou com uma consulta ativa.",
   BLOCKED_TIME_NOT_FOUND: "Bloqueio não encontrado.",
   PATIENT_NOT_ELIGIBLE: "O agendamento online não está disponível para este paciente no momento.",
+  INVALID_AMOUNT: "Informe um valor maior que zero (ex.: 230,00).",
+  FINANCIAL_TRANSACTION_NOT_FOUND: "Lançamento não encontrado.",
+  FINANCIAL_TRANSACTION_NOT_EDITABLE: "Lançamento gerado por pagamento ou consulta não pode ter valor, tipo ou data alterados.",
+  FINANCIAL_TRANSACTION_NOT_AUTHORIZED: "Você não tem permissão para alterar este lançamento.",
+  PAYMENT_NOT_FOUND: "Pagamento não encontrado.",
+  INSTALLMENT_NOT_FOUND: "Parcela não encontrada.",
+  INSTALLMENT_NOT_PAYABLE: "Esta parcela já está quitada ou cancelada.",
+  PAYMENT_EXCEEDS_INSTALLMENT: "O valor excede o restante da parcela. Registre o excedente como pagamento avulso.",
+  CATEGORY_NOT_FOUND: "Categoria inválida.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };

@@ -27,7 +27,8 @@ test("shell do dashboard responde (sidebar + navegação)", async ({ page }) => 
   await login(page, "dev-nutricionista@example.test", "NutricaoDev123");
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Visão Geral" })).toBeVisible();
-  await page.getByRole("link", { name: "Agenda" }).click();
+  // `exact`: a home (Fase 7) também tem o link "Abrir agenda" quando não há consulta hoje.
+  await page.getByRole("link", { name: "Agenda", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard\/agenda$/);
   await expect(page.getByRole("heading", { name: "Agenda" })).toBeVisible();
 });

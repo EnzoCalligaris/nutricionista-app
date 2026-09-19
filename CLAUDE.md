@@ -4,18 +4,25 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASES 0 a 6 concluídas.** Next.js rodando (`src/app`), design system,
+**FASES 0 a 7 concluídas.** Next.js rodando (`src/app`), design system,
 banco Postgres/Supabase local completo (RLS em 100% das tabelas,
 anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
 autorização reais (Fase 3), site público definitivo (Fase 4), o módulo de
-**Pacientes + Planos + Contratos** (Fase 5) e a **Agenda + agendamento do
+**Pacientes + Planos + Contratos** (Fase 5), a **Agenda + agendamento do
 paciente** (Fase 6: `/dashboard/agenda`, disponibilidade/bloqueios/
 configuração, `/paciente/consultas`, `/paciente/agendar`; slots por domínio
-puro + validação no banco, fuso da configuração). Financeiro completo,
-cardápios, notificações externas etc. ainda não existem — começam na Fase 7
-(`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais, duração,
-antecedências, plataforma online) são configuráveis e continuam `PENDENTE
-DE DEFINIÇÃO` — nunca hardcodar um valor real.
+puro + validação no banco, fuso da configuração) e o **Financeiro completo
+sem gateway** (Fase 7: `/dashboard/financeiro` + novo/editar/pagamentos/
+previsão, home do dashboard com cards e gráficos reais, aba Financeiro do
+paciente; pagamento manual atômico e idempotente via `record_manual_payment`,
+estorno com histórico, lançamentos nunca apagados). Cardápios, bioimpedância,
+IA, gateway de pagamento e notificações externas ainda não existem — começam
+na Fase 8 (`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
+duração, antecedências, plataforma online), categorias financeiras reais e
+a política de cobrança da consulta avulsa (`APPOINTMENT_CHARGE_POLICY`) são
+configuráveis e continuam `PENDENTE DE DEFINIÇÃO` — nunca hardcodar um
+valor real. Consulta nunca gera receita automática; dinheiro é sempre
+inteiro em centavos.
 
 Comandos do dia a dia para o banco local: `npm run db:start` (sobe
 Supabase local via Docker), `npm run db:reset` (reaplica migrations +
@@ -23,7 +30,8 @@ seed), `npm run test:db` (pgTAP), `npm run test:db:concurrency` (teste real
 de concorrência), `npm run db:types` (regenera `src/types/database.ts`).
 Integração contra o Supabase local: `npm run test:auth:integration`,
 `npm run test:public:integration`, `npm run test:patients:integration`,
-`npm run test:scheduling:integration`, `npm run test:scheduling:concurrency`.
+`npm run test:scheduling:integration`, `npm run test:scheduling:concurrency`,
+`npm run test:financial:integration`.
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -94,9 +102,12 @@ aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
 - `screenshots/` está no `.gitignore` (uso exclusivo de QA local) — nunca
   commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
   E2E/build.
-- Referência de script: `scripts/screenshots-fase-5.mjs` e
-  `scripts/screenshots-fase-6.mjs` (`npm run screenshots:fase-N`, com
-  `--extra` para as larguras adicionais).
+- Referência de script: `scripts/screenshots-fase-5.mjs`,
+  `scripts/screenshots-fase-6.mjs` e `scripts/screenshots-fase-7.mjs`
+  (`npm run screenshots:fase-N`, com `--extra` para as larguras adicionais).
+- Views do Postgres não expõem FK para o PostgREST: não use embed
+  (`view!inner(tabela(...))`) a partir de uma view — leia e una no
+  `src/data` (Fase 7, `docs/DECISIONS.md`).
 
 ## Marca
 

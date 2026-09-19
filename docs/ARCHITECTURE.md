@@ -52,7 +52,7 @@ app/
     avaliacoes/
     comentarios/
     consultas/
-    financeiro/
+    financeiro/              # Fase 7 — lançamentos, novo/[id]/editar, pagamentos/novo, previsao
     blog/
     resultados/
     materiais/
@@ -76,21 +76,25 @@ src/
                      # patients/ (idade, status, ticket médio, acesso ao portal,
                      # timeline) e contracts/ (parcelas, datas, status) desde a Fase 5;
                      # scheduling/ (intervalos, slots, regras de disponibilidade,
-                     # máquina de estados, visões/geometria do calendário) desde a Fase 6
+                     # máquina de estados, visões/geometria do calendário) desde a Fase 6;
+                     # finance/ (definições, saldo de parcela/alocação de pagamento,
+                     # períodos, resumos) desde a Fase 7
   services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
                      # (convite, compartilhado com a Fase 3), audit.ts — validam
                      # ownership e chamam data/ + funções SQL transacionais;
-                     # scheduling.ts + notifications.ts (eventos internos) desde a Fase 6
+                     # scheduling.ts + notifications.ts (eventos internos) desde a Fase 6;
+                     # finance.ts (lançamentos manuais, pagamento/estorno via funções SQL) — Fase 7
   data/              # queries Supabase: públicas (plans, blog, results, site-settings,
                      # cliente anônimo — Fase 4) e do dashboard (patients.ts,
                      # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5;
-                     # appointments.ts, scheduling.ts — Fase 6)
+                     # appointments.ts, scheduling.ts — Fase 6; financial.ts,
+                     # payments.ts — Fase 7)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
   actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
                      # (Fase 4), patients.ts, contracts.ts (Fase 5), scheduling.ts
-                     # (nutricionista) e patient-booking.ts (paciente) (Fase 6)
+                     # (nutricionista) e patient-booking.ts (paciente) (Fase 6), finance.ts (Fase 7)
   validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
-                     # patients.ts, contracts.ts, scheduling.ts
+                     # patients.ts, contracts.ts, scheduling.ts, finance.ts
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
                      # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
@@ -219,3 +223,28 @@ passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
 - **Actions**: `scheduling.ts` (nutricionista, `requireNutritionist`) e
   `patient-booking.ts` (paciente, `requirePatient`; `patient_id` nunca vem do
   browser). UI nunca acessa Supabase.
+
+## Financeiro (Fase 7) — quem decide o quê
+
+- **Domínio puro** (`src/domain/finance`): definições (contratado/recebido/
+  pendente/previsto/atrasado/receita/despesa/saldo), saldo de parcela e
+  alocação de pagamento (parcial ok, a maior não), períodos em data civil,
+  somas por contrato, editabilidade de lançamentos. Sem I/O; testado
+  (inclusive virada de mês em America/Sao_Paulo).
+- **Banco** (migration Fase 7): `record_manual_payment` (pagamento + baixa
+  + lançamento numa transação, idempotente), `cancel_payment` (estorno com
+  histórico), trigger que impede editar lançamento gerado por pagamento e
+  valor ≤ 0, views de saldo por parcela/contrato, RPCs de resumo por período
+  e série mensal, RLS por `nutritionist_id`, DELETE revogado.
+- **Data** (`src/data/financial.ts`, `payments.ts`): queries escopadas ao
+  nutricionista e ao período, paginação/filtro no servidor, join em código
+  quando a view não tem FK para embed do PostgREST.
+- **Services** (`src/services/finance.ts`): ownership, regras (só MANUAL
+  edita/cancela), chamada das funções SQL, auditoria. Dinheiro sempre em
+  centavos (`parseBRLToCents` na action, nunca float).
+- **Actions** (`src/actions/finance.ts`): Zod + `requireNutritionist`,
+  `returnTo` só interno, toasts só após confirmação do servidor
+  (`?toast=` após redirect). Chave de idempotência gerada na page.
+- **UI** (`src/components/finance`): cards com definição em tooltip,
+  tabela ≥ `lg` / cards abaixo, gráficos Recharts com tabela `sr-only`,
+  estados vazio/carregando, confirmações para cancelar/estornar.

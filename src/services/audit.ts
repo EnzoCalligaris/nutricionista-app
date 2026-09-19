@@ -22,7 +22,13 @@ export type AuditAction =
   | "BLOCKED_TIME_CREATED"
   | "BLOCKED_TIME_REMOVED"
   | "AVAILABILITY_UPDATED"
-  | "SCHEDULING_SETTINGS_UPDATED";
+  | "SCHEDULING_SETTINGS_UPDATED"
+  | "FINANCIAL_TRANSACTION_CREATED"
+  | "FINANCIAL_TRANSACTION_UPDATED"
+  | "FINANCIAL_TRANSACTION_CANCELLED"
+  | "PAYMENT_RECORDED"
+  | "PAYMENT_CANCELLED"
+  | "INSTALLMENT_PAYMENT_APPLIED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -39,7 +45,16 @@ export type AuditAction =
 export async function recordAudit(input: {
   actorId: string;
   action: AuditAction;
-  entityType: "patient" | "contract" | "appointment" | "blocked_time" | "availability" | "scheduling_settings";
+  entityType:
+    | "patient"
+    | "contract"
+    | "appointment"
+    | "blocked_time"
+    | "availability"
+    | "scheduling_settings"
+    | "financial_transaction"
+    | "payment"
+    | "installment";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

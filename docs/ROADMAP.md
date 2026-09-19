@@ -89,9 +89,26 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   (rodam em `TZ=UTC` e `TZ=Asia/Tokyo`), 36 pgTAP novos, 36 checks de
   integração, 12 de concorrência real (2 pacientes, nutri+paciente, 2
   reagendamentos), 17 E2E novos, screenshots em 1440/1024/768/390/375/430.
-- **FASE 7 — Financeiro.** Lançamentos manuais + automáticos a partir de
-  consulta/pagamento, previsão de recebimentos, relatórios (contratado/
-  recebido/pendente/previsto).
+- **FASE 7 — Financeiro.** ✅ Concluída. `/dashboard/financeiro` real
+  (cards Receita/Despesas/Saldo + Recebido/Pendente/Previsto com definições
+  em tooltip, períodos este mês/mês passado/3/6 meses/ano/personalizado,
+  tabela de lançamentos paginada e filtrada no servidor por tipo/status/
+  categoria/método/busca por descrição ou paciente, origem visível),
+  lançamento manual (criar/editar/cancelar — nunca apagar; gerados por
+  pagamento são somente leitura), registrar pagamento manual (função SQL
+  atômica: pagamento + baixa da parcela + lançamento de receita; parcial
+  permitido, a maior recusado, idempotente por chave gerada no servidor),
+  estorno com histórico, parcelas com Recebido/Restante/Status derivado
+  (Parcial/Em atraso), `/dashboard/financeiro/previsao` por contrato, home
+  do dashboard com cards reais (faturamento do mês, consultas de hoje,
+  pacientes ativos, previsão de rendimento) e gráficos Recharts com tabela
+  equivalente para leitor de tela, aba Financeiro do paciente funcional.
+  Consulta nunca gera receita automática (política de cobrança da avulsa
+  continua `PENDENTE DE DEFINIÇÃO`, constante configurável). 36 testes
+  unitários novos, 42 pgTAP novos, 46 checks de integração
+  (`test:financial:integration`), E2E `e2e/finance.spec.ts`, screenshots
+  em 1440/1280/1024/768/390. Sem gateway, PIX automático, cartão, webhook,
+  e-mail/WhatsApp ou exportação (Fases 12–13).
 - **FASE 8 — Cardápios.** CRUD de plano alimentar, versionamento, visão do
   paciente.
 - **FASE 9 — Bioimpedância/evolução.** Registro de avaliação, gráficos no
@@ -196,6 +213,17 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
 2. Definições que o financeiro vai precisar: categorias reais de receita/
    despesa, política de baixa manual, se consulta avulsa gera lançamento na
    criação ou na realização — podem entrar como configuração/`PENDENTE`.
-3. **Aguardando aprovação explícita do usuário** — não iniciar financeiro
-   completo, cardápios, notificações externas ou IA sem sinal verde
-   (prompt Fase 6 §107).
+3. Aprovação formal da Fase 6 recebida em 2026-09-19. Fase 7 concluída em
+   2026-09-19.
+
+## Critérios para iniciar a Fase 8
+
+1. Usuário revisou o financeiro (dashboard, lançamentos, pagamentos,
+   previsão, aba do paciente, screenshots) e aprovou explicitamente.
+2. Pendências que continuam configuráveis: categorias reais de receita/
+   despesa (o seed só tem exemplos), política de cobrança da consulta
+   avulsa (`APPOINTMENT_CHARGE_POLICY`, hoje `MANUAL`), política de
+   parcela em atraso (juros/multa não existem — `PENDENTE DE DEFINIÇÃO`).
+3. **Aguardando aprovação explícita do usuário** — não iniciar cardápios,
+   bioimpedância, IA, gateway de pagamento ou notificações externas sem
+   sinal verde (prompt Fase 7 §115).

@@ -301,11 +301,33 @@ Desde a Fase 5 a aplicação registra (`src/services/audit.ts`, cliente de
 sessão — a policy exige `actor_id = auth.uid()` e role NUTRITIONIST):
 `PATIENT_CREATED`, `PATIENT_UPDATED`, `PATIENT_ARCHIVED`,
 `PATIENT_REACTIVATED`, `PATIENT_INVITED`, `CONTRACT_CREATED`,
-`CONTRACT_CANCELLED`, `CONTRACT_COMPLETED`. Metadata é o mínimo para
+`CONTRACT_CANCELLED`, `CONTRACT_COMPLETED`; desde a Fase 7:
+`FINANCIAL_TRANSACTION_CREATED`/`UPDATED`/`CANCELLED`, `PAYMENT_RECORDED`,
+`INSTALLMENT_PAYMENT_APPLIED`, `PAYMENT_CANCELLED`. Metadata é o mínimo para
 rastrear "quem fez o quê" — ids, NOMES dos campos alterados, código do
 plano, valor/quantidade de parcelas — nunca e-mail, telefone, nascimento ou
-qualquer dado clínico. Falta (fases futuras): pagamento/lançamento
-financeiro, consulta, avaliação, publicação de antes/depois.
+qualquer dado clínico. Falta (fases futuras): avaliação, publicação de
+antes/depois.
+
+## Financeiro (Fase 7)
+
+- `financial_transactions` tem ownership real por `nutritionist_id`
+  (policies `_select_owner`/`_insert_owner`/`_update_owner`); a policy da
+  Fase 2 que liberava leitura a qualquer nutricionista foi removida.
+  Paciente não lê nem escreve lançamentos/pagamentos; nutricionista B não
+  lê, edita, paga nem estorna dados de A (ids adulterados = "não existe").
+- Pagamento manual só entra por `record_manual_payment` (SECURITY INVOKER,
+  sob RLS): ownership do paciente/parcela/contrato/consulta reconferido no
+  banco, valor > 0 e ≤ restante, idempotência por chave gerada no servidor.
+  Estorno por `cancel_payment` — nunca UPDATE direto de status pela UI.
+- DELETE revogado em `financial_transactions` e `payments`: cancelar e
+  estornar são status com motivo, o histórico financeiro é preservado.
+- Sem gateway/webhook/PIX automático nesta fase: nada é confirmado por
+  resposta de frontend; o registro manual é uma ação autenticada do
+  nutricionista, auditada.
+- `returnTo` do formulário de pagamento só aceita caminho interno
+  `/dashboard/...` (nunca URL externa); ids em rotas passam por `z.guid()`
+  e ownership antes de qualquer query.
 
 ## Clientes Supabase — implementados na Fase 2
 

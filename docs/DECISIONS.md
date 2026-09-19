@@ -992,3 +992,144 @@ dado plausível/inventado.
     mais arquivos usando o mesmo usuário. Em vez de enfraquecer o logout
     para escopo local, a suíte roda com um único worker (`fullyParallel:
     false`, ~1 min): cada arquivo loga depois de qualquer logout anterior.
+
+## Decisões técnicas da Fase 7 (Financeiro completo)
+
+1. **Definições financeiras fixadas em código e na UI** (tooltips dos
+   cards; `src/domain/finance/definitions.ts`): CONTRATADO = soma das
+   parcelas do contrato (nunca vira receita de uma vez); RECEBIDO =
+   pagamentos CONFIRMED (por data de pagamento); PENDENTE = restante das
+   parcelas em aberto de contratos não cancelados; PREVISTO/"a receber" =
+   o mesmo, só de contratos ATIVOS; ATRASADO = pendente com vencimento
+   anterior a hoje (derivado, nunca gravado); RECEITA/DESPESA = lançamentos
+   com status Pago no período (por `occurred_on`); SALDO = receita −
+   despesa realizadas; FATURAMENTO DO MÊS = receita paga do mês civil em
+   America/Sao_Paulo. Pendentes nunca entram em receita/saldo.
+
+2. **Consulta nunca gera receita automática.** Concluir, confirmar,
+   reagendar ou cancelar uma consulta não toca no financeiro; consulta de
+   plano já está coberta pelas parcelas do contrato (nada extra). A
+   política de cobrança da consulta avulsa (na criação, na confirmação ou
+   só manual) é `PENDENTE DE DEFINIÇÃO`: existe como constante
+   configurável `APPOINTMENT_CHARGE_POLICY = "MANUAL"` — o nutricionista
+   registra o pagamento pela tela "Registrar pagamento" (vinculado à
+   consulta) ou por lançamento manual. Juros/multa por atraso também não
+   existem (`PENDENTE DE DEFINIÇÃO`).
+
+3. **Uma migration nova** (`20260920120000_financial_management.sql`),
+   sem editar as anteriores:
+   - `financial_transactions` ganha `nutritionist_id` (ownership real —
+     a policy antiga deixava qualquer nutricionista ler todos os
+     lançamentos), `patient_id`, `notes`, `cancelled_at`,
+     `cancellation_reason`; trigger `guard_financial_transaction` (valor >
+     0, lançamento gerado por pagamento não muda valor/tipo/data/origem,
+     cancelado é final, nutricionista não muda de dono); policies por
+     `nutritionist_id = auth.uid()`; DELETE revogado em
+     `financial_transactions` e `payments` (cancelar/estornar preserva o
+     histórico — nunca hard delete).
+   - `payments` ganha `idempotency_key` (índice único parcial), `notes`,
+     `recorded_by`, `cancelled_at`, `cancellation_reason`. A check da Fase
+     2 (`paid_at` só em CONFIRMED) foi substituída por
+     `payments_paid_at_status_check` (CONFIRMED ou REFUNDED) para o estorno
+     manter a data original — a antiga derrubava `cancel_payment`
+     (pego pelo pgTAP 090).
+   - View `installment_payment_summary` (recebido/restante por parcela) e
+     `contract_financial_summary` recriada descontando pagamentos parciais.
+   - `record_manual_payment()` (SECURITY INVOKER, atômica): valida
+     ownership sob RLS, parcela pagável, valor ≤ restante (a maior é
+     recusado — o excedente entra como pagamento avulso), insere `payments`
+     CONFIRMED/provider `MANUAL`, marca a parcela PAID só quando quitada e
+     cria o lançamento INCOME (`origin = PAYMENT`, `occurred_on` na data do
+     pagamento no fuso). Idempotente: mesma chave devolve o mesmo id
+     (inclusive na corrida do clique duplo — `unique_violation` tratada).
+   - `cancel_payment()`: pagamento → REFUNDED, lançamento → CANCELLED,
+     parcela volta a PENDING se o recebido ficou abaixo do valor.
+   - `financial_period_summary()` e `monthly_financial_series()` (com
+     `p_months_ahead` para o gráfico "recebido x previsto": previsto ali =
+     parcelas com vencimento no mês, pagas ou não).
+
+4. **PostgREST não infere relação de uma view para a tabela por PK.**
+   `installment_payment_summary!inner(contract_installments(...))` falha
+   com PGRST200 (só FKs presentes na view viram relação). Parcela e saldo
+   são lidos em queries separadas e unidos no `src/data` (2 queries, sem
+   N+1) — vale para qualquer view futura.
+
+5. **Chave de idempotência nasce no servidor**, no render do formulário
+   (`crypto.randomUUID()` na page), viaja em campo oculto e é obrigatória
+   no schema. Reenvio, clique duplo ou retry com a mesma chave não duplica
+   pagamento nem lançamento; nova visita ao formulário gera outra chave.
+   Pagamento parcial é permitido (o valor vem pré-preenchido com o
+   restante); valor acima do restante é recusado no banco.
+
+6. **Status derivados, nunca gravados:** parcela `PARTIAL` (recebido > 0 e
+   < valor) e `OVERDUE` (pendente com vencimento passado) são calculados
+   por `computeInstallmentBalance` com `hoje` em America/Sao_Paulo;
+   lançamento `Atrasado` = PENDING com `due_on < hoje`. O banco continua
+   com PENDING/PAID/CANCELLED. `presentInstallmentStatus` da Fase 5 segue
+   valendo para a aba Contratos.
+
+7. **Lançamentos gerados por pagamento são somente leitura** na UI e no
+   banco (trigger). Só `origin = MANUAL` pode ser editado/cancelado; o
+   cancelamento é um status (`CANCELLED` + motivo), nunca DELETE. Alterar
+   um pagamento passa pelo estorno + novo registro.
+
+8. **Backfill de `patient_id`** dos lançamentos antigos gerados por
+   pagamento: a migration cobre dados pré-existentes; o `seed.sql` faz o
+   mesmo no fim porque roda depois das migrations.
+
+9. **Home do dashboard** lê tudo no fuso do nutricionista
+   (`scheduling_settings.timezone`): faturamento do mês
+   (`financial_period_summary` do mês civil), consultas de hoje
+   (`listAppointmentsInRange` no dia local, sem canceladas/reagendadas),
+   pacientes ativos (`getPatientMetrics`), previsão de rendimento (soma do
+   previsto dos contratos ativos). Gráficos em Recharts com tabela
+   equivalente `sr-only` (§77) e sem comparação percentual inventada.
+
+10. **Busca por paciente na listagem**: PostgREST não aceita coluna de
+    tabela embutida dentro de `or`; os ids de pacientes são resolvidos por
+    nome (escopados ao nutricionista, ≤ 50) e entram em `patient_id.in`.
+    O termo é sanitizado (`sanitizeSearchTerm`) antes de ir ao filtro.
+
+11. **Auditoria via aplicação** (`recordAudit`):
+    FINANCIAL_TRANSACTION_CREATED/UPDATED/CANCELLED, PAYMENT_RECORDED,
+    INSTALLMENT_PAYMENT_APPLIED, PAYMENT_CANCELLED — sem valores sensíveis
+    além de tipo/valor/status. A idempotência do pagamento é reportada ao
+    serviço (`alreadyExisted`) e não gera segunda auditoria.
+
+12. **`PatientPicker` ganhou `autoOpen`** (default `true`): no lançamento
+    manual o paciente é opcional, então a lista só abre ao focar.
+
+13. **QA visual — problemas encontrados e corrigidos:** views sem FK
+    (item 4) derrubavam home/previsão/pagamento; eixo Y dos gráficos
+    arredondava para "1k/0k" (agora "1,4 mil"/"350"); previsão de
+    recebimentos não cabia em 1440 (colunas Duração/Método só em `2xl`,
+    versão compacta na home); cards de lançamentos/previsão em grade
+    estouravam em 768 (`min-w-0` no `li` — `truncate` deixa o min-content
+    igual ao texto inteiro); cards de resumo em 2 colunas no mobile;
+    tabelas de parcelas/pagamentos no mobile empilham data/vencimento e
+    status; "via pagamento" só na tabela, não nos cards.
+
+14. **`test:db:concurrency` (Fase 2) falhou uma vez** na bateria final
+    (1 sucesso + 1 falha sem código 23P01) logo após `db reset` + suíte
+    pgTAP; passou nas 4 execuções seguintes. Sem relação com o
+    financeiro; fica registrado para observação.
+
+15. **E2E sempre contra o servidor de produção que o próprio Playwright
+    sobe.** `reuseExistingServer` passou a `false` (antes era `!CI`): um
+    `next dev` órfão em `:3000` fez a suíte rodar contra o servidor errado
+    (e disputar RAM com o Chromium até derrubá-lo). Agora, porta ocupada =
+    falha explícita, nunca teste contra servidor desconhecido. A validação
+    final roda em sequência para poupar memória: `npm run db:reset` →
+    `npm run build` → `E2E_SKIP_BUILD=1 npx playwright test --workers=1`
+    (`E2E_SKIP_BUILD` usa o build recém-gerado em vez de compilar de novo;
+    sem a variável o comando continua `build && start`). O Playwright
+    encerra o `next start` ao terminar. Nada disso muda o comportamento de
+    produção. Ajustes de teste desta bateria (sem reduzir cobertura):
+    locators ambíguos (`getByRole("alert")` pegava também o anunciador de
+    rota do Next; `hasText` é case-insensitive e "parcela 4" casava
+    pagamento e lançamento; o link "Agenda" do smoke ganhou `exact` porque
+    a home agora tem "Abrir agenda") e `not-found.tsx` próprio do
+    financeiro — com `loading.tsx` a resposta é streamada (status 200 +
+    conteúdo de não encontrado, como em `/dashboard/pacientes/[id]`), então
+    o E2E afirma a página "Registro financeiro não encontrado", não o
+    status HTTP.
