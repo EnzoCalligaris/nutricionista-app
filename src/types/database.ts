@@ -1011,13 +1011,25 @@ export type Database = {
       food_photo_analyses: {
         Row: {
           analyzed_at: string | null
+          archived_at: string | null
+          attempts: number
           confidence: number | null
+          confirmed_at: string | null
+          consent_version: string | null
           corrected_result: Json | null
           created_at: string
+          failure_code: string | null
           id: string
+          image_mime: string | null
+          image_sha256: string | null
+          image_size_bytes: number | null
+          meal_at: string
           model: string | null
           patient_id: string
+          processing_ms: number | null
+          processing_started_at: string | null
           provider: string | null
+          provider_request_id: string | null
           raw_result: Json | null
           status: Database["public"]["Enums"]["food_photo_analysis_status"]
           storage_path: string
@@ -1026,13 +1038,25 @@ export type Database = {
         }
         Insert: {
           analyzed_at?: string | null
+          archived_at?: string | null
+          attempts?: number
           confidence?: number | null
+          confirmed_at?: string | null
+          consent_version?: string | null
           corrected_result?: Json | null
           created_at?: string
+          failure_code?: string | null
           id?: string
+          image_mime?: string | null
+          image_sha256?: string | null
+          image_size_bytes?: number | null
+          meal_at?: string
           model?: string | null
           patient_id: string
+          processing_ms?: number | null
+          processing_started_at?: string | null
           provider?: string | null
+          provider_request_id?: string | null
           raw_result?: Json | null
           status?: Database["public"]["Enums"]["food_photo_analysis_status"]
           storage_path: string
@@ -1041,13 +1065,25 @@ export type Database = {
         }
         Update: {
           analyzed_at?: string | null
+          archived_at?: string | null
+          attempts?: number
           confidence?: number | null
+          confirmed_at?: string | null
+          consent_version?: string | null
           corrected_result?: Json | null
           created_at?: string
+          failure_code?: string | null
           id?: string
+          image_mime?: string | null
+          image_sha256?: string | null
+          image_size_bytes?: number | null
+          meal_at?: string
           model?: string | null
           patient_id?: string
+          processing_ms?: number | null
+          processing_started_at?: string | null
           provider?: string | null
+          provider_request_id?: string | null
           raw_result?: Json | null
           status?: Database["public"]["Enums"]["food_photo_analysis_status"]
           storage_path?: string
@@ -1690,6 +1726,61 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_consents: {
+        Row: {
+          accepted_at: string
+          consent_type: string
+          consent_version: string
+          created_at: string
+          id: string
+          patient_id: string
+          revoked_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string
+          consent_type: string
+          consent_version: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          revoked_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string
+          consent_type?: string
+          consent_version?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          revoked_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "patient_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "patient_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
         ]
@@ -2677,6 +2768,10 @@ export type Database = {
           month_start: string
           received_cents: number
         }[]
+      }
+      patient_has_consent: {
+        Args: { p_patient_id: string; p_type: string; p_version: string }
+        Returns: boolean
       }
       publish_meal_plan_version: {
         Args: { p_version_id: string }

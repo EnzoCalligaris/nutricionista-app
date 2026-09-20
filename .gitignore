@@ -71,3 +71,6 @@ logs/
 
 # QA visual local (CLAUDE.md) — nunca versionado
 screenshots/
+
+# knowledge graph gerado localmente (/graphify) — so saida/cache, nunca versionado
+graphify-out/

@@ -86,6 +86,23 @@ export type DomainErrorCode =
   | "MATERIAL_ASSIGNMENT_NOT_FOUND"
   | "INVALID_MATERIAL_FILE"
   | "MATERIAL_UPLOAD_FAILED"
+  | "FOOD_ANALYSIS_NOT_FOUND"
+  | "FOOD_ANALYSIS_NOT_AUTHORIZED"
+  | "FOOD_ANALYSIS_ARCHIVED"
+  | "FOOD_ANALYSIS_ORIGINAL_IMMUTABLE"
+  | "MEAL_PHOTO_INVALID"
+  | "MEAL_PHOTO_TOO_LARGE"
+  | "MEAL_PHOTO_UPLOAD_FAILED"
+  | "MEAL_AI_CONSENT_REQUIRED"
+  | "CONSENT_NOT_AUTHORIZED"
+  | "FOOD_ANALYSIS_PROVIDER_UNAVAILABLE"
+  | "FOOD_ANALYSIS_INVALID_RESPONSE"
+  | "FOOD_ANALYSIS_FAILED"
+  | "FOOD_ANALYSIS_ALREADY_PROCESSING"
+  | "FOOD_ANALYSIS_ALREADY_CONFIRMED"
+  | "FOOD_ANALYSIS_NOT_REVIEWABLE"
+  | "FOOD_ANALYSIS_RATE_LIMITED"
+  | "INVALID_MEAL_TIME"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -168,6 +185,23 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   MATERIAL_ASSIGNMENT_NOT_FOUND: "Atribuição não encontrada.",
   INVALID_MATERIAL_FILE: "Envie um PDF ou imagem (JPG/PNG) de até 10 MB.",
   MATERIAL_UPLOAD_FAILED: "Não foi possível enviar o arquivo. Tente novamente.",
+  FOOD_ANALYSIS_NOT_FOUND: "Refeição não encontrada.",
+  FOOD_ANALYSIS_NOT_AUTHORIZED: "Você não tem permissão para alterar esta refeição.",
+  FOOD_ANALYSIS_ARCHIVED: "Esta refeição foi arquivada e não pode ser alterada.",
+  FOOD_ANALYSIS_ORIGINAL_IMMUTABLE: "A estimativa original da IA não pode ser alterada.",
+  MEAL_PHOTO_INVALID: "Envie uma foto em JPG, PNG ou WebP.",
+  MEAL_PHOTO_TOO_LARGE: "A foto precisa ter até 12 MB.",
+  MEAL_PHOTO_UPLOAD_FAILED: "Não foi possível enviar a foto. Tente novamente.",
+  MEAL_AI_CONSENT_REQUIRED: "Para analisar fotos de refeição, é preciso aceitar o consentimento primeiro.",
+  CONSENT_NOT_AUTHORIZED: "Não foi possível alterar o consentimento.",
+  FOOD_ANALYSIS_PROVIDER_UNAVAILABLE: "A análise por IA não está disponível no momento.",
+  FOOD_ANALYSIS_INVALID_RESPONSE: "Não foi possível analisar esta foto agora. Tente novamente.",
+  FOOD_ANALYSIS_FAILED: "Não foi possível analisar esta foto agora. Tente novamente.",
+  FOOD_ANALYSIS_ALREADY_PROCESSING: "Esta foto já está sendo analisada. Aguarde alguns instantes.",
+  FOOD_ANALYSIS_ALREADY_CONFIRMED: "Esta refeição já foi confirmada.",
+  FOOD_ANALYSIS_NOT_REVIEWABLE: "Esta refeição ainda não tem uma análise para revisar.",
+  FOOD_ANALYSIS_RATE_LIMITED: "Muitas análises em pouco tempo. Aguarde alguns minutos e tente novamente.",
+  INVALID_MEAL_TIME: "A data e a hora da refeição não podem estar no futuro.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };

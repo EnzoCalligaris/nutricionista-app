@@ -184,8 +184,10 @@ WhatsApp, pagamento), templates de notificação — a detalhar na Fase 14.
 
 ## 7. Portal do paciente (`/paciente`)
 
-Menu: Início, Meu Cardápio, Minha Evolução, Consultas, Suplementos, Feedbacks,
-Materiais, Meu Perfil.
+Menu: Início, Meu Cardápio, Minha Evolução, Consultas, Refeições (Fase 11 —
+foto da refeição + análise por IA; entrada de menu adicionada porque o
+recurso é mobile-first e precisa ser alcançável com uma mão, além do atalho
+do Início), Suplementos, Feedbacks, Materiais, Meu Perfil.
 
 Início: próxima consulta, cardápio do dia, último feedback, última avaliação,
 atalho para agendar, atalho para analisar refeição por foto.

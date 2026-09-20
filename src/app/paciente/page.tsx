@@ -219,9 +219,11 @@ export default async function PatientHomePage() {
             </Link>
           </Button>
         )}
-        <Button disabled variant="secondary">
-          <Camera data-icon="inline-start" />
-          Analisar refeição (Fase 11)
+        <Button asChild variant="secondary">
+          <Link href="/paciente/refeicoes/nova">
+            <Camera data-icon="inline-start" />
+            Registrar refeição
+          </Link>
         </Button>
       </div>
     </div>

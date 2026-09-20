@@ -12,6 +12,10 @@ export type { RateLimiter, RateLimitResult } from "@/lib/auth/rate-limiter";
 export const loginRateLimiter: RateLimiter = new InMemoryRateLimiter(10, 5 * 60 * 1000);
 export const forgotPasswordRateLimiter: RateLimiter = new InMemoryRateLimiter(5, 15 * 60 * 1000);
 export const patientInviteRateLimiter: RateLimiter = new InMemoryRateLimiter(20, 60 * 60 * 1000);
+// Fase 11 (§51–§52): proteção TÉCNICA contra rajada de análises de IA por
+// paciente (chave = patient_id) — não é quota comercial ("N fotos por dia"
+// continua sem decisão de negócio). Mesma ressalva de produção acima.
+export const mealAnalysisRateLimiter: RateLimiter = new InMemoryRateLimiter(12, 10 * 60 * 1000);
 
 /** IP do cliente a partir dos headers de proxy — usado para compor a chave de rate limit. */
 export async function getClientIp(): Promise<string> {

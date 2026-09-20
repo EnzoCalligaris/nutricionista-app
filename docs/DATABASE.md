@@ -65,6 +65,7 @@ fictício de desenvolvimento entra via `supabase/seed.sql` — nunca misturados
 | `20260917120000_auth_profile_provisioning` | trigger em `auth.users` | Profile PATIENT automático (Fase 3) |
 | `20260917120001_fix_validate_patient_profile_roles_rls` | — | Trigger de `patients` como SECURITY DEFINER (Fase 3) |
 | `20260918120000_patients_contracts_management` | `patient_contracts.notes`, índice único de e-mail, view `patient_overview`, funções `create_contract_with_installments`/`cancel_contract`/`complete_contract` | Gestão de pacientes/contratos (Fase 5) |
+| `20260924120000_food_analysis_management` | `patient_consents` (consentimento versionado do paciente + `patient_has_consent`), `food_photo_analyses.meal_at/image_mime/image_size_bytes/image_sha256/consent_version/processing_started_at/processing_ms/provider_request_id/failure_code/attempts/confirmed_at/archived_at`, trigger `guard_food_photo_analysis` (consentimento, path, data futura, máquina de estados, original imutável, arquivada só leitura), policy de auditoria do paciente | Foto da refeição + IA (Fase 11) |
 | `20260923120000_patient_content_management` | `supplement_recommendations.dose_text/starts_on/ends_on/archived_at/by/updated_by` + check de `purchase_url`, `feedback_messages.title/reference_date/published_at/archived_at/by/updated_at/by`, `patient_materials.kind/description/external_url/file_name/file_size_bytes/archived_at/by/updated_by` (+ `storage_path` nullable, checks arquivo OU link), `material_assignments.assigned_by/revoked_by`, triggers `guard_supplement_recommendation`/`guard_feedback_message`/`guard_patient_material`/`guard_material_assignment`, `prevent_feedback_tampering_by_patient` reescrito, helper `material_visible_to_patient`, RLS do paciente restrita (ativo / disponibilizado / atribuído) em tabelas e bucket, DELETE revogado em suplementos e atribuições | Suplementos, feedbacks e materiais (Fase 10) |
 | `20260922120000_assessment_management` | `assessments.assessment_date/visible_to_patient/published_at/internal_notes/archived_at/by/updated_by/report_*`, catálogo ampliado (altura, massa de gordura, metabolismo basal, circunferências) e `BMI` inativo, helper `assessment_visible_to_patient`, RLS do paciente por visibilidade (tabelas e bucket `bioimpedance-reports`), triggers `guard_assessment`/`guard_assessment_measurement`, função `set_assessment_measurements` | Avaliações/evolução (Fase 9) |
 | `20260921120000_meal_plan_management` | `meal_plans.notes/start_date/archived_at/archived_by` + índice único de plano ativo por paciente, `meal_plan_versions.notes/published_by/archived_at`, `notes` em dias/refeições/substituições, `meal_substitutions.sort_order`, triggers de imutabilidade (`guard_meal_plan_content`, `guard_meal_plan_version`, `guard_meal_plan`), funções `create_meal_plan`/`create_meal_plan_version`/`publish_meal_plan_version`/`archive_meal_plan`/`discard_meal_plan_version`/`duplicate_meal`/`duplicate_meal_plan_day`, DELETE de planos revogado | Cardápio funcional (Fase 8) |
@@ -197,7 +198,7 @@ linha de dado alheio. Detalhe completo em `docs/SECURITY.md`.
 | Bucket | Público | Path | Acesso |
 |---|---|---|---|
 | `patient-documents` | não | `<material_id>/<uuid>.<ext>` (Fase 10; trigger valida o prefixo) | nutricionista dono; paciente via `material_visible_to_patient` (atribuição não revogada + material não arquivado e completo) |
-| `meal-photos` | não | `<patient_id>/arquivo` | paciente dono; nutricionista responsável |
+| `meal-photos` | não | `<patient_id>/<analysis_id>/<uuid>.webp` (Fase 11; só a imagem processada, sem EXIF; trigger valida o prefixo) | paciente dono; nutricionista responsável |
 | `bioimpedance-reports` | não | `<patient_id>/arquivo` | paciente dono; nutricionista responsável |
 | `before-after` | **não** (mesmo publicado) | `<before_after_results.id>/arquivo` | nutricionista; paciente dono. Entrega pública é server-side (signed URL, Fase 14) — nunca via storage RLS para `anon` |
 | `blog` | sim | `<post_id>/arquivo` | leitura pública; escrita só nutricionista |
@@ -267,6 +268,13 @@ erDiagram
   recusado por trigger, revogar/reatribuir, arquivar, delete só sem
   histórico) e RLS do bucket `patient-documents` (paciente A só quando
   atribuído; B e nutri B nada).
+- `130_food_analysis.test.sql` — consentimento versionado (só o paciente,
+  só `revoked_at`, uma vez), análise só com consentimento ativo, path e data
+  futura, máquina de estados (resultado obrigatório, claim de
+  processamento com segunda tentativa recusada, FAILED→PENDING,
+  CONFIRMED exige versão confirmada, reabrir), original da IA imutável,
+  arquivada só leitura, ownership paciente A/B e nutri A/B (tabela e bucket
+  `meal-photos`), revogação bloqueia análise nova.
 - `050_public_visibility.test.sql` — blog e antes/depois só públicos quando
   deveriam.
 - `070_patients_contracts_management.test.sql` — índice único de e-mail,
@@ -317,3 +325,25 @@ Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test
   `material_assignments` e `storage.objects` (`patient-documents`).
 - `notification_events`: `SUPPLEMENT_RECOMMENDATION_CREATED`,
   `FEEDBACK_PUBLISHED`, `MATERIAL_ASSIGNED` (sem entrega).
+
+## Foto da refeição + análise por IA (Fase 11)
+
+- **`patient_consents`**: (`patient_id`, `consent_type`, `consent_version`,
+  `accepted_at`, `revoked_at`); um ativo por tipo/versão (índice parcial);
+  insert/update só do próprio paciente (`is_patient_self`), leitura também
+  do nutricionista; sem delete. `patient_has_consent(patient, type,
+  version)` (SECURITY DEFINER) é usada pelo guard da análise.
+- **`food_photo_analyses`**: enum da Fase 2 mantido. Insert só PENDING com
+  consentimento ativo (`consent_version`), `storage_path` =
+  `<patient_id>/<id>/…`, `meal_at ≤ now() + 10 min`. Claim de processamento
+  = `processing_started_at` (limpo ao concluir/falhar/arquivar).
+  Transições: PENDING→ANALYZED (exige `structured_result`, `provider`,
+  `model`; seta `analyzed_at`), PENDING→FAILED, FAILED→PENDING,
+  ANALYZED→CONFIRMED (exige `corrected_result`; seta `confirmed_at`),
+  CONFIRMED→ANALYZED. `structured_result`/`provider`/`model`/`analyzed_at`
+  imutáveis depois de gravados; `patient_id`/`storage_path`/`consent_version`
+  imutáveis; `archived_at` irreversível e só leitura. `raw_result` não é
+  preenchido. Sem policy de delete (paciente) nem de escrita (nutricionista).
+- `audit_logs`: paciente insere `entity_type in ('food_photo_analysis',
+  'patient_consent')` com `actor_id = auth.uid()` (sem RETURNING — não há
+  SELECT para o paciente).

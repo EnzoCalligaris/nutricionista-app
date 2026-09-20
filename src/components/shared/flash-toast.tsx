@@ -41,7 +41,10 @@ export type FlashToastCode =
   | "feedback_published"
   | "feedback_updated"
   | "material_created"
-  | "material_updated";
+  | "material_updated"
+  | "meal_photo_reused"
+  | "meal_confirmed"
+  | "meal_updated";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -81,6 +84,9 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   feedback_updated: { type: "success", message: "Feedback atualizado." },
   material_created: { type: "success", message: "Material criado.", description: "Atribua o material aos pacientes que devem recebê-lo." },
   material_updated: { type: "success", message: "Material atualizado." },
+  meal_photo_reused: { type: "warning", message: "Esta foto já tinha sido enviada.", description: "Abrimos a refeição existente em vez de criar outra." },
+  meal_confirmed: { type: "success", message: "Refeição confirmada.", description: "Os valores são estimativas revisadas por você." },
+  meal_updated: { type: "success", message: "Refeição atualizada." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

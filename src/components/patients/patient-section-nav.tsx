@@ -7,6 +7,7 @@ export const PATIENT_SECTIONS = [
   { id: "consultas", label: "Consultas" },
   { id: "cardapio", label: "Cardápio" },
   { id: "avaliacoes", label: "Avaliações" },
+  { id: "refeicoes", label: "Refeições" },
   { id: "comentarios", label: "Comentários" },
   { id: "financeiro", label: "Financeiro" },
   { id: "suplementos", label: "Suplementos" },

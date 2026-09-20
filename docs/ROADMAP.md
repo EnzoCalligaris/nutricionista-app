@@ -173,8 +173,33 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   pgTAP (incl. RLS do bucket), 76 checks de integração
   (`test:patient-content:integration`), 17 E2E, screenshots em
   1440/1280/1024/768/390/375/430. Sem IA, notificações externas, gateway ou CMS.
-- **FASE 11 — IA de refeições.** `FoodAnalysisProvider`, upload de foto,
-  estimativa, fluxo de confirmação/correção pelo paciente.
+- **FASE 11 — IA de refeições.** ✅ Concluída. Portal `/paciente/refeicoes`
+  (histórico: foto, data/hora, total confirmado, status), `/nova` (câmera
+  `capture="environment"` OU galeria, preview, trocar/remover, data/hora
+  ajustável), `/[analysisId]` (uma tela para todos os estados: analisar →
+  "Analisando sua refeição..." → "Revise sua refeição" com edição de
+  alimento/quantidade/unidade/preparo/macros, remover/restaurar, adições
+  rápidas de óleo/molho/acompanhamento, totais recalculados ao vivo →
+  confirmar → leitura com "O que a IA estimou inicialmente" e diff →
+  corrigir depois, ajustar data, arquivar), `/consentimento` (texto
+  versionado `meal_photo_ai_v1`, aceite persistido em `patient_consents`,
+  revogação para análises futuras). Foto processada no servidor (assinatura
+  JPEG/PNG/WebP, ≤ 12 MB, orientação EXIF aplicada, ≤ 1600 px, WebP sem
+  EXIF/GPS; só a processada é guardada) no bucket privado `meal-photos`
+  (`<patient_id>/<analysis_id>/<uuid>.webp`), entregue por route handler com
+  URL assinada de 60 s. `FoodAnalysisProvider` (interface + prompt
+  restrito + factory por env) com `FakeFoodAnalysisProvider` determinístico;
+  vendor/modelo real `PENDENTE DE DEFINIÇÃO`; resposta validada por Zod e
+  normalizada (totais recalculados, texto puro); original da IA imutável
+  no banco, versão confirmada à parte. Claim atômico (idempotência),
+  timeout com FAILED + "Tentar novamente", rate limit técnico por paciente,
+  auditoria só com ids/provider. Nutricionista: aba Refeições
+  (confirmadas; em revisão à parte) e detalhe com foto, original x
+  correções e CTA "Escrever feedback" — sem nota/score/meta/cardápio. 1
+  migration, 27 testes unitários, 57 pgTAP (incl. RLS do bucket), 53 checks
+  de integração (`test:food-analysis:integration`), 10 E2E, screenshots em
+  1440/1024/768/390/375/430. Sem OCR, reconhecimento facial, notificação
+  externa, gateway ou fornecedor real.
 - **FASE 12 — Notificações.** E-mail (Resend/React Email), WhatsApp oficial,
   lembrete de 5 dias, idempotência.
 - **FASE 13 — Pagamentos.** `PaymentProvider`, checkout, webhook, idempotência,
@@ -320,6 +345,19 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    suplemento (`image_path` existe, sem upload), fornecedor da IA de foto
    (`FoodAnalysisProvider`) e política de consentimento para fotos de
    refeição.
-3. **Aguardando aprovação explícita do usuário** — não iniciar IA de foto
-   de comida, notificações externas, gateway ou checkout sem sinal verde
-   (prompt Fase 10 §107).
+3. Aprovação formal da Fase 10 recebida em 2026-09-19. Fase 11 concluída em
+   2026-09-19.
+
+## Critérios para iniciar a Fase 12
+
+1. Usuário revisou o fluxo de foto da refeição + análise por IA (portal
+   mobile, consentimento, revisão/confirmação, histórico, visão do
+   nutricionista, screenshots) e aprovou explicitamente.
+2. Pendências configuráveis/`PENDENTE`: vendor/modelo real do
+   `FoodAnalysisProvider` (e a credencial correspondente, só server-side),
+   HEIC/HEIF, política de retenção/exclusão das fotos, quota comercial de
+   análises (hoje só proteção técnica contra rajada), meta diária (não
+   modelada — nada é comparado), store externo de rate limit para produção.
+3. **Aguardando aprovação explícita do usuário** — não iniciar e-mail,
+   WhatsApp, lembretes externos, gateway ou checkout sem sinal verde
+   (prompt Fase 11 §117).

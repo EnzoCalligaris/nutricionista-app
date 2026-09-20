@@ -1519,3 +1519,142 @@ dado plausível/inventado.
     A nem ao próprio paciente), 17 E2E com nutricionista e paciente em
     contextos de browser separados (cria → paciente não vê / vê → edita →
     arquiva/remove → paciente perde), mobile 390 sem overflow.
+
+## Decisões técnicas da Fase 11 (Foto da refeição + análise por IA)
+
+1. **Schema da Fase 2 reutilizado; uma migration mínima**
+   (`20260924120000_food_analysis_management.sql`). `food_photo_analyses`,
+   o enum `food_photo_analysis_status` (PENDING/ANALYZED/CONFIRMED/FAILED) e
+   o bucket privado `meal-photos` (policies por `<patient_id>/`) já
+   serviam. Sem valor de enum novo: "processando" = PENDING com
+   `processing_started_at` recente (claim atômico), "arquivada" =
+   `archived_at`. Colunas novas: `meal_at`, `image_mime/size/sha256`,
+   `consent_version`, `processing_started_at/ms`, `provider_request_id`,
+   `failure_code`, `attempts`, `confirmed_at`, `archived_at`. Nova tabela
+   `patient_consents` (§20): `media_consents` não serve — é consentimento
+   de USO DE IMAGEM capturado pelo nutricionista (escrita só dele);
+   o consentimento da IA é do PACIENTE, versionado e revogável por ele.
+
+2. **`FoodAnalysisProvider` (§2–§5):** interface em
+   `src/services/food-analysis/provider.ts` (`analyzeMealPhoto` → JSON
+   cru), factory por env (`FOOD_ANALYSIS_PROVIDER`, default `fake`;
+   `FOOD_ANALYSIS_MODEL`; `FOOD_ANALYSIS_TIMEOUT_MS`, 45 s) validada em
+   `env.ts`. Vendor/modelo real continua **PENDENTE DE DEFINIÇÃO**: não há
+   credencial no ambiente, logo nenhum adapter real foi escrito (§4) — um
+   valor de provider sem adapter deixa a análise "indisponível" (nunca cai
+   no fake em silêncio). `FakeFoodAnalysisProvider` é determinístico (prato
+   escolhido pelo hash da imagem processada), sem rede, e a UI diz
+   "estimativa simulada". Cenários de falha para testes por DIMENSÃO da
+   imagem processada (2×1 timeout, 3×1 inválido, 4×1 malformado, 5×1 erro,
+   6×1 vazio) — marcadores em bytes não sobreviveriam à conversão WebP.
+   O prompt do sistema (`FOOD_ANALYSIS_SYSTEM_PROMPT`) só identifica,
+   estima e declara incerteza; texto na imagem é dado, não instrução; nada
+   do paciente (nome de arquivo, observações) entra no prompt (§29/§106).
+
+3. **Resposta da IA é entrada não confiável (§7/§107):** `providerResultSchema`
+   (Zod) recusa JSON inválido, campo ausente, negativo, absurdo
+   (quantidade > 5000, kcal > 5000/item, macro > 1000 g/item, > 40 itens),
+   unidade/preparo fora do enum e strings com controle; `normalizeProviderResult`
+   dá ids estáveis, `source: "AI"` e RECALCULA os totais (o total declarado
+   pelo provider é ignorado). Falha de schema → FAILED com
+   `failure_code = INVALID_RESPONSE`, nada persistido. `raw_result` NÃO é
+   preenchido (§34): só a estrutura normalizada. Nada vindo do modelo é
+   renderizado como HTML/Markdown/URL.
+
+4. **Original x confirmado (§33/§40):** `structured_result` (original) é
+   imutável por trigger depois de gravado (`FOOD_ANALYSIS_ORIGINAL_IMMUTABLE`,
+   inclusive provider/model/analyzed_at); `corrected_result` é a versão
+   confirmada (itens com id do original quando sobreviveram, `source:
+   "PATIENT"` para adicionados, totais recalculados só com o que ficou —
+   §36). Correção posterior de confirmada substitui `corrected_result` com
+   `updated_at` + `MEAL_ANALYSIS_UPDATED`; reabrir revisão
+   (CONFIRMED→ANALYZED) existe no banco, a UI usa "Corrigir itens" (edição
+   direta da confirmada). Diff informativo por item (adicionado/removido/
+   alterado) — nunca nota, score, aderência ou semáforo (§44).
+
+5. **Máquina de estados no banco (§23):** PENDING→ANALYZED exige
+   resultado + provider + model (seta `analyzed_at`, limpa o claim);
+   PENDING→FAILED limpa o claim; FAILED→PENDING = tentar de novo no MESMO
+   registro (§27/§66); ANALYZED→CONFIRMED exige `corrected_result` (seta
+   `confirmed_at`); CONFIRMED→ANALYZED reabre; qualquer outra →
+   `INVALID_STATUS_TRANSITION`. Insert só PENDING, com consentimento ativo
+   (`patient_has_consent`, SECURITY DEFINER — CLAUDE.md regra 11), path
+   `<patient_id>/<analysis_id>/` e `meal_at ≤ now() + 10 min` (§59).
+   `patient_id`/`storage_path`/`consent_version` imutáveis; arquivada é só
+   leitura e irreversível.
+
+6. **Idempotência (§25/§91):** "Analisar" faz um UPDATE condicional
+   (`status in (PENDING, FAILED)` e claim ausente ou mais antigo que 2 min)
+   — a segunda requisição simultânea afeta 0 linhas e recebe
+   `FOOD_ANALYSIS_ALREADY_PROCESSING`; provado com duas PATCHes simultâneas
+   na integração e no pgTAP. Reenvio da mesma foto (mesmo sha256 de uma
+   análise ativa) reabre a existente em vez de duplicar (§53).
+
+7. **Síncrono controlado (§24):** a análise roda dentro da Server Action
+   com `AbortController` + `FOOD_ANALYSIS_TIMEOUT_MS`; timeout → FAILED
+   (`PROVIDER_TIMEOUT`) e "Tentar novamente". Sem fila/worker — registrado
+   como evolução possível quando houver provider real com latência alta. O
+   botão desabilita durante o processamento e a página se atualiza sozinha
+   se outra aba estiver processando.
+
+8. **Imagem (§11–§15/§54–§55):** JPEG/PNG/WebP conferidos pela assinatura
+   (não pelo MIME do browser), ≤ 12 MB de entrada; `sharp` aplica a
+   orientação EXIF, redimensiona para ≤ 1600 px no maior lado e converte
+   para WebP q82 sem copiar metadados (EXIF/GPS/ICC descartados);
+   **só a imagem processada é guardada** (o original é descartado após o
+   processamento) e é o que vai ao provider — nunca 25 MB crus. HEIC/HEIF
+   **não** é aceito (o `sharp` do Next não traz libheif de forma
+   confiável) — `PENDENTE`. `sharp` entrou como dependência explícita (já
+   era transitiva do Next). Path `<patient_id>/<analysis_id>/<uuid>.webp`
+   (trigger); download por route handlers (`/paciente/refeicoes/[id]/foto`,
+   `/dashboard/pacientes/[id]/refeicoes/[analysisId]/foto`) com URL assinada
+   de 60 s e `no-store`, nunca persistida/logada (§17–§18).
+
+9. **Consentimento (§19–§22):** `MEAL_PHOTO_AI` / `meal_photo_ai_v1`; texto
+   em `MEAL_PHOTO_AI_CONSENT_TEXT` (IA, estimativa, fornecedor configurado
+   "conforme a política aplicável", quem vê a foto, opcional/revogável —
+   sem alegação jurídica específica). Aceite persistido pelo próprio
+   paciente (policy de insert self; nutricionista não registra), revogação
+   = `revoked_at` uma única vez; nova versão de texto exige novo aceite. A
+   análise nasce com `consent_version` e o trigger exige consentimento
+   ativo. **Revogar bloqueia análises FUTURAS e não apaga o que já foi
+   processado** — documentado na UI e no schema.
+
+10. **Arquivar (§41):** `archived_at` + remoção do objeto do bucket
+    (paciente e nutricionista perdem a foto); a linha fica com metadados
+    mínimos, original e versão confirmada. Sem DELETE (não há policy).
+    Retenção/exclusão definitiva: `PENDENTE DE DEFINIÇÃO` (decisão de
+    negócio/jurídica, sem retenção inventada).
+
+11. **Rate limit (§51–§52):** `mealAnalysisRateLimiter` (12 análises / 10
+    min por paciente, em memória — mesma ressalva de produção da Fase 3;
+    interface `RateLimiter` permite store externo). É proteção técnica
+    contra rajada, não quota comercial.
+
+12. **Auditoria (§48):** `MEAL_AI_CONSENT_ACCEPTED/REVOKED`,
+    `MEAL_PHOTO_UPLOADED`, `MEAL_ANALYSIS_REQUESTED/COMPLETED/FAILED/
+    CONFIRMED/UPDATED/REOPENED/ARCHIVED` com metadata só de ids, status,
+    código técnico, provider/model, contagens, mime/tamanho/dimensões —
+    nunca imagem, itens, macros, prompt ou resposta. Policy nova permite ao
+    PATIENT auditar `food_photo_analysis`/`patient_consent`. Logs de erro:
+    só o código (`PROVIDER_TIMEOUT`, `INVALID_RESPONSE`…). Descoberta: o
+    paciente não tem SELECT em `audit_logs`, então o insert precisa ser sem
+    RETURNING (`return=minimal`) — é o que o app já faz.
+
+13. **UI mobile-first (§61–§68):** um wizard implícito (1. Foto · 2.
+    Análise · 3. Revisão) em duas rotas (`/nova` e `/[id]`); aviso de
+    estimativa (§1) sempre visível perto dos valores; kcal inteiro, macros 1
+    casa (§37); itens da revisão em cards com inputs `inputMode="decimal"`
+    (pt-BR); adições rápidas "+ Óleo / azeite", "+ Molho",
+    "+ Acompanhamento"; loading "Analisando sua refeição..." sem
+    porcentagem; erro amigável fixo (§28). QA visual: "adicionado por você"
+    aparecia também para o nutricionista (corrigido para "adicionado pelo
+    paciente"); "(2 alterações sua(s))" → concordância correta.
+
+14. **Testes:** 27 unitários (totais §85, correção §86, item adicionado
+    §87, schema inválido §88, timeout/abort §89, máquina de estados,
+    consentimento, data futura), 57 pgTAP (`130_food_analysis.test.sql`),
+    53 checks de integração via PostgREST/Storage com JWTs reais (incl.
+    duas PATCHes simultâneas no claim), 10 E2E (paciente e nutricionista em
+    contextos separados, fixtures sintéticas geradas com `sharp`, provider
+    fake), mobile 390 sem overflow.

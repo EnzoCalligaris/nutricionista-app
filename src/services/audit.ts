@@ -61,7 +61,17 @@ export type AuditAction =
   | "MATERIAL_ASSIGNED"
   | "MATERIAL_UNASSIGNED"
   | "MATERIAL_FILE_UPLOADED"
-  | "MATERIAL_FILE_REMOVED";
+  | "MATERIAL_FILE_REMOVED"
+  | "MEAL_AI_CONSENT_ACCEPTED"
+  | "MEAL_AI_CONSENT_REVOKED"
+  | "MEAL_PHOTO_UPLOADED"
+  | "MEAL_ANALYSIS_REQUESTED"
+  | "MEAL_ANALYSIS_COMPLETED"
+  | "MEAL_ANALYSIS_FAILED"
+  | "MEAL_ANALYSIS_CONFIRMED"
+  | "MEAL_ANALYSIS_UPDATED"
+  | "MEAL_ANALYSIS_REOPENED"
+  | "MEAL_ANALYSIS_ARCHIVED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -70,7 +80,8 @@ export type AuditAction =
  * nascimento): só identificadores e campos alterados por NOME.
  *
  * A policy exige `actor_id = auth.uid()` (role NUTRITIONIST, ou PATIENT só
- * para `entity_type = 'appointment'` — Fase 6), então usamos o cliente de
+ * para `entity_type = 'appointment'` — Fase 6 — e para
+ * `food_photo_analysis`/`patient_consent` — Fase 11), então usamos o cliente de
  * sessão (não o admin): o ator é sempre quem está autenticado. Uma falha ao auditar é logada no
  * servidor e NÃO desfaz a operação de negócio (não há transação cobrindo as
  * duas escritas) — decisão registrada em docs/DECISIONS.md.
@@ -94,7 +105,9 @@ export async function recordAudit(input: {
     | "supplement_recommendation"
     | "feedback_message"
     | "patient_material"
-    | "material_assignment";
+    | "material_assignment"
+    | "food_photo_analysis"
+    | "patient_consent";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

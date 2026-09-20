@@ -51,6 +51,15 @@ const serverOnlySchema = z.object({
   PAYMENT_PROVIDER_SECRET_KEY: z.string().min(1).optional(),
   PAYMENT_PROVIDER_WEBHOOK_SECRET: z.string().min(1).optional(),
   FOOD_ANALYSIS_PROVIDER_API_KEY: z.string().min(1).optional(),
+  // Fase 11: fornecedor de análise de foto. Default `fake` (determinístico,
+  // sem rede) enquanto vendor/modelo reais forem PENDENTE DE DEFINIÇÃO.
+  FOOD_ANALYSIS_PROVIDER: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9_-]{1,40}$/, "FOOD_ANALYSIS_PROVIDER: identificador inválido")
+    .default("fake"),
+  FOOD_ANALYSIS_MODEL: z.string().trim().max(120).optional(),
+  FOOD_ANALYSIS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(45_000),
 });
 
 type ServerEnv = z.infer<typeof serverOnlySchema>;

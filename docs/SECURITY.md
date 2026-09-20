@@ -317,7 +317,12 @@ relatório; verificado no E2E); desde a Fase 10:
 `MATERIAL_CREATED/UPDATED/ARCHIVED/ASSIGNED/UNASSIGNED/FILE_UPLOADED/
 FILE_REMOVED` (ids, flags, nomes de campos alterados, mime/tamanho,
 comprimento do texto — nunca produto, dose, orientação, mensagem do
-feedback, nome do arquivo ou URL; verificado no E2E). Metadata é o mínimo para
+feedback, nome do arquivo ou URL; verificado no E2E); desde a Fase 11:
+`MEAL_AI_CONSENT_ACCEPTED/REVOKED`, `MEAL_PHOTO_UPLOADED`,
+`MEAL_ANALYSIS_REQUESTED/COMPLETED/FAILED/CONFIRMED/UPDATED/REOPENED/
+ARCHIVED` (ids, status, código técnico, provider/model, contagens,
+mime/tamanho/dimensões — nunca imagem/base64, itens, macros, prompt ou
+resposta; verificado no E2E). Metadata é o mínimo para
 rastrear "quem fez o quê" — ids, NOMES dos campos alterados, código do
 plano, valor/quantidade de parcelas — nunca e-mail, telefone, nascimento ou
 qualquer dado clínico. Falta (fases futuras): avaliação, publicação de
@@ -417,6 +422,42 @@ antes/depois.
   Nada de conteúdo clínico em logs de aplicação (só mensagens técnicas)
   nem em `audit_logs.metadata`. Rotas privadas `force-dynamic`, sem ISR,
   noindex.
+
+## Foto da refeição + análise por IA — dado pessoal de saúde (Fase 11)
+
+- **IA é entrada não confiável (§107):** a resposta do provider passa por
+  Zod (tipos, faixas técnicas, enums, texto sem controle), totais são
+  recalculados, nada é persistido sem validar e nada vindo do modelo é
+  renderizado como HTML/Markdown/URL ou executado. Prompt fixo do sistema:
+  só identificar/estimar/declarar incerteza; conteúdo da imagem (inclusive
+  texto visível) é dado, não instrução; nome de arquivo e textos do
+  paciente nunca entram no prompt (prompt injection — §106).
+- **Provider só server-side (§75):** chamado dentro da Server Action com
+  timeout; credencial (quando existir) só em env server-only (nunca
+  `NEXT_PUBLIC_`); sem credencial configurada o app usa o fake e a UI
+  declara "estimativa simulada". Nenhuma chave inventada ou commitada.
+- **Foto:** assinatura conferida (JPEG/PNG/WebP), ≤ 12 MB, redimensionada e
+  convertida para WebP sem EXIF/GPS/ICC — só a processada é guardada e é o
+  que vai ao provider; bucket privado `meal-photos`, path
+  `<patient_id>/<analysis_id>/<uuid>.webp` validado por trigger; entrega só
+  por route handler com URL assinada de 60 s e `no-store`, nunca
+  persistida/logada. Sem reconhecimento facial, sem OCR.
+- **RLS/ownership:** paciente só as próprias análises/consentimentos (da
+  sessão, nunca de input); nutricionista só leitura dos próprios pacientes
+  (sem policy de update — não altera o que o paciente confirmou);
+  outro paciente/nutricionista: nada (tabela e bucket, testado). Ids
+  adulterados = 404. Mass assignment: Zod só com itens da revisão e
+  data/hora; `patient_id`, `provider`, `model`, `status` privilegiado,
+  `storage_path`, `structured_result` e `consent_version` são recusados ou
+  fixados por trigger.
+- **Consentimento explícito e versionado** antes da primeira análise,
+  persistido (`patient_consents`) e exigido pelo banco na criação;
+  revogação bloqueia análises futuras (não apaga o já processado —
+  documentado). **Idempotência** por claim atômico (duas requisições →
+  uma execução). **Rate limit** técnico por paciente (em memória — ver
+  ressalva de produção). **Logs**: só códigos técnicos; nunca imagem,
+  base64, URL assinada, prompt ou resposta. Rotas privadas
+  `force-dynamic`, noindex, sem ISR.
 
 ## Clientes Supabase — implementados na Fase 2
 

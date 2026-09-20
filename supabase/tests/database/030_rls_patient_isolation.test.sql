@@ -51,8 +51,11 @@ values ('c0000000-0000-0000-0000-000000000040', 'c0000000-0000-0000-0000-0000000
 insert into public.material_assignments (material_id, patient_id)
 values ('c0000000-0000-0000-0000-000000000040', 'c0000000-0000-0000-0000-000000000010');
 
-insert into public.food_photo_analyses (patient_id, storage_path)
-values ('c0000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000010/refeicao.jpg');
+-- Fase 11: a análise exige consentimento ativo e path <patient_id>/<analysis_id>/… (trigger).
+insert into public.patient_consents (patient_id, consent_type, consent_version)
+values ('c0000000-0000-0000-0000-000000000010', 'MEAL_PHOTO_AI', 'meal_photo_ai_v1');
+insert into public.food_photo_analyses (id, patient_id, storage_path, consent_version)
+values ('c0000000-0000-0000-0000-000000000050', 'c0000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000010/c0000000-0000-0000-0000-000000000050/refeicao.webp', 'meal_photo_ai_v1');
 
 -- Autentica como Paciente A e tenta ler dados do Paciente B -------------
 set local role authenticated;

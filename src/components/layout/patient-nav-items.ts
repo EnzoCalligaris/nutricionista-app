@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
+  Camera,
   FolderOpen,
   Home,
   LineChart,
@@ -23,6 +24,7 @@ export const patientNavItems: PatientNavItem[] = [
   { title: "Meu Cardápio", href: "/paciente/cardapio", icon: UtensilsCrossed, phase: "Fase 8" },
   { title: "Minha Evolução", href: "/paciente/evolucao", icon: LineChart, phase: "Fase 9" },
   { title: "Consultas", href: "/paciente/consultas", icon: CalendarDays, phase: "Fase 6" },
+  { title: "Refeições", href: "/paciente/refeicoes", icon: Camera, phase: "Fase 11" },
   { title: "Suplementos", href: "/paciente/suplementos", icon: Pill, phase: "Fase 10" },
   { title: "Feedbacks", href: "/paciente/feedbacks", icon: MessageSquare, phase: "Fase 10" },
   { title: "Materiais", href: "/paciente/materiais", icon: FolderOpen, phase: "Fase 10" },

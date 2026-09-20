@@ -20,6 +20,9 @@ import { PatientMaterialsSection } from "@/components/materials/patient-material
 import { listPatientSupplements } from "@/data/supplements";
 import { listPatientFeedbacks } from "@/data/feedbacks";
 import { listAssignableMaterials, listPatientAssignments } from "@/data/materials";
+import { PatientMealsSection } from "@/components/meals/patient-meals-section";
+import { listPatientFoodAnalysesForNutritionist } from "@/data/food-analyses";
+import { getFoodAnalysisConfigStatus } from "@/services/food-analysis";
 import { listPatientAssessments } from "@/data/assessments";
 import { listPatientMealPlans } from "@/data/meal-plans";
 import { PatientAppointmentsSection } from "@/components/patients/patient-appointments-section";
@@ -165,6 +168,8 @@ export default async function PacientePage({ params, searchParams }: PageProps<"
         <PatientMealPlanSection patientId={patient.id} plans={await listPatientMealPlans(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "avaliacoes" ? (
         <PatientAssessmentsSection patientId={patient.id} assessments={await listPatientAssessments(patient.id)} canCreate={patient.status === "ACTIVE"} />
+      ) : section === "refeicoes" ? (
+        <PatientMealsSection patientId={patient.id} analyses={await listPatientFoodAnalysesForNutritionist(patient.id)} simulated={getFoodAnalysisConfigStatus().simulated} />
       ) : section === "suplementos" ? (
         <PatientSupplementsSection patientId={patient.id} supplements={await listPatientSupplements(patient.id)} canCreate={patient.status === "ACTIVE"} />
       ) : section === "feedbacks" ? (

@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASES 0 a 10 concluídas.** Next.js rodando (`src/app`), design system,
+**FASES 0 a 11 concluídas.** Next.js rodando (`src/app`), design system,
 banco Postgres/Supabase local completo (RLS em 100% das tabelas,
 anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
 autorização reais (Fase 3), site público definitivo (Fase 4), o módulo de
@@ -36,8 +36,18 @@ arquivado — não é chat —, material reutilizável arquivo-OU-link no bucket
 privado `patient-documents` (`<material_id>/<uuid>.<ext>`) com atribuição
 por paciente revogável; paciente só vê ativo/disponibilizado/atribuído;
 link externo só via `validateExternalUrl` + `ExternalLink`; download por
-URL assinada server-side). IA de foto, gateway de pagamento e notificações
-externas ainda não existem — começam na Fase 11 (`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
+URL assinada server-side) e a **Foto da refeição + análise por IA** (Fase
+11: portal `/paciente/refeicoes` (+ `/nova`, `/consentimento`,
+`/[analysisId]`), aba Refeições do paciente no dashboard;
+`FoodAnalysisProvider` em `src/services/food-analysis/` com provider
+`fake` determinístico por padrão — vendor/modelo real `PENDENTE DE
+DEFINIÇÃO`, nunca inventar credencial; resposta da IA validada por Zod e
+tratada como entrada não confiável; original da IA imutável x versão
+confirmada pelo paciente; consentimento versionado `meal_photo_ai_v1` em
+`patient_consents`; foto processada (WebP sem EXIF) no bucket privado
+`meal-photos`; sempre "estimativa", nunca nota/score/meta). Gateway de
+pagamento e notificações externas ainda não existem — começam na Fase 12
+(`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
 duração, antecedências, plataforma online), categorias financeiras reais e
 a política de cobrança da consulta avulsa (`APPOINTMENT_CHARGE_POLICY`) são
 configuráveis e continuam `PENDENTE DE DEFINIÇÃO` — nunca hardcodar um
@@ -53,7 +63,8 @@ Integração contra o Supabase local: `npm run test:auth:integration`,
 `npm run test:scheduling:integration`, `npm run test:scheduling:concurrency`,
 `npm run test:financial:integration`, `npm run test:meal-plans:integration`,
 `npm run test:assessments:integration`,
-`npm run test:patient-content:integration`.
+`npm run test:patient-content:integration`,
+`npm run test:food-analysis:integration`.
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -125,7 +136,7 @@ aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
   commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
   E2E/build.
 - Referência de script: `scripts/screenshots-fase-5.mjs` a
-  `scripts/screenshots-fase-10.mjs` (`npm run screenshots:fase-N`, com
+  `scripts/screenshots-fase-11.mjs` (`npm run screenshots:fase-N`, com
   `--extra` para as larguras adicionais). Em Playwright, `getByText` é
   substring case-insensitive e `count()` não espera: prefira
   `exact: true`/`waitFor` (Fase 9, `docs/DECISIONS.md`). Tabelas do

@@ -110,6 +110,11 @@ Abre em [http://localhost:3000](http://localhost:3000):
   `/dashboard/materiais` (biblioteca; `/novo`, `/[materialId]`, `/editar`, `/arquivo`) e, no portal,
   `/paciente/suplementos`, `/paciente/feedbacks`, `/paciente/materiais` (+ `/[materialId]/arquivo`) —
   suplementos, feedbacks e materiais do paciente (Fase 10)
+- `/paciente/refeicoes` (histórico), `/paciente/refeicoes/nova` (câmera/galeria + preview),
+  `/paciente/refeicoes/consentimento`, `/paciente/refeicoes/[analysisId]` (+ `/foto`) e, no dashboard,
+  `/dashboard/pacientes/[id]?tab=refeicoes` + `/refeicoes/[analysisId]` (+ `/foto`) — foto da
+  refeição + análise por IA com revisão/confirmação pelo paciente (Fase 11; provider `fake` por
+  padrão — ver `.env.example`)
 - `/dashboard/financeiro` (lançamentos, filtros, cards), `/dashboard/financeiro/novo`,
   `/dashboard/financeiro/[id]/editar`, `/dashboard/financeiro/pagamentos/novo`,
   `/dashboard/financeiro/previsao` — financeiro completo sem gateway (Fase 7);
@@ -151,6 +156,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:assessments:integration` | Integração das avaliações contra Supabase local real (medidas/ranges, data futura, visibilidade, mass assignment, upload/download no bucket privado com acesso cruzado negado, arquivar/excluir, auditoria) |
 | `npm run screenshots:fase-9` | Screenshots reais de avaliações/evolução (aba, formulário, detalhe com relatório, comparação, portal) em `screenshots/fase-9/` |
 | `npm run test:patient-content:integration` | Integração de suplementos/feedbacks/materiais contra Supabase local real (ativo x encerrado x arquivado, rascunho x disponibilizado, paciente só marca como lido, link inseguro recusado, upload/download no bucket privado com acesso cruzado negado, atribuição/revogação/reatribuição, ownership nutri A/B e paciente A/B, auditoria) |
+| `npm run test:food-analysis:integration` | Integração da foto da refeição/IA contra Supabase local real (consentimento versionado, upload no bucket privado com acesso cruzado negado, claim atômico com duas requisições simultâneas, máquina de estados, original imutável, revogação, arquivamento, auditoria) |
+| `npm run screenshots:fase-11` | Screenshots reais do fluxo de refeição (consentimento, foto, preview, analisando, revisão, confirmação, histórico, visão do nutricionista) em `screenshots/fase-11/` |
 | `npm run screenshots:fase-10` | Screenshots reais de suplementos/feedbacks/materiais (abas do paciente, formulários, biblioteca, detalhe do material, portal e empty states) em `screenshots/fase-10/` |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 

@@ -64,6 +64,7 @@ app/
     suplementos/             # Fase 10 — só recomendações ativas
     feedbacks/               # Fase 10 — só disponibilizados
     materiais/               # Fase 10 — só atribuídos; [materialId]/arquivo (download server-side)
+    refeicoes/               # Fase 11 — histórico; nova, consentimento, [analysisId] (+ foto)
     perfil/
   api/
     webhooks/{payments,whatsapp}/
@@ -82,7 +83,9 @@ src/
                      # estrutura+ordenação+duplicação, versionamento, quantidades) — Fase 8;
                      # assessments/ (métricas/ranges técnicos/IMC, números pt-BR, evolução/
                      # comparação/séries) — Fase 9; patient-content/ (validador de URL externa,
-                     # status/visibilidade de suplementos, feedbacks e materiais/atribuições) — Fase 10
+                     # status/visibilidade de suplementos, feedbacks e materiais/atribuições) — Fase 10;
+                     # food-analysis/ (estimativas/totais/diff, máquina de estados, consentimento,
+                     # limites da foto) — Fase 11
   services/          # casos de uso (Fase 5): patients.ts, contracts.ts, onboarding.ts
                      # (convite, compartilhado com a Fase 3), audit.ts — validam
                      # ownership e chamam data/ + funções SQL transacionais;
@@ -91,24 +94,28 @@ src/
                      # meal-plans.ts (plano/versão/dia/refeição/item/substituição, funções SQL) — Fase 8;
                      # assessments.ts (avaliação, medidas, visibilidade, relatório no bucket privado,
                      # URL assinada) — Fase 9; supplements.ts, feedbacks.ts, materials.ts (arquivo no
-                     # bucket privado, atribuições, URL assinada) — Fase 10
+                     # bucket privado, atribuições, URL assinada) — Fase 10; food-analysis/ (provider.ts
+                     # = interface + prompt, fake-provider.ts, schemas.ts = Zod da resposta, index.ts =
+                     # factory por env, service.ts = casos de uso) — Fase 11
   data/              # queries Supabase: públicas (plans, blog, results, site-settings,
                      # cliente anônimo — Fase 4) e do dashboard (patients.ts,
                      # contracts.ts, getDashboardPlans — cliente de sessão, Fase 5;
                      # appointments.ts, scheduling.ts — Fase 6; financial.ts,
                      # payments.ts — Fase 7; meal-plans.ts — Fase 8; assessments.ts — Fase 9;
-                     # supplements.ts, feedbacks.ts, materials.ts — Fase 10)
+                     # supplements.ts, feedbacks.ts, materials.ts — Fase 10; food-analyses.ts,
+                     # patient-consents.ts — Fase 11)
   content/           # conteúdo editorial do site com origem no PDF (Fase 4)
   actions/           # server actions — auth.ts, onboarding.ts (Fase 3), contact.ts
                      # (Fase 4), patients.ts, contracts.ts (Fase 5), scheduling.ts
                      # (nutricionista) e patient-booking.ts (paciente) (Fase 6), finance.ts (Fase 7),
                      # meal-plans.ts (Fase 8), assessments.ts (Fase 9), supplements.ts,
-                     # feedbacks.ts, materials.ts (Fase 10)
+                     # feedbacks.ts, materials.ts (Fase 10), food-analysis.ts (paciente, Fase 11)
   validators/        # schemas Zod, compartilhados client/server — auth.ts, contact.ts,
                      # patients.ts, contracts.ts, scheduling.ts, finance.ts, meal-plans.ts,
-                     # assessments.ts, patient-content.ts (Fase 10)
+                     # assessments.ts, patient-content.ts (Fase 10), food-analysis.ts (Fase 11)
   providers/         # abstrações plugáveis: PaymentProvider, EmailProvider,
-                     # WhatsAppProvider, FoodAnalysisProvider (+ implementações) — ainda não criado
+                     # WhatsAppProvider — ainda não criado (FoodAnalysisProvider vive em
+                     # services/food-analysis/, Fase 11)
   jobs/              # tarefas agendadas (lembretes, retries de notificação) — ainda não criado
   emails/            # templates React Email — ainda não criado
   components/        # UI compartilhada (ui/ = shadcn primitives, layout/ = shells + header/
@@ -187,7 +194,10 @@ interface WhatsAppProvider {
 }
 
 interface FoodAnalysisProvider {
-  analyzeMealImage(photo: Blob): Promise<MealAnalysisEstimate> // sempre estimativa, nunca valor exato
+  // Implementada na Fase 11 (src/services/food-analysis/provider.ts): recebe a
+  // imagem PROCESSADA + AbortSignal e devolve JSON cru; o service valida (Zod)
+  // e normaliza — sempre estimativa, nunca valor exato.
+  analyzeMealPhoto(input: { imageBytes: Uint8Array; mime: string; width: number; height: number; signal: AbortSignal }): Promise<{ result: unknown }>
 }
 ```
 
@@ -359,3 +369,39 @@ passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
   ações com confirmação (encerrar/arquivar/disponibilizar/remover
   atribuição), tabelas ≥ `lg` e cards abaixo, `ExternalLink` compartilhado
   (`noopener noreferrer` + host), cards do portal em texto puro.
+
+## Foto da refeição + análise por IA (Fase 11) — quem decide o quê
+
+- **Domínio puro** (`src/domain/food-analysis`): unidades/preparos, limites
+  técnicos, totais (kcal inteiro, macros 1 casa), versão confirmada a
+  partir da revisão, diff IA x paciente, máquina de estados sobre o enum da
+  Fase 2 (+ claim + arquivamento), texto e versão do consentimento,
+  tolerância de relógio da refeição, limites da foto. Sem I/O; testado.
+- **Provider** (`src/services/food-analysis/{provider,fake-provider,schemas,index}.ts`):
+  interface + prompt restrito, fake determinístico, Zod da resposta +
+  normalização, factory por env (vendor real `PENDENTE`).
+- **Banco** (migration Fase 11): `patient_consents` (paciente registra/
+  revoga; `patient_has_consent` SECURITY DEFINER), guards em
+  `food_photo_analyses` (consentimento, path, data, transições, original
+  imutável, arquivada só leitura), policy de auditoria do paciente. Bucket
+  `meal-photos` e RLS da Fase 2 intactos.
+- **Imagem** (`src/lib/images/meal-photo.ts`, server-only): assinatura,
+  limite, `sharp` (orientação, ≤ 1600 px, WebP sem EXIF), sha256.
+- **Data** (`src/data/food-analyses.ts`, `patient-consents.ts`): selects
+  com parsing defensivo dos JSON; histórico do paciente; confirmadas/em
+  revisão para o nutricionista; consentimento ativo.
+- **Services** (`src/services/food-analysis/service.ts`): consentimento,
+  criação (processa → upload → linha; dedupe por sha256), pedido de análise
+  (rate limit → claim atômico → download do objeto → provider com timeout →
+  Zod → ANALYZED/FAILED), confirmação/correção, data/hora, arquivamento
+  (remove o objeto), URLs assinadas para paciente e nutricionista;
+  auditoria só com ids/provider.
+- **Actions** (`src/actions/food-analysis.ts`): `requirePatient` +
+  paciente da sessão, multipart da foto (dois inputs câmera/galeria), Zod
+  da revisão (números pt-BR), revalidação. Route handlers de foto para
+  paciente e nutricionista.
+- **UI** (`src/components/meals`): consentimento, captura com preview,
+  painel de análise (aria-live, retry), formulário de revisão (totais ao
+  vivo, adições rápidas), leitura com original x confirmado, ações, cards
+  do histórico; aba Refeições do perfil e detalhe para o nutricionista com
+  CTA de feedback.
