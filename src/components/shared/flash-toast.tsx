@@ -48,7 +48,11 @@ export type FlashToastCode =
   | "notification_settings_saved"
   | "notification_preferences_saved"
   | "presence_confirmed"
-  | "presence_already_confirmed";
+  | "presence_already_confirmed"
+  | "payment_invalid"
+  | "payment_rate_limited"
+  | "payment_charge_cancelled"
+  | "payment_confirmed";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -95,6 +99,10 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   notification_preferences_saved: { type: "success", message: "Preferências de aviso salvas." },
   presence_confirmed: { type: "success", message: "Presença confirmada.", description: "Obrigado! Sua consulta está confirmada." },
   presence_already_confirmed: { type: "success", message: "Esta consulta já estava confirmada." },
+  payment_invalid: { type: "warning", message: "Não foi possível iniciar o pagamento.", description: "Escolha a parcela e o método de novo." },
+  payment_rate_limited: { type: "warning", message: "Muitas tentativas em pouco tempo.", description: "Aguarde alguns minutos antes de gerar outra cobrança." },
+  payment_charge_cancelled: { type: "success", message: "Cobrança cancelada." },
+  payment_confirmed: { type: "success", message: "Pagamento confirmado." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

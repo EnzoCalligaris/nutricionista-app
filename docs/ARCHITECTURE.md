@@ -181,8 +181,17 @@ consultas, notificações).
 
 ```ts
 interface PaymentProvider {
-  createCharge(input: ChargeInput): Promise<ChargeResult>
-  handleWebhook(payload: unknown, signature: string): Promise<PaymentEvent>
+  // Implementada na Fase 13 (src/services/payments/provider.ts). Devolve
+  // sempre um resultado NORMALIZADO; o status do gateway é traduzido para o
+  // domínio (nunca circula texto do provider pela aplicação). A verificação
+  // do webhook recebe o BODY BRUTO.
+  availableMethods(): readonly OnlinePaymentMethod[]
+  createCharge(input: CreateChargeInput): Promise<ProviderResult<ProviderCharge>>
+  getCharge(providerChargeId: string, signal: AbortSignal): Promise<ProviderResult<ProviderCharge>>
+  cancelCharge(providerChargeId: string, signal: AbortSignal): Promise<ProviderResult<ProviderCharge>>
+  verifyWebhook(rawBody: string, headers: Headers): WebhookVerification
+  parseWebhook(rawBody: string): ProviderWebhookEvent | null
+  refundCharge?(providerChargeId: string, amountCents: number, signal: AbortSignal): Promise<ProviderResult<ProviderCharge>>
 }
 
 interface EmailProvider {
@@ -473,3 +482,52 @@ operação de negócio (Server Action / RPC)  →  trigger AFTER (mesma transaç
   (`/confirmar/[token]`), dashboard (`/dashboard/notificacoes`,
   `/dashboard/configuracoes/notificacoes`, hub `/dashboard/configuracoes`,
   `RequestConfirmationButton` no detalhe da consulta).
+
+## Pagamentos online (Fase 13) — quem decide o quê
+
+```
+paciente escolhe a parcela + método
+  → create_installment_charge (RPC): autoriza, DERIVA o valor do saldo,
+     reaproveita a cobrança ativa, cria `payment_charges` CREATED
+  → PaymentProvider.createCharge: Pix (QR + copia e cola) ou checkout do cartão
+  → cobrança PENDING; a tela diz "estamos confirmando" (nunca "aprovado")
+  → provider → webhook assinado → verifica (body bruto) → idempotência por
+     (provider, event_id) → decideChargeTransition
+       PAID  → record_online_payment: payments + parcela + lançamento +
+               status + evento PAYMENT_CONFIRMED, tudo numa transação
+       divergência → payment_reconciliation_items (decisão humana)
+  → job /api/cron/payments: expira vencidas, reconcilia pendentes
+```
+
+- **Domínio puro** (`src/domain/payments/`): status e rótulos da cobrança,
+  expiração derivada, elegibilidade e VALOR da parcela, reuso/nova cobrança,
+  chave de idempotência, mapper provider → domínio, transições (fora de
+  ordem, terminal, desconhecido), conferência de valor/moeda, resumo
+  sanitizado do evento e tipos de reconciliação. Sem I/O; 15 testes.
+- **Banco** (migration `20260926120000`): `payment_charges`,
+  `payment_webhook_events`, `payment_reconciliation_items`;
+  `apply_payment_effects` (baixa única, usada também pelo pagamento manual),
+  `create_installment_charge`, `cancel_payment_charge`,
+  `record_online_payment`, `expire_payment_charges`, view
+  `installment_active_charge`; policy nova de SELECT de `payments` para o
+  próprio paciente.
+- **Providers** (`src/services/payments/{provider,fake-provider,index}.ts`):
+  interface + `ProviderResult`, fake determinístico (sem rede, sem dado de
+  cartão), fábrica por env que recusa configuração incompleta e
+  `getPaymentProviderStatus()` para a UI (nunca segredo).
+- **Services**: `checkout.ts` (criar/cancelar cobrança, com timeout e
+  auditoria), `webhook.ts` (processar evento, expirar, reconciliar),
+  `reconciliation.ts` (resolver item, rodar conferência, detectar PAID sem
+  pagamento).
+- **Data** (`src/data/payment-charges.ts`): cobrança por id, do paciente, do
+  nutricionista, cobrança ativa por parcela (view) e itens de reconciliação.
+- **Actions** (`src/actions/payments.ts`): `requirePatient`/
+  `requireNutritionist`, Zod só com referência + método, rate limit no que é
+  acionável por pessoa (o webhook não passa por lá).
+- **Rotas**: `/api/webhooks/payments/[provider]` (assinatura sobre o corpo
+  bruto), `/api/cron/payments` (`CRON_SECRET`), `/api/dev/payments/simulate`
+  (só fora de produção, com sessão e ownership).
+- **UI**: portal (`/paciente/pagamentos`, `/paciente/pagamentos/[installmentId]`,
+  `/paciente/pagamentos/checkout/[chargeId]`) e dashboard (cobranças no
+  financeiro, `/dashboard/financeiro/reconciliacao`,
+  `/dashboard/configuracoes/pagamentos`, botão de cobrança na parcela).

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bell, CalendarDays, ChevronRight, Settings } from "lucide-react";
+import { Bell, CalendarDays, ChevronRight, CircleDollarSign, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Configurações" };
@@ -14,13 +14,14 @@ export default function ConfiguracoesPage() {
   const sections = [
     { href: "/dashboard/agenda/configuracoes", icon: CalendarDays, title: "Agenda", description: "Duração, antecedências, agendamento online e fuso horário." },
     { href: "/dashboard/configuracoes/notificacoes", icon: Bell, title: "Notificações", description: "Canais por tipo de aviso, provedores de e-mail/WhatsApp e templates." },
+    { href: "/dashboard/configuracoes/pagamentos", icon: CircleDollarSign, title: "Pagamentos", description: "Provedor de pagamento, ambiente, métodos do checkout e webhook." },
   ] as const;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-medium">Configurações</h1>
-        <p className="text-sm text-muted-foreground">Ajustes da agenda e das notificações. Dados do profissional e integrações de pagamento chegam em fases futuras.</p>
+        <p className="text-sm text-muted-foreground">Ajustes da agenda, das notificações e dos pagamentos online. Dados do profissional e textos do site chegam na Fase 14.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {sections.map(({ href, icon: Icon, title, description }) => (
@@ -42,7 +43,7 @@ export default function ConfiguracoesPage() {
         <Card className="border-dashed sm:col-span-2">
           <CardContent className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
             <Settings className="size-4" aria-hidden="true" />
-            Dados do profissional e integrações de pagamento — Fase 14.
+            Dados do profissional e textos do site — Fase 14.
           </CardContent>
         </Card>
       </div>

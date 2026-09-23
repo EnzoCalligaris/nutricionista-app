@@ -6,6 +6,7 @@ import { ContractCard } from "@/components/contracts/contract-card";
 import { PaymentsList } from "@/components/finance/payments-list";
 import { TransactionsTable } from "@/components/finance/transactions-table";
 import { sumContractFinancials, totalForecast } from "@/domain/finance/summary";
+import type { ChargeStatus } from "@/domain/payments/charges";
 import { formatBRL } from "@/lib/money";
 import type { PatientContract } from "@/data/contracts";
 import type { PaymentListItem } from "@/data/payments";
@@ -22,12 +23,17 @@ export function PatientFinanceSection({
   payments,
   transactions,
   today,
+  activeCharges,
+  onlinePaymentEnabled = false,
 }: {
   patient: { id: string; name: string; status: string };
   contracts: PatientContract[];
   payments: PaymentListItem[];
   transactions: TransactionListItem[];
   today: string;
+  /** Fase 13: cobranças online abertas por parcela. */
+  activeCharges?: Map<string, { chargeId: string; status: ChargeStatus }>;
+  onlinePaymentEnabled?: boolean;
 }) {
   const financials = contracts.map((contract) => ({ contractStatus: contract.status, ...contract.financials }));
   const totals = sumContractFinancials(financials);
@@ -85,7 +91,7 @@ export function PatientFinanceSection({
         ) : (
           <div className="space-y-4">
             {contracts.map((contract) => (
-              <ContractCard key={contract.id} contract={contract} today={today} returnTo={returnTo} />
+              <ContractCard key={contract.id} contract={contract} today={today} returnTo={returnTo} activeCharges={activeCharges} onlinePaymentEnabled={onlinePaymentEnabled} />
             ))}
           </div>
         )}

@@ -252,8 +252,41 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   (`npm run emails:preview`), screenshots em 1440/1024/768/390/375/430.
   Sem gateway, checkout, PIX, marketing, newsletter, chatbot ou automação
   de WhatsApp Web.
-- **FASE 13 — Pagamentos.** `PaymentProvider`, checkout, webhook, idempotência,
-  retry.
+- **FASE 13 — Pagamentos online.** ✅ Concluída. **Cobrança ≠ pagamento**:
+  `payment_charges` (intenção, com provider/método/expiração) não é receita;
+  só o `payments` CONFIRMED vinculado entra no financeiro da Fase 7. Uma
+  migration nova: cobranças (uma ATIVA por parcela, índice único parcial),
+  `payment_webhook_events` (idempotente por provider + event_id, só resumo
+  sanitizado), `payment_reconciliation_items` (divergências que exigem
+  decisão humana) e `apply_payment_effects` — a ÚNICA implementação de
+  "baixar parcela + lançar receita", para a qual `record_manual_payment`
+  (Fase 7) passou a delegar. `create_installment_charge` deriva o VALOR do
+  saldo da parcela (o cliente só manda a referência e o método), confere
+  autorização (paciente dono ou nutricionista) e reaproveita a cobrança
+  ativa; `record_online_payment` confirma tudo numa transação (payment +
+  parcela + lançamento + status + evento `PAYMENT_CONFIRMED` da Fase 12).
+  `PaymentProvider` (`src/services/payments/`) com `FakePaymentProvider`
+  determinístico — checkout, Pix (QR + copia e cola claramente fictícios) e
+  cartão SIMULADOS, sem rede e **sem jamais pedir número de cartão/CVV**;
+  gateway real `PENDENTE DE DEFINIÇÃO` e identificador sem adapter =
+  erro de configuração (nunca fallback). Webhook
+  `/api/webhooks/payments/[provider]` verifica a assinatura sobre o BODY
+  BRUTO antes de qualquer parsing; evento duplicado (10×) = 1 efeito,
+  evento fora de ordem não rebaixa PAID, status desconhecido nunca vira
+  PAID, valor/moeda divergentes e parcela já quitada no caixa abrem
+  reconciliação em vez de duplicar receita. Job `/api/cron/payments`
+  (mesmo `CRON_SECRET`) expira cobranças e reconcilia pendentes
+  ("webhook perdido"). Portal: `/paciente/pagamentos` (plano, parcelas,
+  saldo, cobranças), resumo antes de pagar, checkout com Pix/cartão e
+  "estamos confirmando" até a confirmação server-side, cobrança expirada
+  com nova cobrança. Dashboard: cobranças no financeiro,
+  `/dashboard/financeiro/reconciliacao` (resolver com auditoria),
+  `/dashboard/configuracoes/pagamentos` (provedor, ambiente, métodos,
+  webhook — nunca segredo) e "Gerar cobrança Pix" na parcela. 1 migration,
+  15 testes unitários novos, 72 pgTAP, 15 checks de integração
+  (`test:payments-online:integration`), 11 E2E, screenshots em
+  1440/1024/768/390/375/430. Sem nota fiscal, split, recorrência de cartão,
+  juros/multa, chargeback além do que o provider informar ou credencial real.
 - **FASE 14 — CMS, resultados e configurações.** Blog completo no dashboard,
   antes/depois com consentimento, tela de configurações (horários, dados do
   profissional, textos do site).
@@ -423,6 +456,21 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    scheduler externo), store externo de rate limit, defaults de canal por
    evento confirmados pelo Enzo, endereço do consultório/plataforma online
    nos e-mails, botões interativos de WhatsApp.
-3. **Aguardando aprovação explícita do usuário** — não iniciar gateway,
-   checkout, PIX/cartão, webhook financeiro ou cobrança automática sem
-   sinal verde (prompt Fase 12 §138).
+3. Aprovação formal da Fase 12 recebida em 2026-09-23. Fase 13 concluída em
+   2026-09-23.
+
+## Critérios para iniciar a Fase 14
+
+1. Usuário revisou pagamentos online (portal, checkout, Pix, confirmação,
+   expiração, reconciliação, configurações, screenshots) e aprovou
+   explicitamente.
+2. Pendências configuráveis/`PENDENTE`: gateway real (Mercado Pago / Asaas /
+   Pagar.me / outro) + credenciais de sandbox, cartão de DÉBITO (só se o
+   gateway suportar), parcelamento no cartão e eventuais juros (nada
+   inventado), política de cobrança automática da consulta avulsa
+   (`APPOINTMENT_CHARGE_POLICY` continua `MANUAL`), estorno/refund pelo
+   provedor, chargeback, recibo/nota fiscal, cobrança do contrato inteiro
+   numa transação só, lembrete de cobrança a vencer.
+3. **Aguardando aprovação explícita do usuário** — não iniciar CMS do blog,
+   resultados antes/depois nem a tela de configurações da Fase 14 sem sinal
+   verde (prompt Fase 13 §143).

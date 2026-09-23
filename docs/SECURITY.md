@@ -506,6 +506,55 @@ antes/depois.
 - **WhatsApp:** somente API oficial (Business Platform/BSP) quando definido;
   automação de WhatsApp Web é proibida em qualquer ambiente.
 
+## Pagamentos online, cartões e webhooks (Fase 13)
+
+- **PCI fora de escopo:** a aplicação **nunca** recebe, armazena ou registra
+  número de cartão, CVV, senha ou dados de tarja. Não existe formulário de
+  cartão nosso — nem no ambiente de demonstração. Com gateway real serão
+  checkout hospedado ou tokenização oficial no browser; só token/URL chega ao
+  backend. Verificado por busca em código/schema/testes (`card_number`,
+  `pan`, `cvv`, `cvc`).
+- **Confirmação só server-side (§29):** o retorno do navegador nunca confirma
+  pagamento. A cobrança vira PAID apenas por webhook com assinatura válida ou
+  consulta server-side ao provider. A tela diz "estamos confirmando" até lá.
+- **Webhook:** assinatura verificada sobre o corpo BRUTO antes de qualquer
+  parsing; inválida ⇒ 401 e nenhuma alteração em `payments`,
+  `contract_installments` ou `financial_transactions`. Idempotência por
+  `(provider, event_id)`; evento fora de ordem não rebaixa pagamento
+  confirmado; status desconhecido nunca vira PAID (fail closed). Sem CSRF
+  (não é browser) e sem rate limit de usuário — a proteção é assinatura +
+  idempotência; rate limit fica no que a pessoa aciona (checkout, nova
+  cobrança, conferência manual).
+- **Valor, moeda e ownership:** o servidor deriva `amount_cents` do saldo da
+  parcela e fixa BRL; o cliente só envia referência + método (mass assignment
+  bloqueado por Zod e pela RPC). Tentativa de adulterar valor não muda nada
+  (testado). Cobrança de outro paciente = 404 sem vazar dados; nutricionista
+  só vê as dos seus pacientes (RLS + checagem explícita na página).
+- **Segredos:** `PAYMENT_PROVIDER_SECRET_KEY` e
+  `PAYMENT_PROVIDER_WEBHOOK_SECRET` são server-only, nunca `NEXT_PUBLIC_`,
+  nunca exibidos (a tela de configurações mostra só "Configurado/Simulado/Não
+  configurado") e não editáveis pela aplicação. Provider real sem credencial
+  = erro de configuração, nunca fallback para o fake.
+- **SSRF/open redirect:** URL do provider, endpoint de webhook e URL de
+  retorno são derivados da configuração do servidor e de
+  `NEXT_PUBLIC_SITE_URL` — nunca aceitos do cliente. Redirecionamentos
+  internos continuam passando pelo sanitizador da Fase 3.
+- **Logs e auditoria:** só ids, provider, status e código técnico. Nunca
+  chave, header de autorização, token de cartão, payload completo do provider
+  nem o "Pix copia e cola" inteiro. Auditoria humana:
+  `PAYMENT_CHARGE_CREATED`, `PAYMENT_CHARGE_CANCELLED`,
+  `PAYMENT_RECONCILIATION_REQUESTED`, `PAYMENT_REVIEW_RESOLVED` (com ids,
+  valor e motivo sanitizado).
+- **Service role:** usado só server-side, no webhook/job e para anexar os
+  dados da cobrança depois de a autorização já ter sido provada pela RPC.
+  Confirmação e expiração têm EXECUTE apenas para `service_role`.
+- **Ferramentas de simulação:** `/api/dev/payments/simulate` responde 404 em
+  produção e exige sessão + ownership fora dela.
+- **Dinheiro não some:** divergências (valor, moeda, parcela já quitada,
+  status desconhecido, estorno informado) nunca são corrigidas em silêncio —
+  viram item de reconciliação para decisão humana, e resolver um item não
+  movimenta valores.
+
 ## Clientes Supabase — implementados na Fase 2
 
 `src/lib/supabase/client.ts` (browser, anon key), `server.ts` (Server

@@ -159,6 +159,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:food-analysis:integration` | Integração da foto da refeição/IA contra Supabase local real (consentimento versionado, upload no bucket privado com acesso cruzado negado, claim atômico com duas requisições simultâneas, máquina de estados, original imutável, revogação, arquivamento, auditoria) |
 | `npm run screenshots:fase-11` | Screenshots reais do fluxo de refeição (consentimento, foto, preview, analisando, revisão, confirmação, histórico, visão do nutricionista) em `screenshots/fase-11/` |
 | `npm run test:notifications:integration` | Integração das notificações (vitest em Node, worker real com providers FAKE contra o Supabase local): evento → entregas idempotentes, in-app, e-mail e WhatsApp fake, SKIPPED sem contato, retry timeout → 500 → sucesso com `attempt_count`/`next_attempt_at`, erro permanente, limite de tentativas, PROCESSING travado, provider não configurado, dois workers → 1 envio, scheduler 2× → 1 lembrete, cancelar/reagendar, token de uso único, eventos da Fase 10, preferências, ownership |
+| `npm run test:payments-online:integration` | Integração dos pagamentos online (vitest em Node, gateway FAKE contra o Supabase local): cobrança com valor derivado do saldo, idempotência e reuso, webhook assinado (duplicado, fora de ordem, assinatura inválida), valor/moeda divergentes, conflito manual × online, expiração, reconciliação, ownership e ausência de dado de cartão |
+| `npm run screenshots:fase-13` | Screenshots reais de pagamentos (portal, checkout, Pix, pago, expirado, financeiro com cobranças, reconciliação, configurações) em `screenshots/fase-13/` |
 | `npm run emails:preview` | Renderiza os 9 templates React Email (HTML/texto + screenshots 390/720) em `screenshots/fase-12/emails/` — nada é enviado |
 | `npm run screenshots:fase-12` | Screenshots reais de notificações (portal, sino, lida/não lida, confirmar presença, link tokenizado, dashboard de entregas com FAILED/reenvio, configurações) em `screenshots/fase-12/` |
 | `npm run screenshots:fase-10` | Screenshots reais de suplementos/feedbacks/materiais (abas do paciente, formulários, biblioteca, detalhe do material, portal e empty states) em `screenshots/fase-10/` |
@@ -231,6 +233,16 @@ agora" em `/dashboard/notificacoes`, ou
 `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/notifications`.
 Na Vercel, `vercel.json` agenda o job a cada 15 min (plano Hobby aceita só
 1×/dia — use um scheduler externo com o mesmo header).
+
+Fase 13 (pagamentos online): `PAYMENT_PROVIDER=fake|<gateway>`,
+`PAYMENT_PROVIDER_ENVIRONMENT=simulated|sandbox|production`,
+`PAYMENT_PROVIDER_SECRET_KEY` e `PAYMENT_PROVIDER_WEBHOOK_SECRET` (todos
+server-only). Em desenvolvimento use `fake`: checkout, Pix e cartão são
+simulados, nenhum dado de cartão é pedido e nada sai para a rede. O gateway
+real é PENDENTE DE DEFINIÇÃO — um identificador sem adapter, ou um adapter
+real sem credencial, é erro de configuração (nunca cai no fake). Webhook:
+`/api/webhooks/payments/<provider>` (assinatura sobre o corpo bruto);
+job de expiração/reconciliação: `/api/cron/payments` (mesmo `CRON_SECRET`).
 
 ## Fases do projeto
 

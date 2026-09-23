@@ -1826,3 +1826,130 @@ dado plausível/inventado.
     dashboard (13 itens); `/dashboard/configuracoes` virou um hub (Agenda,
     Notificações) em vez de "em breve" — dados do profissional/pagamento
     continuam Fase 14 (PROJECT_SPEC §6/§7 atualizados).
+
+## Decisões técnicas da Fase 13 (Pagamentos online + checkout + webhook + reconciliação)
+
+1. **O gateway não é a contabilidade.** A fonte continua sendo `payments` +
+   `contract_installments` + `financial_transactions` + as views da Fase 7.
+   `payment_charges` é uma camada NOVA de *intenção de pagamento*: cobrança
+   pendente nunca é receita; só o `payment` CONFIRMED vinculado entra no
+   financeiro. A UI repete essa distinção em texto ("Cobrança pendente não é
+   receita").
+2. **Uma única implementação de baixa.** A migration extraiu
+   `apply_payment_effects` (insere `payments`, quita a parcela quando o
+   recebido cobre o valor, cria o lançamento INCOME, idempotente por
+   `idempotency_key`, `FOR UPDATE` na parcela) e **reescreveu**
+   `record_manual_payment` para delegar a ela. Manual e online seguem a
+   mesma regra — não existe uma segunda versão de "marcar parcela paga"
+   (§40). `record_manual_payment` continua SECURITY INVOKER (ownership sob
+   RLS); `apply_payment_effects` é DEFINER porque o webhook roda sem sessão,
+   e a autorização é do chamador.
+3. **Valor sempre derivado no servidor** (§21–§23/§50–§51):
+   `create_installment_charge` calcula `amount_cents` como o SALDO da parcela
+   (valor − pagamentos confirmados), fixa `currency = 'BRL'` (check no banco)
+   e ignora qualquer valor do cliente — que só envia `installmentId` e
+   `method`. A "tentativa" que compõe a chave de idempotência também é
+   derivada no servidor (contagem de cobranças da parcela/método): o cliente
+   não escolhe nem o valor nem a chave. Pagamento parcial online não existe
+   nesta fase: cobra-se o saldo integral (o parcial manual da Fase 7 segue).
+4. **Uma cobrança ativa por parcela** (índice único parcial em
+   `(installment_id) where status in ('CREATED','PENDING')`). Recarregar a
+   tela, clicar duas vezes ou abrir duas abas devolve a MESMA cobrança
+   (a função também reaproveita por `installment_id`, não só pela chave);
+   trocar de método cancela a anterior. Depois de expirar/cancelar/falhar, a
+   próxima tentativa gera uma nova — foi exatamente aqui que o E2E pegou um
+   bug real: com a chave fixa `attempt=1`, "gerar nova cobrança" devolvia a
+   cobrança expirada. Corrigido derivando a tentativa (item 3).
+5. **Status da cobrança mínimo** (`CREATED → PENDING → PAID | EXPIRED |
+   CANCELLED | FAILED`) e **mapper** provider → domínio: nenhum status
+   textual do gateway circula pela aplicação. `decideChargeTransition`
+   (domínio puro) decide: PAID confirma; evento "menor" que o estado atual é
+   fora de ordem; estado terminal não volta; **status desconhecido nunca vira
+   PAID** (fail closed) e abre reconciliação; `REFUNDED` informado pelo
+   provider não mexe no financeiro (estorno é fluxo manual da Fase 7).
+6. **Webhook**: rota própria por provider, `await request.text()` ANTES de
+   qualquer parsing (a assinatura é sobre o corpo bruto — §33), verificação
+   pelo adapter, só então normalização/processamento. Assinatura inválida =
+   401 e zero efeito financeiro. Sem CSRF (não é browser) e **sem rate limit
+   de usuário** (§87): a defesa é assinatura + idempotência. Resposta 200
+   também para divergências (o provider não deve reenviar algo já tratado),
+   sempre sem detalhe do evento.
+7. **Idempotência em três níveis**: (a) `payment_webhook_events` unique
+   `(provider, provider_event_id)` — o 10º reenvio é `DUPLICATE_EVENT`;
+   (b) o estado da cobrança — um evento NOVO com o mesmo status devolve
+   `ALREADY_PAID`; (c) `payments.idempotency_key = charge:<id>` — mesmo que
+   tudo falhe, a baixa não duplica. Testado nos três níveis (pgTAP,
+   integração e E2E).
+8. **Divergências nunca são "corrigidas" em silêncio** (§55):
+   valor/moeda diferentes, parcela já quitada (pagamento manual enquanto o
+   Pix estava aberto — §52/§114), status desconhecido, estorno informado,
+   cobrança pendente há mais de 24 h e cobrança PAID sem `payment_id` viram
+   `payment_reconciliation_items` (unique parcial evita item duplicado
+   ABERTO). O nutricionista resolve em `/dashboard/financeiro/reconciliacao`
+   com nota e auditoria — resolver **não movimenta dinheiro**.
+9. **`FakePaymentProvider`** (§4/§65/§66): determinístico, sem rede,
+   `providerChargeId` derivado do id interno, Pix com prefixo `FAKE-PIX-`
+   (inválido como EMV — ninguém consegue pagar) e **cartão sem formulário**:
+   nunca pedimos PAN/CVV nem em demonstração. O webhook simulado é assinado
+   com HMAC-SHA256 pelo mesmo segredo que o verificador exige, então o
+   caminho de produção (assinatura → idempotência → transição → baixa
+   atômica) é exercitado de verdade. A ferramenta `/api/dev/payments/simulate`
+   só existe fora de produção e exige sessão + ownership (§68–§69) — por isso
+   o E2E (que roda o build de produção) assina os eventos ele mesmo.
+10. **PCI fora de escopo** (§7/§8/§85): a aplicação nunca recebe, guarda nem
+    loga número de cartão, CVV ou senha. Com gateway real serão checkout
+    hospedado/tokenização oficial: só token/URL chega ao backend. O pgTAP e a
+    integração verificam que nenhuma tabela/resumo de evento contém
+    `card_number`/`cvv`/`pan`.
+11. **Métodos vêm do provider** (§9/§78/§79/§80): o checkout lista só
+    `availableMethods()`. **Cartão de débito continua PENDENTE** — não é
+    exibido porque nenhum gateway foi escolhido. Dinheiro e transferência
+    seguem como pagamento MANUAL (Fase 7), fora do checkout.
+12. **Contrato × parcelamento do gateway** (§14): são conceitos distintos e
+    esta fase só implementa o primeiro. Uma cobrança online paga UMA parcela
+    do contrato; o parcelamento no cartão (quantas vezes, juros) depende do
+    gateway e continua PENDENTE. Pagar "o contrato inteiro" numa cobrança só
+    também ficou de fora: exigiria regra explícita de distribuição entre
+    parcelas (§16).
+13. **Consulta avulsa**: `APPOINTMENT_CHARGE_POLICY` continua `MANUAL`
+    (Fase 7). A modelagem já aceita `appointment_id` na cobrança, mas nada é
+    gerado automaticamente ao agendar/confirmar/realizar — a tela de
+    configurações diz isso explicitamente (§17).
+14. **RLS/privilégios**: `payment_charges` tem SELECT para o paciente dono e
+    para o nutricionista, e **nenhuma** policy de escrita (só as funções);
+    `payment_webhook_events` não tem policy nenhuma (service role);
+    `payment_reconciliation_items` é do nutricionista (select + update para
+    resolver). O paciente passou a ver os PRÓPRIOS `payments` (policy nova de
+    SELECT) — o portal financeiro precisa disso e a policy da Fase 2/7
+    continua valendo para o nutricionista. `record_online_payment` e
+    `expire_payment_charges` têm EXECUTE só para `service_role`.
+15. **Job `/api/cron/payments`** reusa `authorizeCronRequest` (Fase 12):
+    `Authorization: Bearer $CRON_SECRET`, tempo constante, fail closed em
+    produção. Roda de hora em hora no `vercel.json` (ver ressalva do plano
+    Hobby na Fase 12). Expira cobranças vencidas, reconcilia pendentes
+    (consultando o provider quando o adapter real permitir — "webhook
+    perdido", §57) e detecta cobrança PAID sem pagamento.
+16. **QR Code**: gerado no SERVIDOR (`qrcode` → SVG inline) a partir do
+    payload do provider; nada de imagem externa ou base64 persistido (§11). O
+    "Pix copia e cola" fica ao lado como alternativa acessível, com botão
+    copiar — é o que quem não consegue ler o QR usa (§131). O payload nunca
+    vai para log, auditoria ou e-mail; nas telas operacionais aparece
+    mascarado.
+17. **Expiração derivada na UI** (§12): `presentChargeStatus` considera
+    `expires_at` mesmo antes do job rodar — uma cobrança vencida nunca
+    aparece como pagável, e o CTA vira "Gerar nova cobrança".
+18. **Nada de "pagamento aprovado" pelo frontend** (§29–§30): a tela de
+    checkout mostra "Estamos confirmando seu pagamento" e só troca para
+    "Recebemos seu pagamento" quando o servidor já registrou a confirmação;
+    o polling apenas recarrega os dados do servidor (`router.refresh`), com
+    `aria-live`.
+19. **Notificação**: `record_online_payment` enfileira `PAYMENT_CONFIRMED` no
+    outbox da Fase 12 na MESMA transação (in-app + e-mail por default,
+    template próprio, sem recibo fiscal). Falha de envio nunca desfaz a
+    baixa. `PAYMENT_FAILED` não foi implementado para evitar spam de falhas
+    transitórias (§72) — fica como pendência.
+20. **Ajustes de QA visual**: os botões de cobrança na tabela de parcelas
+    colapsam para ícone abaixo de `xl` e a célula de ações usa
+    `flex-nowrap` — com dois botões de texto as linhas ficavam com alturas
+    diferentes em 768/1024. O `not-found` do portal é o padrão do Next (a
+    página de checkout de outro paciente devolve 404 sem vazar nada).

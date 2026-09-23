@@ -185,7 +185,8 @@ WhatsApp, pagamento), templates de notificação — a detalhar na Fase 14.
 
 ## 7. Portal do paciente (`/paciente`)
 
-Menu: Início, Meu Cardápio, Minha Evolução, Consultas, Refeições (Fase 11 —
+Menu: Início, Meu Cardápio, Minha Evolução, Consultas, Pagamentos (Fase 13 —
+parcelas, saldo e checkout online), Refeições (Fase 11 —
 foto da refeição + análise por IA; entrada de menu adicionada porque o
 recurso é mobile-first e precisa ser alcançável com uma mão, além do atalho
 do Início), Suplementos, Feedbacks, Materiais, Notificações (Fase 12 — lista
@@ -228,7 +229,11 @@ avulsa ao longo do tempo).
 
 `PaymentProvider` abstrato; pagamento confirmado apenas via webhook
 server-side, nunca por resposta do frontend. Idempotência, assinatura de
-webhook, retry e logging seguro são requisitos (Fase 13).
+webhook, retry e logging seguro são requisitos (Fase 13 — implementados:
+`PaymentProvider` com fake determinístico, cobrança com valor derivado do
+saldo da parcela, Pix com QR + copia e cola, webhook assinado e idempotente,
+reconciliação de divergências e job de expiração. Gateway real, cartão de
+débito e parcelamento no cartão continuam PENDENTE DE DEFINIÇÃO).
 
 ## 11. Notificações
 

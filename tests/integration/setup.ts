@@ -13,3 +13,9 @@ process.env.WHATSAPP_PROVIDER = "fake";
 delete process.env.RESEND_API_KEY;
 delete process.env.EMAIL_FROM;
 process.env.NOTIFICATIONS_TOKEN_SECRET = "integration-test-pepper-not-secret";
+// Fase 13: gateway fake (nenhuma rede, nenhum dado de cartão) e segredo de
+// webhook claramente de teste.
+process.env.PAYMENT_PROVIDER = "fake";
+process.env.PAYMENT_PROVIDER_ENVIRONMENT = "simulated";
+process.env.PAYMENT_PROVIDER_WEBHOOK_SECRET = "integration-test-payment-webhook-secret";
+delete process.env.PAYMENT_PROVIDER_SECRET_KEY;

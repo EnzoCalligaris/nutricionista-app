@@ -48,8 +48,18 @@ const serverOnlySchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
+  // Fase 13: gateway de pagamento. Default `fake` (determinístico, sem rede,
+  // sem dado de cartão) enquanto o fornecedor real for PENDENTE DE DEFINIÇÃO.
+  // Um identificador sem adapter, ou um adapter real sem credencial, é erro
+  // de configuração — nunca cai no fake em silêncio.
+  PAYMENT_PROVIDER: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9_-]{1,40}$/, "PAYMENT_PROVIDER: identificador inválido")
+    .default("fake"),
+  PAYMENT_PROVIDER_ENVIRONMENT: z.enum(["simulated", "sandbox", "production"]).default("simulated"),
   PAYMENT_PROVIDER_SECRET_KEY: z.string().min(1).optional(),
-  PAYMENT_PROVIDER_WEBHOOK_SECRET: z.string().min(1).optional(),
+  PAYMENT_PROVIDER_WEBHOOK_SECRET: z.string().min(16).optional(),
   FOOD_ANALYSIS_PROVIDER_API_KEY: z.string().min(1).optional(),
   // Fase 11: fornecedor de análise de foto. Default `fake` (determinístico,
   // sem rede) enquanto vendor/modelo reais forem PENDENTE DE DEFINIÇÃO.

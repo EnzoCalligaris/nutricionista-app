@@ -27,6 +27,11 @@ export type EventPayload = Partial<AppointmentPayload> & {
   material_id?: string;
   material_title?: string;
   supplement_id?: string;
+  /** Fase 13: pagamento online confirmado (sem recibo fiscal). */
+  payment_id?: string;
+  charge_id?: string;
+  amount_cents?: number;
+  method?: string;
 };
 
 export type TemplateVariables = {
@@ -39,6 +44,9 @@ export type TemplateVariables = {
   modality?: string;
   previousDateTime?: string;
   materialTitle?: string;
+  /** Fase 13: valor do pagamento confirmado, já formatado ("R$ 200,00"). */
+  paymentAmount?: string;
+  paymentMethod?: string;
   /** Endereço só quando `site_settings` tem um cadastrado — nunca inventado (§37). */
   address?: string;
 };
@@ -109,6 +117,10 @@ export function buildTemplateVariables(input: {
     if (!Number.isNaN(prev.getTime())) vars.previousDateTime = formatDateTimePtBR(prev, tz);
   }
   if (input.payload.material_title) vars.materialTitle = input.payload.material_title.slice(0, 120);
+  if (typeof input.payload.amount_cents === "number" && Number.isFinite(input.payload.amount_cents)) {
+    vars.paymentAmount = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(input.payload.amount_cents / 100);
+  }
+  if (input.payload.method) vars.paymentMethod = input.payload.method === "PIX" ? "Pix" : input.payload.method === "CARD" ? "Cartão" : input.payload.method;
   return vars;
 }
 
@@ -137,6 +149,8 @@ export function inAppContent(eventType: NotificationEventType, vars: TemplateVar
       return { title: "Novo material", body: vars.materialTitle ? `O material "${vars.materialTitle}" está disponível no portal.` : "Um novo material está disponível no portal.", link };
     case "SUPPLEMENT_RECOMMENDATION_CREATED":
       return { title: "Nova recomendação", body: "Uma nova recomendação de suplemento está disponível no portal.", link };
+    case "PAYMENT_CONFIRMED":
+      return { title: "Pagamento confirmado", body: `Recebemos seu pagamento${vars.paymentAmount ? ` de ${vars.paymentAmount}` : ""}${vars.paymentMethod ? ` (${vars.paymentMethod.toLowerCase()})` : ""}.`, link };
   }
 }
 
@@ -162,6 +176,8 @@ export function emailSubject(eventType: NotificationEventType, vars: TemplateVar
       return "Novo material disponível no portal";
     case "SUPPLEMENT_RECOMMENDATION_CREATED":
       return "Nova recomendação disponível no portal";
+    case "PAYMENT_CONFIRMED":
+      return vars.paymentAmount ? `Pagamento confirmado — ${vars.paymentAmount}` : "Pagamento confirmado";
   }
 }
 
@@ -186,5 +202,7 @@ export function whatsappVariables(eventType: NotificationEventType, vars: Templa
     case "FEEDBACK_PUBLISHED":
     case "SUPPLEMENT_RECOMMENDATION_CREATED":
       return [vars.patientFirstName];
+    case "PAYMENT_CONFIRMED":
+      return [vars.patientFirstName, vars.paymentAmount ?? ""];
   }
 }

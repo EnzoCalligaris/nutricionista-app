@@ -20,6 +20,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   "FEEDBACK_PUBLISHED",
   "MATERIAL_ASSIGNED",
   "SUPPLEMENT_RECOMMENDATION_CREATED",
+  "PAYMENT_CONFIRMED",
 ] as const;
 
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
@@ -43,6 +44,7 @@ export const EVENT_LABEL: Record<NotificationEventType, string> = {
   FEEDBACK_PUBLISHED: "Feedback disponibilizado",
   MATERIAL_ASSIGNED: "Material disponibilizado",
   SUPPLEMENT_RECOMMENDATION_CREATED: "Recomendação de suplemento",
+  PAYMENT_CONFIRMED: "Pagamento confirmado",
 };
 
 export const CHANNEL_LABEL: Record<NotificationChannel, string> = {
@@ -66,6 +68,7 @@ export const TEMPLATE_KEY: Record<NotificationEventType, string> = {
   FEEDBACK_PUBLISHED: "feedback_published",
   MATERIAL_ASSIGNED: "material_assigned",
   SUPPLEMENT_RECOMMENDATION_CREATED: "supplement_recommendation_created",
+  PAYMENT_CONFIRMED: "payment_confirmed",
 };
 
 /**
@@ -85,6 +88,7 @@ export const DEFAULT_CHANNELS: Record<NotificationEventType, readonly Notificati
   FEEDBACK_PUBLISHED: ["IN_APP", "EMAIL"],
   MATERIAL_ASSIGNED: ["IN_APP", "EMAIL"],
   SUPPLEMENT_RECOMMENDATION_CREATED: ["IN_APP", "EMAIL"],
+  PAYMENT_CONFIRMED: ["IN_APP", "EMAIL"],
 };
 
 /** Caminho RELATIVO do portal para o CTA de cada evento (nunca URL absoluta, nunca token). */
@@ -98,6 +102,7 @@ export const PORTAL_PATH: Record<NotificationEventType, string> = {
   FEEDBACK_PUBLISHED: "/paciente/feedbacks",
   MATERIAL_ASSIGNED: "/paciente/materiais",
   SUPPLEMENT_RECOMMENDATION_CREATED: "/paciente/suplementos",
+  PAYMENT_CONFIRMED: "/paciente/pagamentos",
 };
 
 export type NutritionistChannelPreference = { event_type: string; channel: NotificationChannel; enabled: boolean };

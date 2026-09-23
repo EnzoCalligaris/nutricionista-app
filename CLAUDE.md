@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASES 0 a 12 concluídas.** Next.js rodando (`src/app`), design system,
+**FASES 0 a 13 concluídas.** Next.js rodando (`src/app`), design system,
 banco Postgres/Supabase local completo (RLS em 100% das tabelas,
 anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
 autorização reais (Fase 3), site público definitivo (Fase 4), o módulo de
@@ -57,9 +57,21 @@ e por link tokenizado `/confirmar/[token]`; job `/api/cron/notifications`
 com `CRON_SECRET`; portal `/paciente/notificacoes` + sino; dashboard
 `/dashboard/notificacoes` e `/dashboard/configuracoes/notificacoes`;
 provider real sem credencial = erro de configuração, nunca fallback
-silencioso; segredos só server-side). Gateway de pagamento, checkout e
-cobrança automática ainda não existem — começam na Fase 13
-(`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
+silencioso; segredos só server-side) e os **Pagamentos online**
+(Fase 13: `payment_charges` (cobrança ≠ pagamento — cobrança pendente NÃO é
+receita) → webhook assinado → `record_online_payment` confirma
+`payments` + parcela + lançamento + evento numa transação; a baixa é uma
+única função (`apply_payment_effects`), usada também pelo pagamento manual
+da Fase 7; valor SEMPRE derivado do saldo da parcela no servidor; uma
+cobrança ativa por parcela; divergências viram
+`payment_reconciliation_items` (nunca corrigidas em silêncio);
+`PaymentProvider` com `FakePaymentProvider` (Pix/cartão SIMULADOS, sem rede
+e sem jamais pedir número de cartão/CVV) — gateway real `PENDENTE DE
+DEFINIÇÃO` e identificador sem adapter é erro de configuração; portal
+`/paciente/pagamentos` + checkout, dashboard com cobranças, reconciliação e
+`/dashboard/configuracoes/pagamentos`; job `/api/cron/payments`). CMS do
+blog, resultados antes/depois e configurações do profissional ainda não
+existem — começam na Fase 14 (`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
 duração, antecedências, plataforma online), categorias financeiras reais e
 a política de cobrança da consulta avulsa (`APPOINTMENT_CHARGE_POLICY`) são
 configuráveis e continuam `PENDENTE DE DEFINIÇÃO` — nunca hardcodar um
@@ -77,8 +89,10 @@ Integração contra o Supabase local: `npm run test:auth:integration`,
 `npm run test:assessments:integration`,
 `npm run test:patient-content:integration`,
 `npm run test:food-analysis:integration`,
-`npm run test:notifications:integration` (vitest em Node — roda o worker
-real com providers fake). Preview local dos e-mails: `npm run emails:preview`.
+`npm run test:notifications:integration` e
+`npm run test:payments-online:integration` (vitest em Node — rodam worker e
+gateway reais com providers fake). Preview local dos e-mails:
+`npm run emails:preview`.
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -107,8 +121,11 @@ pare e aguarde confirmação antes de iniciar a próxima.
 5. **Fuso horário America/Sao_Paulo** sempre — nunca depender do timezone da máquina.
 6. **Double booking é proibido** — a prevenção de conflito de agenda deve existir no
    banco (constraint/transação), não só no frontend.
-7. **Pagamento só é confirmado por webhook server-side**, nunca pela resposta do
-   frontend.
+7. **Pagamento só é confirmado por webhook server-side** (assinatura conferida
+   sobre o corpo bruto) ou por consulta server-side ao provider, nunca pela
+   resposta do frontend. O valor cobrado é sempre derivado do banco, nunca do
+   cliente; divergência de valor/moeda não quita nada — vira reconciliação.
+   A aplicação nunca recebe, guarda ou loga número de cartão, CVV ou senha.
 8. **Análise de foto de refeição pela IA é sempre estimativa** ("aproximadamente",
    faixa de calorias) — nunca apresentar como valor exato. A IA nunca prescreve
    (não altera dieta, meta, suplementação ou tratamento).
@@ -150,7 +167,7 @@ aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
   commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
   E2E/build.
 - Referência de script: `scripts/screenshots-fase-5.mjs` a
-  `scripts/screenshots-fase-12.mjs` (`npm run screenshots:fase-N`, com
+  `scripts/screenshots-fase-13.mjs` (`npm run screenshots:fase-N`, com
   `--extra` para as larguras adicionais). Em Playwright, `getByText` é
   substring case-insensitive e `count()` não espera: prefira
   `exact: true`/`waitFor` (Fase 9, `docs/DECISIONS.md`). Tabelas do

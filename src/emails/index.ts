@@ -8,6 +8,7 @@ import AppointmentReminderEmail from "@/emails/appointment-reminder";
 import AppointmentRescheduledEmail from "@/emails/appointment-rescheduled";
 import FeedbackPublishedEmail from "@/emails/feedback-published";
 import MaterialAssignedEmail from "@/emails/material-assigned";
+import PaymentConfirmedEmail from "@/emails/payment-confirmed";
 import SupplementRecommendationCreatedEmail from "@/emails/supplement-recommendation-created";
 import type { AppointmentEmailProps } from "@/emails/types";
 
@@ -22,4 +23,5 @@ export const EMAIL_TEMPLATES: Record<NotificationEventType, ComponentType<Appoin
   FEEDBACK_PUBLISHED: FeedbackPublishedEmail,
   MATERIAL_ASSIGNED: MaterialAssignedEmail,
   SUPPLEMENT_RECOMMENDATION_CREATED: SupplementRecommendationCreatedEmail,
+  PAYMENT_CONFIRMED: PaymentConfirmedEmail,
 };

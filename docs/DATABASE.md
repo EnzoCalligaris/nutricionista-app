@@ -393,3 +393,36 @@ Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test
 - RLS de leitura de eventos/entregas: `nutritionist_id = auth.uid()` (as
   policies da Fase 2 "qualquer nutricionista" foram removidas).
 - pgTAP `140_notifications.test.sql` (88 testes).
+
+## Pagamentos online (Fase 13)
+
+- **`payment_charges`**: cobrança (intenção) com `patient_id`,
+  `nutritionist_id`, `contract_id`, `installment_id`/`appointment_id`,
+  `provider`, `provider_charge_id`, `provider_environment`, `method`
+  (PIX/CARD), `amount_cents > 0`, `currency = 'BRL'` (check), `status`
+  (`payment_charge_status`), `idempotency_key` (unique), `checkout_url`
+  (só https), `pix_payload`, `expires_at`, `paid_at`, `cancelled_at`,
+  `payment_id`, `last_error_code`. Checks: PAID exige `paid_at` +
+  `payment_id`; CANCELLED exige `cancelled_at`. Índices únicos parciais
+  garantem **uma cobrança ativa por parcela** e por consulta.
+- **`payment_webhook_events`**: `(provider, provider_event_id)` unique —
+  idempotência do webhook; `summary` guarda só o mínimo sanitizado (tipo,
+  status, ids, valor, moeda), nunca payload completo nem dado de cartão.
+- **`payment_reconciliation_items`**: divergência com `kind`
+  (AMOUNT_MISMATCH, CURRENCY_MISMATCH, INSTALLMENT_ALREADY_SETTLED,
+  UNKNOWN_PROVIDER_STATUS, REFUND_REPORTED, STALE_PENDING_CHARGE,
+  PAID_WITHOUT_PAYMENT), `status` OPEN/RESOLVED/IGNORED, `detail` mínimo,
+  nota e autor da resolução. Unique parcial impede item ABERTO duplicado.
+- **Funções**: `apply_payment_effects` (baixa única — `payments` + parcela +
+  lançamento; usada por `record_manual_payment`, que foi reescrita para
+  delegar), `create_installment_charge` (deriva o valor do saldo, autoriza,
+  reaproveita), `cancel_payment_charge`, `record_online_payment`
+  (confirmação atômica + evento `PAYMENT_CONFIRMED`), `expire_payment_charges`.
+  As duas últimas só para `service_role`.
+- **View `installment_active_charge`**: cobrança aberta por parcela
+  (`security_invoker`, mantém a RLS).
+- **RLS**: cobrança — SELECT do paciente dono e do nutricionista, sem policy
+  de escrita; eventos de webhook — sem policy (service role); reconciliação —
+  do nutricionista (select/update); `payments` ganhou SELECT para o próprio
+  paciente (portal financeiro).
+- pgTAP `150_payments_online.test.sql` (72 testes).

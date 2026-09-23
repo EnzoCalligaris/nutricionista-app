@@ -20,10 +20,11 @@ describe("dashboardNavItems", () => {
 });
 
 describe("patientNavItems", () => {
-  it("tem os 8 itens definidos em docs/PROJECT_SPEC.md §7 + Refeições (Fase 11) + Notificações (Fase 12)", () => {
-    expect(patientNavItems).toHaveLength(10);
+  it("tem os 8 itens definidos em docs/PROJECT_SPEC.md §7 + Refeições (Fase 11) + Notificações (Fase 12) + Pagamentos (Fase 13)", () => {
+    expect(patientNavItems).toHaveLength(11);
     expect(patientNavItems.map((item) => item.title)).toContain("Refeições");
     expect(patientNavItems.map((item) => item.title)).toContain("Notificações");
+    expect(patientNavItems.map((item) => item.title)).toContain("Pagamentos");
   });
 
   it("não tem hrefs duplicados e todos começam com /paciente", () => {

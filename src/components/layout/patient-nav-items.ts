@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   CalendarDays,
+  CircleDollarSign,
   Camera,
   FolderOpen,
   Home,
@@ -29,6 +30,7 @@ export const patientNavItems: PatientNavItem[] = [
   { title: "Suplementos", href: "/paciente/suplementos", icon: Pill, phase: "Fase 10" },
   { title: "Feedbacks", href: "/paciente/feedbacks", icon: MessageSquare, phase: "Fase 10" },
   { title: "Materiais", href: "/paciente/materiais", icon: FolderOpen, phase: "Fase 10" },
+  { title: "Pagamentos", href: "/paciente/pagamentos", icon: CircleDollarSign, phase: "Fase 13" },
   { title: "Notificações", href: "/paciente/notificacoes", icon: Bell, phase: "Fase 12" },
   { title: "Meu Perfil", href: "/paciente/perfil", icon: User, phase: "Fase 5" },
 ];

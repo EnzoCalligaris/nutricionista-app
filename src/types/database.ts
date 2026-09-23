@@ -2288,6 +2288,331 @@ export type Database = {
           },
         ]
       }
+      payment_charges: {
+        Row: {
+          amount_cents: number
+          appointment_id: string | null
+          cancelled_at: string | null
+          checkout_url: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string
+          installment_id: string | null
+          last_error_code: string | null
+          method: Database["public"]["Enums"]["payment_method"]
+          nutritionist_id: string
+          paid_at: string | null
+          patient_id: string
+          payment_id: string | null
+          pix_payload: string | null
+          provider: string
+          provider_charge_id: string | null
+          provider_environment: string
+          status: Database["public"]["Enums"]["payment_charge_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          appointment_id?: string | null
+          cancelled_at?: string | null
+          checkout_url?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          idempotency_key: string
+          installment_id?: string | null
+          last_error_code?: string | null
+          method: Database["public"]["Enums"]["payment_method"]
+          nutritionist_id: string
+          paid_at?: string | null
+          patient_id: string
+          payment_id?: string | null
+          pix_payload?: string | null
+          provider: string
+          provider_charge_id?: string | null
+          provider_environment?: string
+          status?: Database["public"]["Enums"]["payment_charge_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          appointment_id?: string | null
+          cancelled_at?: string | null
+          checkout_url?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          idempotency_key?: string
+          installment_id?: string | null
+          last_error_code?: string | null
+          method?: Database["public"]["Enums"]["payment_method"]
+          nutritionist_id?: string
+          paid_at?: string | null
+          patient_id?: string
+          payment_id?: string | null
+          pix_payload?: string | null
+          provider?: string
+          provider_charge_id?: string | null
+          provider_environment?: string
+          status?: Database["public"]["Enums"]["payment_charge_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_charges_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contract_financial_summary"
+            referencedColumns: ["contract_id"]
+          },
+          {
+            foreignKeyName: "payment_charges_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["current_contract_id"]
+          },
+          {
+            foreignKeyName: "payment_charges_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "contract_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payment_summary"
+            referencedColumns: ["installment_id"]
+          },
+          {
+            foreignKeyName: "payment_charges_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "payment_charges_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "payment_charges_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_reconciliation_items: {
+        Row: {
+          charge_id: string | null
+          created_at: string
+          detail: Json
+          id: string
+          kind: string
+          nutritionist_id: string
+          patient_id: string | null
+          payment_id: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["payment_reconciliation_status"]
+        }
+        Insert: {
+          charge_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind: string
+          nutritionist_id: string
+          patient_id?: string | null
+          payment_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["payment_reconciliation_status"]
+        }
+        Update: {
+          charge_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind?: string
+          nutritionist_id?: string
+          patient_id?: string | null
+          payment_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["payment_reconciliation_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reconciliation_items_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "installment_active_charge"
+            referencedColumns: ["charge_id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "payment_charges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_items_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_webhook_events: {
+        Row: {
+          charge_id: string | null
+          error_code: string | null
+          event_type: string
+          id: string
+          processed_at: string | null
+          provider: string
+          provider_charge_id: string | null
+          provider_event_id: string
+          received_at: string
+          status: Database["public"]["Enums"]["payment_webhook_status"]
+          summary: Json
+        }
+        Insert: {
+          charge_id?: string | null
+          error_code?: string | null
+          event_type: string
+          id?: string
+          processed_at?: string | null
+          provider: string
+          provider_charge_id?: string | null
+          provider_event_id: string
+          received_at?: string
+          status?: Database["public"]["Enums"]["payment_webhook_status"]
+          summary?: Json
+        }
+        Update: {
+          charge_id?: string | null
+          error_code?: string | null
+          event_type?: string
+          id?: string
+          processed_at?: string | null
+          provider?: string
+          provider_charge_id?: string | null
+          provider_event_id?: string
+          received_at?: string
+          status?: Database["public"]["Enums"]["payment_webhook_status"]
+          summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_webhook_events_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "installment_active_charge"
+            referencedColumns: ["charge_id"]
+          },
+          {
+            foreignKeyName: "payment_webhook_events_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "payment_charges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount_cents: number
@@ -2806,6 +3131,33 @@ export type Database = {
           },
         ]
       }
+      installment_active_charge: {
+        Row: {
+          amount_cents: number | null
+          charge_id: string | null
+          created_at: string | null
+          expires_at: string | null
+          installment_id: string | null
+          method: Database["public"]["Enums"]["payment_method"] | null
+          status: Database["public"]["Enums"]["payment_charge_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_charges_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "contract_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_charges_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "installment_payment_summary"
+            referencedColumns: ["installment_id"]
+          },
+        ]
+      }
       installment_payment_summary: {
         Row: {
           amount_cents: number | null
@@ -2923,6 +3275,26 @@ export type Database = {
       }
     }
     Functions: {
+      apply_payment_effects: {
+        Args: {
+          p_amount_cents: number
+          p_appointment_id?: string
+          p_category_id?: string
+          p_contract_id?: string
+          p_external_id: string
+          p_idempotency_key: string
+          p_installment_id?: string
+          p_method: Database["public"]["Enums"]["payment_method"]
+          p_notes?: string
+          p_nutritionist_id: string
+          p_paid_at: string
+          p_patient_id: string
+          p_provider: string
+          p_recorded_by: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
       appointment_reminder_due_at: {
         Args: { p_starts_at: string; p_timezone?: string }
         Returns: string
@@ -2957,6 +3329,41 @@ export type Database = {
       cancel_payment: {
         Args: { p_payment_id: string; p_reason?: string }
         Returns: undefined
+      }
+      cancel_payment_charge: {
+        Args: { p_charge_id: string; p_reason?: string }
+        Returns: {
+          amount_cents: number
+          appointment_id: string | null
+          cancelled_at: string | null
+          checkout_url: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string
+          installment_id: string | null
+          last_error_code: string | null
+          method: Database["public"]["Enums"]["payment_method"]
+          nutritionist_id: string
+          paid_at: string | null
+          patient_id: string
+          payment_id: string | null
+          pix_payload: string | null
+          provider: string
+          provider_charge_id: string | null
+          provider_environment: string
+          status: Database["public"]["Enums"]["payment_charge_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_charges"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       cancel_pending_notification_events: {
         Args: {
@@ -3060,6 +3467,47 @@ export type Database = {
         }
         Returns: string
       }
+      create_installment_charge: {
+        Args: {
+          p_idempotency_key: string
+          p_installment_id: string
+          p_method: Database["public"]["Enums"]["payment_method"]
+          p_provider: string
+          p_provider_environment?: string
+        }
+        Returns: {
+          amount_cents: number
+          appointment_id: string | null
+          cancelled_at: string | null
+          checkout_url: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string
+          installment_id: string | null
+          last_error_code: string | null
+          method: Database["public"]["Enums"]["payment_method"]
+          nutritionist_id: string
+          paid_at: string | null
+          patient_id: string
+          payment_id: string | null
+          pix_payload: string | null
+          provider: string
+          provider_charge_id: string | null
+          provider_environment: string
+          status: Database["public"]["Enums"]["payment_charge_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_charges"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_meal_plan: {
         Args: {
           p_notes?: string
@@ -3107,6 +3555,7 @@ export type Database = {
         }
         Returns: string
       }
+      expire_payment_charges: { Args: never; Returns: number }
       financial_period_summary: {
         Args: { p_from: string; p_timezone?: string; p_to: string }
         Returns: {
@@ -3175,6 +3624,17 @@ export type Database = {
         }
         Returns: string
       }
+      record_online_payment: {
+        Args: {
+          p_amount_cents: number
+          p_charge_id: string
+          p_currency: string
+          p_paid_at: string
+          p_provider_payment_id: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
       reschedule_appointment: {
         Args: {
           p_allow_outside_availability?: boolean
@@ -3232,8 +3692,17 @@ export type Database = {
         | "CANCELLED"
         | "SKIPPED"
       patient_status: "ACTIVE" | "INACTIVE"
+      payment_charge_status:
+        | "CREATED"
+        | "PENDING"
+        | "PAID"
+        | "EXPIRED"
+        | "CANCELLED"
+        | "FAILED"
       payment_method: "PIX" | "CARD" | "CASH" | "BANK_TRANSFER" | "OTHER"
+      payment_reconciliation_status: "OPEN" | "RESOLVED" | "IGNORED"
       payment_status: "PENDING" | "CONFIRMED" | "FAILED" | "REFUNDED"
+      payment_webhook_status: "RECEIVED" | "PROCESSED" | "IGNORED" | "FAILED"
       plan_price_payment_type: "AVISTA" | "PARCELADO" | "REFERENCIA"
       profile_role: "NUTRITIONIST" | "PATIENT" | "ADMIN"
     }
@@ -3399,8 +3868,18 @@ export const Constants = {
         "SKIPPED",
       ],
       patient_status: ["ACTIVE", "INACTIVE"],
+      payment_charge_status: [
+        "CREATED",
+        "PENDING",
+        "PAID",
+        "EXPIRED",
+        "CANCELLED",
+        "FAILED",
+      ],
       payment_method: ["PIX", "CARD", "CASH", "BANK_TRANSFER", "OTHER"],
+      payment_reconciliation_status: ["OPEN", "RESOLVED", "IGNORED"],
       payment_status: ["PENDING", "CONFIRMED", "FAILED", "REFUNDED"],
+      payment_webhook_status: ["RECEIVED", "PROCESSED", "IGNORED", "FAILED"],
       plan_price_payment_type: ["AVISTA", "PARCELADO", "REFERENCIA"],
       profile_role: ["NUTRITIONIST", "PATIENT", "ADMIN"],
     },

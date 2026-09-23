@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ContractActions } from "@/components/contracts/contract-actions";
 import { ContractStatusBadge } from "@/components/patients/status-badges";
 import { InstallmentBalanceBadge } from "@/components/finance/badges";
+import { InstallmentChargeActions } from "@/components/payments/installment-charge-actions";
+import type { ChargeStatus } from "@/domain/payments/charges";
 import { computeInstallmentBalance } from "@/domain/finance/installments";
 import { formatBRL } from "@/lib/money";
 import { formatCalendarDate, formatInstantDate } from "@/lib/dates";
@@ -27,7 +29,20 @@ function Amount({ label, cents, tone }: { label: string; cents: number; tone?: "
  * parcelas com recebido/restante e ação "Registrar pagamento" (Fase 7
  * §30/§38). Contratos antigos nunca são sobrescritos — cada um é um card.
  */
-export function ContractCard({ contract, today, returnTo }: { contract: PatientContract; today: string; returnTo?: string }) {
+export function ContractCard({
+  contract,
+  today,
+  returnTo,
+  /** Fase 13: cobrança online aberta por parcela (só no financeiro do paciente). */
+  activeCharges,
+  onlinePaymentEnabled = false,
+}: {
+  contract: PatientContract;
+  today: string;
+  returnTo?: string;
+  activeCharges?: Map<string, { chargeId: string; status: ChargeStatus }>;
+  onlinePaymentEnabled?: boolean;
+}) {
   const { financials } = contract;
   const isHiddenPlan = contract.plan.code === "ANUAL";
   const canPay = contract.status !== "CANCELLED";
@@ -119,12 +134,17 @@ export function ContractCard({ contract, today, returnTo }: { contract: PatientC
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       {canPay && balance.payable ? (
-                        <Button asChild size="xs" variant="outline">
-                          <Link href={payHref(installment.id)} aria-label={`Registrar pagamento da parcela ${installment.number}`}>
-                            <Banknote data-icon="inline-start" className="md:hidden" />
-                            <span className="hidden md:inline">Registrar pagamento</span>
-                          </Link>
-                        </Button>
+                        <span className="inline-flex flex-nowrap items-center justify-end gap-1.5">
+                          {onlinePaymentEnabled ? (
+                            <InstallmentChargeActions installmentId={installment.id} activeCharge={activeCharges?.get(installment.id) ?? null} />
+                          ) : null}
+                          <Button asChild size="xs" variant="outline">
+                            <Link href={payHref(installment.id)} aria-label={`Registrar pagamento da parcela ${installment.number}`}>
+                              <Banknote data-icon="inline-start" className="md:hidden" />
+                              <span className="hidden md:inline">Registrar pagamento</span>
+                            </Link>
+                          </Button>
+                        </span>
                       ) : null}
                     </TableCell>
                   </TableRow>

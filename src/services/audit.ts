@@ -74,7 +74,11 @@ export type AuditAction =
   | "MEAL_ANALYSIS_ARCHIVED"
   | "NOTIFICATION_RETRY_REQUESTED"
   | "NOTIFICATION_SETTINGS_UPDATED"
-  | "APPOINTMENT_CONFIRMATION_REQUESTED";
+  | "APPOINTMENT_CONFIRMATION_REQUESTED"
+  | "PAYMENT_CHARGE_CREATED"
+  | "PAYMENT_CHARGE_CANCELLED"
+  | "PAYMENT_RECONCILIATION_REQUESTED"
+  | "PAYMENT_REVIEW_RESOLVED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -112,7 +116,9 @@ export async function recordAudit(input: {
     | "food_photo_analysis"
     | "patient_consent"
     | "notification_delivery"
-    | "notification_preferences";
+    | "notification_preferences"
+    | "payment_charge"
+    | "payment_reconciliation";
   entityId: string;
   metadata?: Record<string, Json>;
 }): Promise<void> {

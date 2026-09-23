@@ -12,6 +12,8 @@ import { PatientOverviewSection } from "@/components/patients/patient-overview-s
 import { PatientContractsSection } from "@/components/patients/patient-contracts-section";
 import { PatientPlaceholderSection } from "@/components/patients/patient-placeholder-section";
 import { PatientFinanceSection } from "@/components/patients/patient-finance-section";
+import { getActiveChargesForInstallments } from "@/data/payment-charges";
+import { getPaymentProviderStatus } from "@/services/payments/index";
 import { PatientMealPlanSection } from "@/components/meal-plans/patient-meal-plan-section";
 import { PatientAssessmentsSection } from "@/components/assessments/patient-assessments-section";
 import { PatientSupplementsSection } from "@/components/supplements/patient-supplements-section";
@@ -189,6 +191,8 @@ export default async function PacientePage({ params, searchParams }: PageProps<"
           payments={await listPatientPayments(nutritionist.id, patient.id)}
           transactions={await listPatientTransactions(nutritionist.id, patient.id, today)}
           today={today}
+          activeCharges={await getActiveChargesForInstallments(contracts.flatMap((contract) => contract.installments.map((installment) => installment.id)))}
+          onlinePaymentEnabled={getPaymentProviderStatus().methods.includes("PIX")}
         />
       ) : (
         <PatientPlaceholderSection section={section} counts={counts} />

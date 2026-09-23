@@ -107,6 +107,17 @@ export type DomainErrorCode =
   | "NOTIFICATION_DELIVERY_NOT_FOUND"
   | "NOTIFICATION_DELIVERY_NOT_RETRYABLE"
   | "NOTIFICATION_RATE_LIMITED"
+  | "PAYMENT_NOT_AUTHORIZED"
+  | "PAYMENT_ALREADY_PAID"
+  | "PAYMENT_CHARGE_EXPIRED"
+  | "PAYMENT_CHARGE_NOT_PAYABLE"
+  | "PAYMENT_METHOD_NOT_AVAILABLE"
+  | "PAYMENT_PROVIDER_UNAVAILABLE"
+  | "PAYMENT_PROVIDER_NOT_CONFIGURED"
+  | "PAYMENT_WEBHOOK_INVALID"
+  | "PAYMENT_AMOUNT_MISMATCH"
+  | "PAYMENT_RECONCILIATION_REQUIRED"
+  | "PAYMENT_RATE_LIMITED"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -209,6 +220,17 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   NOTIFICATION_DELIVERY_NOT_FOUND: "Entrega não encontrada.",
   NOTIFICATION_DELIVERY_NOT_RETRYABLE: "Só entregas com falha podem ser reprocessadas.",
   NOTIFICATION_RATE_LIMITED: "Muitas tentativas em pouco tempo. Aguarde alguns minutos.",
+  PAYMENT_NOT_AUTHORIZED: "Você não tem permissão para acessar esta cobrança.",
+  PAYMENT_ALREADY_PAID: "Esta cobrança já foi paga.",
+  PAYMENT_CHARGE_EXPIRED: "Esta cobrança expirou. Gere uma nova para pagar.",
+  PAYMENT_CHARGE_NOT_PAYABLE: "Esta cobrança não pode mais ser paga.",
+  PAYMENT_METHOD_NOT_AVAILABLE: "Este método de pagamento não está disponível no momento.",
+  PAYMENT_PROVIDER_UNAVAILABLE: "O sistema de pagamento está indisponível no momento. Tente novamente em alguns minutos.",
+  PAYMENT_PROVIDER_NOT_CONFIGURED: "O pagamento online ainda não está configurado.",
+  PAYMENT_WEBHOOK_INVALID: "Notificação de pagamento inválida.",
+  PAYMENT_AMOUNT_MISMATCH: "O valor informado pelo provedor não confere com a cobrança.",
+  PAYMENT_RECONCILIATION_REQUIRED: "Esta cobrança precisa de conferência manual.",
+  PAYMENT_RATE_LIMITED: "Muitas tentativas em pouco tempo. Aguarde alguns minutos.",
   INVALID_MEAL_TIME: "A data e a hora da refeição não podem estar no futuro.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
@@ -216,6 +238,11 @@ const MESSAGES: Record<DomainErrorCode, string> = {
 
 export function domainErrorMessage(code: DomainErrorCode): string {
   return MESSAGES[code];
+}
+
+/** True quando a string é um código de domínio conhecido (ex.: query string de retorno). */
+export function isDomainErrorCode(value: string | null | undefined): value is DomainErrorCode {
+  return typeof value === "string" && value in MESSAGES;
 }
 
 export class DomainError extends Error {

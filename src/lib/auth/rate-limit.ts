@@ -22,6 +22,10 @@ export const mealAnalysisRateLimiter: RateLimiter = new InMemoryRateLimiter(12, 
 // atrapalhar o envio legítimo.
 export const notificationRetryRateLimiter: RateLimiter = new InMemoryRateLimiter(30, 10 * 60 * 1000);
 export const tokenActionRateLimiter: RateLimiter = new InMemoryRateLimiter(20, 10 * 60 * 1000);
+// Fase 13 (§87): criar checkout, gerar nova cobrança e disparar reconciliação
+// manual. O WEBHOOK do provider NÃO passa por aqui — ele é protegido por
+// assinatura + idempotência, e limitá-lo atrapalharia confirmação legítima.
+export const paymentCheckoutRateLimiter: RateLimiter = new InMemoryRateLimiter(20, 10 * 60 * 1000);
 
 /** IP do cliente a partir dos headers de proxy — usado para compor a chave de rate limit. */
 export async function getClientIp(): Promise<string> {
