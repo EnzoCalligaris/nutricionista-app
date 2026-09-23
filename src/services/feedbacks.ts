@@ -6,7 +6,6 @@ import { canArchiveFeedback, canDeleteFeedback, canEditFeedback, canPublishFeedb
 import { getFeedbackById, type FeedbackDetail } from "@/data/feedbacks";
 import { requireOwnedPatient } from "@/services/patients";
 import { recordAudit } from "@/services/audit";
-import { recordNotificationEvent } from "@/services/notifications";
 import type { FeedbackInput } from "@/validators/patient-content";
 
 /**
@@ -48,7 +47,6 @@ export async function createFeedback(nutritionistId: string, patientId: string, 
   });
   if (input.publish) {
     await recordAudit({ actorId: nutritionistId, action: "FEEDBACK_PUBLISHED", entityType: "feedback_message", entityId: data.id, metadata: { patient_id: patientId } });
-    await recordNotificationEvent({ type: "FEEDBACK_PUBLISHED", entityType: "feedback_message", entityId: data.id });
   }
   return { feedbackId: data.id, published: input.publish };
 }
@@ -83,7 +81,6 @@ export async function updateFeedback(nutritionistId: string, feedbackId: string,
   });
   if (publishNow) {
     await recordAudit({ actorId: nutritionistId, action: "FEEDBACK_PUBLISHED", entityType: "feedback_message", entityId: feedbackId, metadata: { patient_id: feedback.patientId } });
-    await recordNotificationEvent({ type: "FEEDBACK_PUBLISHED", entityType: "feedback_message", entityId: feedbackId });
   }
   return { patientId: feedback.patientId, publishedNow: publishNow };
 }
@@ -96,7 +93,6 @@ export async function publishFeedback(nutritionistId: string, feedbackId: string
   const { error } = await supabase.from("feedback_messages").update({ published_at: new Date().toISOString() }).eq("id", feedbackId);
   if (error) throw domainErrorFromDatabase(error);
   await recordAudit({ actorId: nutritionistId, action: "FEEDBACK_PUBLISHED", entityType: "feedback_message", entityId: feedbackId, metadata: { patient_id: feedback.patientId } });
-  await recordNotificationEvent({ type: "FEEDBACK_PUBLISHED", entityType: "feedback_message", entityId: feedbackId });
   return { patientId: feedback.patientId };
 }
 

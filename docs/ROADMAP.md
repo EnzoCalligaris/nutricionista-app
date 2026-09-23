@@ -200,8 +200,58 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   de integração (`test:food-analysis:integration`), 10 E2E, screenshots em
   1440/1024/768/390/375/430. Sem OCR, reconhecimento facial, notificação
   externa, gateway ou fornecedor real.
-- **FASE 12 — Notificações.** E-mail (Resend/React Email), WhatsApp oficial,
-  lembrete de 5 dias, idempotência.
+- **FASE 12 — Notificações.** ✅ Concluída. Outbox transacional no banco:
+  triggers AFTER em `appointments`/`feedback_messages`/`material_assignments`/
+  `supplement_recommendations` enfileiram `notification_events` na MESMA
+  transação da operação (idempotente por `dedupe_key`; lembrete de 5 dias
+  civis em America/Sao_Paulo já nasce com `scheduled_for` via
+  `appointment_reminder_due_at`; criada a < 5 dias não tem lembrete;
+  reagendar cancela CREATED da nova + lembrete da antiga e gera RESCHEDULED
+  + lembrete novo; cancelar/concluir/faltar cancelam o lembrete; editar
+  horário move o lembrete). Worker (`src/services/notifications/service.ts`):
+  eventos devidos → entregas por canal (IN_APP sempre — item em
+  `notifications` com link relativo; EMAIL/WHATSAPP conforme default
+  técnico + preferências do nutricionista por evento/canal + preferências
+  do paciente; SKIPPED `MISSING_EMAIL`/`MISSING_PHONE`/canal desligado),
+  idempotentes por `<event_id>:<canal>:<patient_id>`; claim atômico
+  `claim_notification_deliveries` (`FOR UPDATE SKIP LOCKED`, lote limitado,
+  recuperação de PROCESSING travado), provider com timeout, resposta
+  normalizada, retry com backoff 1/5/30/120 min até 5 tentativas para
+  transitório (timeout/429/5xx), FAILED imediato para permanente
+  (destinatário inválido, config), reprocessamento manual pelo nutricionista
+  (relê o contato atual; audita `NOTIFICATION_RETRY_REQUESTED`).
+  `EmailProvider` (`fake` determinístico + `resend` escrito pela doc
+  oficial: `resend.emails.send` com `Idempotency-Key`; `EMAIL_PROVIDER=resend`
+  sem `RESEND_API_KEY`/`EMAIL_FROM` = erro de configuração, nunca cai no
+  fake) e `WhatsAppProvider` (`fake`; BSP oficial `PENDENTE` — template key +
+  variáveis posicionais, mapa `WHATSAPP_TEMPLATE_MAP`). 9 templates React
+  Email em `src/emails/` (identidade Método EM, pt-BR, "24/09/2026 às
+  14:30", links de `NEXT_PUBLIC_SITE_URL`, sem conteúdo clínico). Confirmação
+  de presença: portal (`confirm_appointment_presence`, SCHEDULED → CONFIRMED
+  só junto com `patient_confirmed_at`) e link tokenizado
+  `/confirmar/[token]` (32 bytes aleatórios, só hash no banco, propósito
+  único, expira até a consulta/7 dias, uso único atômico, GET não consome,
+  rate limit por IP, "Este link expirou. Entre no portal para continuar.").
+  "Pedir confirmação" no detalhe da consulta (evento
+  `APPOINTMENT_CONFIRMATION_REQUEST`, um por dia). Job
+  `/api/cron/notifications` (`Authorization: Bearer CRON_SECRET`,
+  comparação em tempo constante, fail closed em produção, `?task=generate|
+  process`, `vercel.json` a cada 15 min — Hobby só permite 1×/dia,
+  documentado). Portal: `/paciente/notificacoes` (lista, lida/não lida,
+  marcar uma/todas, preferências e-mail/WhatsApp), sino com contador no
+  header, "Confirmar presença" no card da consulta. Dashboard:
+  `/dashboard/notificacoes` (contadores, filtros, destinatário mascarado,
+  tentativas, erro sanitizado, Reenviar, "Processar fila agora", próximos
+  lembretes), `/dashboard/configuracoes/notificacoes` (status dos providers
+  Configurado/Simulado/Não configurado sem valores de chave, matriz evento
+  × canal com auditoria `NOTIFICATION_SETTINGS_UPDATED`). RLS: eventos/
+  entregas só do nutricionista dono; paciente só `notifications` próprias;
+  tokens sem policy (service role). 2 migrations, 38 testes unitários
+  novos, 88 pgTAP, 16 checks de integração (`test:notifications:integration`
+  — worker real em Node com providers fake), 9 E2E, previews de e-mail
+  (`npm run emails:preview`), screenshots em 1440/1024/768/390/375/430.
+  Sem gateway, checkout, PIX, marketing, newsletter, chatbot ou automação
+  de WhatsApp Web.
 - **FASE 13 — Pagamentos.** `PaymentProvider`, checkout, webhook, idempotência,
   retry.
 - **FASE 14 — CMS, resultados e configurações.** Blog completo no dashboard,
@@ -358,6 +408,21 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    HEIC/HEIF, política de retenção/exclusão das fotos, quota comercial de
    análises (hoje só proteção técnica contra rajada), meta diária (não
    modelada — nada é comparado), store externo de rate limit para produção.
-3. **Aguardando aprovação explícita do usuário** — não iniciar e-mail,
-   WhatsApp, lembretes externos, gateway ou checkout sem sinal verde
-   (prompt Fase 11 §117).
+3. Aprovação formal da Fase 11 recebida em 2026-09-20. Fase 12 concluída em
+   2026-09-20.
+
+## Critérios para iniciar a Fase 13
+
+1. Usuário revisou notificações (portal, sino, confirmação por portal e por
+   link, histórico e configurações do dashboard, previews de e-mail,
+   screenshots) e aprovou explicitamente.
+2. Pendências configuráveis/`PENDENTE`: BSP oficial de WhatsApp (adapter
+   real + nomes de template aprovados + webhook de status), domínio/
+   remetente verificados no Resend (`EMAIL_FROM` real), webhook de status
+   do Resend (DELIVERED/bounce), plano da Vercel (Hobby = cron 1×/dia →
+   scheduler externo), store externo de rate limit, defaults de canal por
+   evento confirmados pelo Enzo, endereço do consultório/plataforma online
+   nos e-mails, botões interativos de WhatsApp.
+3. **Aguardando aprovação explícita do usuário** — não iniciar gateway,
+   checkout, PIX/cartão, webhook financeiro ou cobrança automática sem
+   sinal verde (prompt Fase 12 §138).

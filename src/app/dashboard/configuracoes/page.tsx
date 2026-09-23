@@ -1,13 +1,51 @@
-import { Settings } from "lucide-react";
-import { ComingSoon } from "@/components/shared/coming-soon";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Bell, CalendarDays, ChevronRight, Settings } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+export const metadata: Metadata = { title: "Configurações" };
+
+/**
+ * Hub de configurações. Agenda (Fase 6) e Notificações (Fase 12) já existem;
+ * dados do profissional e integrações de pagamento continuam para a Fase 14
+ * (docs/PROJECT_SPEC.md §6).
+ */
 export default function ConfiguracoesPage() {
+  const sections = [
+    { href: "/dashboard/agenda/configuracoes", icon: CalendarDays, title: "Agenda", description: "Duração, antecedências, agendamento online e fuso horário." },
+    { href: "/dashboard/configuracoes/notificacoes", icon: Bell, title: "Notificações", description: "Canais por tipo de aviso, provedores de e-mail/WhatsApp e templates." },
+  ] as const;
+
   return (
-    <ComingSoon
-      icon={Settings}
-      title="Configurações"
-      description="Horários de disponibilidade, dados do profissional e integrações (e-mail, WhatsApp, pagamento)."
-      phase="Fase 14"
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-heading text-2xl font-medium">Configurações</h1>
+        <p className="text-sm text-muted-foreground">Ajustes da agenda e das notificações. Dados do profissional e integrações de pagamento chegam em fases futuras.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {sections.map(({ href, icon: Icon, title, description }) => (
+          <Link key={href} href={href} className="group rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <Card className="h-full transition-colors group-hover:bg-muted/40">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2 font-heading text-lg">
+                    <Icon className="size-5 text-primary" aria-hidden="true" />
+                    {title}
+                  </CardTitle>
+                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                </div>
+                <CardDescription>{description}</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
+        <Card className="border-dashed sm:col-span-2">
+          <CardContent className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
+            <Settings className="size-4" aria-hidden="true" />
+            Dados do profissional e integrações de pagamento — Fase 14.
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

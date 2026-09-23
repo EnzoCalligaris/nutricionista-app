@@ -347,3 +347,49 @@ Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test
 - `audit_logs`: paciente insere `entity_type in ('food_photo_analysis',
   'patient_consent')` com `actor_id = auth.uid()` (sem RETURNING — não há
   SELECT para o paciente).
+
+## Notificações (Fase 12)
+
+- **`notification_events`** (+ `patient_id`, `nutritionist_id`, `payload`
+  jsonb mínimo, `dedupe_key` unique parcial, `scheduled_for`, `processed_at`,
+  `cancelled_at`, `cancel_reason`). Criados pelos triggers na transação da
+  operação: `notify_appointment_changes` (INSERT SCHEDULED/CONFIRMED →
+  `APPOINTMENT_CREATED` + `APPOINTMENT_REMINDER` com `scheduled_for =
+  appointment_reminder_due_at(starts_at, tz)` só se futuro; passo 2 do
+  reagendamento → cancela CREATED da nova, `APPOINTMENT_RESCHEDULED` com
+  `previous_*`; status → CANCELLED/RESCHEDULED/COMPLETED/NO_SHOW cancela o
+  lembrete; CANCELLED → `APPOINTMENT_CANCELLED`; CONFIRMED sem
+  `patient_confirmed_at` → `APPOINTMENT_CONFIRMED`; `starts_at` editado →
+  lembrete movido), `notify_feedback_published` (payload só `feedback_id`),
+  `notify_material_assigned` (`material_title` ≤ 120; reatribuição =
+  `assigned_at` novo), `notify_supplement_created` (só `supplement_id`).
+  `enqueue_notification_event` faz `ON CONFLICT (dedupe_key) DO NOTHING`;
+  `cancel_pending_notification_events` cancela eventos não processados e
+  entregas PENDING/PROCESSING deles (SENT nunca). Ambas SECURITY DEFINER,
+  `search_path = ''`, EXECUTE só do service role.
+- **`notification_deliveries`** (+ `patient_id`, `nutritionist_id`,
+  `event_type`, `template_key`, `provider`, `variables`, `attempt_count`,
+  `last_attempt_at`, `next_attempt_at`, `last_error_code`,
+  `last_http_status`, `processing_started_at`, `delivered_at`,
+  `cancelled_at`, `skipped_reason`). Enum `notification_delivery_status`
+  ganhou `PROCESSING`, `DELIVERED`, `CANCELLED`, `SKIPPED` (migration
+  separada — valor novo de enum não pode ser usado na mesma transação).
+  `idempotency_key = <event_id>:<canal>:<patient_id>`.
+  `claim_notification_deliveries(limit, stale_minutes)`: CTE `FOR UPDATE
+  SKIP LOCKED` sobre PENDING devidas ou PROCESSING travadas → PROCESSING +
+  `attempt_count + 1`, `RETURNING`. `claim_notification_events(limit)`: devidos.
+- **`notifications`** (+ `link` relativo com check, `event_id`; unique
+  (`event_id`, `recipient_id`) — índice não parcial de propósito, para o
+  upsert do PostgREST inferir o `ON CONFLICT`).
+- **`appointments.patient_confirmed_at`** + `validate_appointment_ownership`
+  (PATIENT: SCHEDULED → CONFIRMED só com `patient_confirmed_at` novo).
+  `confirm_appointment_presence(id)` SECURITY INVOKER, `FOR UPDATE`.
+- **`notification_action_tokens`** (`token_hash` unique, `purpose` check,
+  `appointment_id`, `patient_id`, `delivery_id`, `expires_at`, `used_at`):
+  RLS ligada sem policies — só service role.
+- **`notification_preferences`** (pk nutricionista + evento + canal; RLS
+  dono) e **`patient_notification_preferences`** (pk paciente; RLS self +
+  leitura do nutricionista).
+- RLS de leitura de eventos/entregas: `nutritionist_id = auth.uid()` (as
+  policies da Fase 2 "qualquer nutricionista" foram removidas).
+- pgTAP `140_notifications.test.sql` (88 testes).

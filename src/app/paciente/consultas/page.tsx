@@ -39,6 +39,7 @@ export default async function PatientConsultasPage() {
   const [next, ...rest] = upcoming;
   const history = appointments.filter((item) => !upcoming.includes(item));
   const canBook = context.eligible;
+  const confirmable = (item: (typeof appointments)[number]) => item.status === "SCHEDULED" && new Date(item.startsAt).getTime() > now.getTime();
   const modifiable = (item: (typeof appointments)[number]) =>
     canPatientModify({
       status: item.status,
@@ -85,7 +86,7 @@ export default async function PatientConsultasPage() {
       ) : (
         <section aria-label="Próximas consultas" className="space-y-3">
           {next ? (
-            <PatientAppointmentCard appointment={next} timeZone={context.settings.timeZone} highlight canModify={modifiable(next)} canBook={canBook} />
+            <PatientAppointmentCard appointment={next} timeZone={context.settings.timeZone} highlight canModify={modifiable(next)} canConfirm={confirmable(next)} canBook={canBook} />
           ) : null}
           {rest.length > 0 ? (
             <>
@@ -93,7 +94,7 @@ export default async function PatientConsultasPage() {
               <ul className="grid gap-3">
                 {rest.map((item) => (
                   <li key={item.id}>
-                    <PatientAppointmentCard appointment={item} timeZone={context.settings.timeZone} canModify={modifiable(item)} canBook={canBook} />
+                    <PatientAppointmentCard appointment={item} timeZone={context.settings.timeZone} canModify={modifiable(item)} canConfirm={confirmable(item)} canBook={canBook} />
                   </li>
                 ))}
               </ul>

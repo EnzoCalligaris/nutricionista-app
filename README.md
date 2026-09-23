@@ -158,6 +158,9 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:patient-content:integration` | Integração de suplementos/feedbacks/materiais contra Supabase local real (ativo x encerrado x arquivado, rascunho x disponibilizado, paciente só marca como lido, link inseguro recusado, upload/download no bucket privado com acesso cruzado negado, atribuição/revogação/reatribuição, ownership nutri A/B e paciente A/B, auditoria) |
 | `npm run test:food-analysis:integration` | Integração da foto da refeição/IA contra Supabase local real (consentimento versionado, upload no bucket privado com acesso cruzado negado, claim atômico com duas requisições simultâneas, máquina de estados, original imutável, revogação, arquivamento, auditoria) |
 | `npm run screenshots:fase-11` | Screenshots reais do fluxo de refeição (consentimento, foto, preview, analisando, revisão, confirmação, histórico, visão do nutricionista) em `screenshots/fase-11/` |
+| `npm run test:notifications:integration` | Integração das notificações (vitest em Node, worker real com providers FAKE contra o Supabase local): evento → entregas idempotentes, in-app, e-mail e WhatsApp fake, SKIPPED sem contato, retry timeout → 500 → sucesso com `attempt_count`/`next_attempt_at`, erro permanente, limite de tentativas, PROCESSING travado, provider não configurado, dois workers → 1 envio, scheduler 2× → 1 lembrete, cancelar/reagendar, token de uso único, eventos da Fase 10, preferências, ownership |
+| `npm run emails:preview` | Renderiza os 9 templates React Email (HTML/texto + screenshots 390/720) em `screenshots/fase-12/emails/` — nada é enviado |
+| `npm run screenshots:fase-12` | Screenshots reais de notificações (portal, sino, lida/não lida, confirmar presença, link tokenizado, dashboard de entregas com FAILED/reenvio, configurações) em `screenshots/fase-12/` |
 | `npm run screenshots:fase-10` | Screenshots reais de suplementos/feedbacks/materiais (abas do paciente, formulários, biblioteca, detalhe do material, portal e empty states) em `screenshots/fase-10/` |
 | `npm run bootstrap:nutritionist` | Convida e promove o primeiro NUTRITIONIST (uso administrativo — ver `scripts/bootstrap-nutritionist.mjs`) |
 
@@ -216,6 +219,18 @@ acesso a `process.env` passa por [`src/lib/env.ts`](./src/lib/env.ts) — nunca
 leia `process.env.*` diretamente em outro arquivo. `SUPABASE_SERVICE_ROLE_KEY`
 e as demais variáveis server-only nunca podem ser importadas por um Client
 Component.
+
+Fase 12 (notificações): `EMAIL_PROVIDER=fake|resend` (+ `RESEND_API_KEY`,
+`EMAIL_FROM`, `EMAIL_REPLY_TO`), `WHATSAPP_PROVIDER=fake` (BSP oficial
+pendente; `WHATSAPP_TEMPLATE_MAP` opcional), `CRON_SECRET` (job
+`/api/cron/notifications`, enviado como `Authorization: Bearer …`) e
+`NOTIFICATIONS_TOKEN_SECRET` (pimenta dos tokens de confirmação por link;
+obrigatória em produção). Em desenvolvimento use os providers `fake` — nada
+sai para a rede. Para disparar o ciclo localmente: botão "Processar fila
+agora" em `/dashboard/notificacoes`, ou
+`curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/notifications`.
+Na Vercel, `vercel.json` agenda o job a cada 15 min (plano Hobby aceita só
+1×/dia — use um scheduler externo com o mesmo header).
 
 ## Fases do projeto
 

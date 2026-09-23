@@ -112,6 +112,7 @@ export type Database = {
           id: string
           modality: Database["public"]["Enums"]["appointment_modality"]
           nutritionist_id: string
+          patient_confirmed_at: string | null
           patient_id: string
           rescheduled_to_id: string | null
           starts_at: string
@@ -129,6 +130,7 @@ export type Database = {
           id?: string
           modality: Database["public"]["Enums"]["appointment_modality"]
           nutritionist_id: string
+          patient_confirmed_at?: string | null
           patient_id: string
           rescheduled_to_id?: string | null
           starts_at: string
@@ -146,6 +148,7 @@ export type Database = {
           id?: string
           modality?: Database["public"]["Enums"]["appointment_modality"]
           nutritionist_id?: string
+          patient_confirmed_at?: string | null
           patient_id?: string
           rescheduled_to_id?: string | null
           starts_at?: string
@@ -1605,51 +1608,168 @@ export type Database = {
           },
         ]
       }
+      notification_action_tokens: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          delivery_id: string | null
+          expires_at: string
+          id: string
+          patient_id: string
+          purpose: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          delivery_id?: string | null
+          expires_at: string
+          id?: string
+          patient_id: string
+          purpose: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          delivery_id?: string | null
+          expires_at?: string
+          id?: string
+          patient_id?: string
+          purpose?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_action_tokens_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_action_tokens_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "notification_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_action_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "notification_action_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "notification_action_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_deliveries: {
         Row: {
+          attempt_count: number
+          cancelled_at: string | null
           channel: Database["public"]["Enums"]["notification_channel"]
           created_at: string
+          delivered_at: string | null
           event_id: string
+          event_type: string | null
           failed_at: string | null
           id: string
           idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_http_status: number | null
+          next_attempt_at: string | null
+          nutritionist_id: string | null
+          patient_id: string | null
+          processing_started_at: string | null
+          provider: string | null
           provider_message_id: string | null
           recipient: string
           recipient_profile_id: string | null
           retry_count: number
           sent_at: string | null
+          skipped_reason: string | null
           status: Database["public"]["Enums"]["notification_delivery_status"]
+          template_key: string | null
           updated_at: string
+          variables: Json
         }
         Insert: {
+          attempt_count?: number
+          cancelled_at?: string | null
           channel: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
+          delivered_at?: string | null
           event_id: string
+          event_type?: string | null
           failed_at?: string | null
           id?: string
           idempotency_key: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_http_status?: number | null
+          next_attempt_at?: string | null
+          nutritionist_id?: string | null
+          patient_id?: string | null
+          processing_started_at?: string | null
+          provider?: string | null
           provider_message_id?: string | null
           recipient: string
           recipient_profile_id?: string | null
           retry_count?: number
           sent_at?: string | null
+          skipped_reason?: string | null
           status?: Database["public"]["Enums"]["notification_delivery_status"]
+          template_key?: string | null
           updated_at?: string
+          variables?: Json
         }
         Update: {
+          attempt_count?: number
+          cancelled_at?: string | null
           channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
+          delivered_at?: string | null
           event_id?: string
+          event_type?: string | null
           failed_at?: string | null
           id?: string
           idempotency_key?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_http_status?: number | null
+          next_attempt_at?: string | null
+          nutritionist_id?: string | null
+          patient_id?: string | null
+          processing_started_at?: string | null
+          provider?: string | null
           provider_message_id?: string | null
           recipient?: string
           recipient_profile_id?: string | null
           retry_count?: number
           sent_at?: string | null
+          skipped_reason?: string | null
           status?: Database["public"]["Enums"]["notification_delivery_status"]
+          template_key?: string | null
           updated_at?: string
+          variables?: Json
         }
         Relationships: [
           {
@@ -1657,6 +1777,34 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "notification_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
           {
@@ -1670,33 +1818,120 @@ export type Database = {
       }
       notification_events: {
         Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
           created_at: string
+          dedupe_key: string | null
           event_type: string
           id: string
+          nutritionist_id: string | null
+          patient_id: string | null
+          payload: Json
+          processed_at: string | null
           related_entity_id: string | null
           related_entity_type: string | null
+          scheduled_for: string
         }
         Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
+          dedupe_key?: string | null
           event_type: string
           id?: string
+          nutritionist_id?: string | null
+          patient_id?: string | null
+          payload?: Json
+          processed_at?: string | null
           related_entity_id?: string | null
           related_entity_type?: string | null
+          scheduled_for?: string
         }
         Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
+          dedupe_key?: string | null
           event_type?: string
           id?: string
+          nutritionist_id?: string | null
+          patient_id?: string | null
+          payload?: Json
+          processed_at?: string | null
           related_entity_id?: string | null
           related_entity_type?: string | null
+          scheduled_for?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notification_events_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "notification_events_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "notification_events_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          enabled: boolean
+          event_type: string
+          nutritionist_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          enabled: boolean
+          event_type: string
+          nutritionist_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          enabled?: boolean
+          event_type?: string
+          nutritionist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
           body: string | null
           created_at: string
+          event_id: string | null
           id: string
+          link: string | null
           read_at: string | null
           recipient_id: string
           title: string
@@ -1705,7 +1940,9 @@ export type Database = {
         Insert: {
           body?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
+          link?: string | null
           read_at?: string | null
           recipient_id: string
           title: string
@@ -1714,13 +1951,22 @@ export type Database = {
         Update: {
           body?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
+          link?: string | null
           read_at?: string | null
           recipient_id?: string
           title?: string
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "notification_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_recipient_id_fkey"
             columns: ["recipient_id"]
@@ -1938,6 +2184,49 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_notification_preferences: {
+        Row: {
+          email_enabled: boolean
+          patient_id: string
+          updated_at: string
+          whatsapp_enabled: boolean
+        }
+        Insert: {
+          email_enabled?: boolean
+          patient_id: string
+          updated_at?: string
+          whatsapp_enabled?: boolean
+        }
+        Update: {
+          email_enabled?: boolean
+          patient_id?: string
+          updated_at?: string
+          whatsapp_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_notification_preferences_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: true
+            referencedRelation: "patient_active_status"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "patient_notification_preferences_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: true
+            referencedRelation: "patient_overview"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "patient_notification_preferences_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: true
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
         ]
@@ -2634,6 +2923,10 @@ export type Database = {
       }
     }
     Functions: {
+      appointment_reminder_due_at: {
+        Args: { p_starts_at: string; p_timezone?: string }
+        Returns: string
+      }
       archive_meal_plan: { Args: { p_plan_id: string }; Returns: undefined }
       assessment_visible_to_patient: {
         Args: { p_assessment_id: string }
@@ -2665,7 +2958,83 @@ export type Database = {
         Args: { p_payment_id: string; p_reason?: string }
         Returns: undefined
       }
+      cancel_pending_notification_events: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_event_types: string[]
+          p_reason: string
+        }
+        Returns: number
+      }
+      claim_notification_deliveries: {
+        Args: { p_limit?: number; p_stale_minutes?: number }
+        Returns: {
+          attempt_count: number
+          cancelled_at: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          delivered_at: string | null
+          event_id: string
+          event_type: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_http_status: number | null
+          next_attempt_at: string | null
+          nutritionist_id: string | null
+          patient_id: string | null
+          processing_started_at: string | null
+          provider: string | null
+          provider_message_id: string | null
+          recipient: string
+          recipient_profile_id: string | null
+          retry_count: number
+          sent_at: string | null
+          skipped_reason: string | null
+          status: Database["public"]["Enums"]["notification_delivery_status"]
+          template_key: string | null
+          updated_at: string
+          variables: Json
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notification_deliveries"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_notification_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          created_at: string
+          dedupe_key: string | null
+          event_type: string
+          id: string
+          nutritionist_id: string | null
+          patient_id: string | null
+          payload: Json
+          processed_at: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          scheduled_for: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notification_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       complete_contract: { Args: { p_contract_id: string }; Returns: undefined }
+      confirm_appointment_presence: {
+        Args: { p_appointment_id: string }
+        Returns: string
+      }
       copy_day_meals: {
         Args: { p_source_day_id: string; p_target_day_id: string }
         Returns: undefined
@@ -2722,6 +3091,19 @@ export type Database = {
           p_day_id: string
           p_replace?: boolean
           p_target_weekday: number
+        }
+        Returns: string
+      }
+      enqueue_notification_event: {
+        Args: {
+          p_dedupe_key: string
+          p_entity_id: string
+          p_entity_type: string
+          p_event_type: string
+          p_nutritionist_id: string
+          p_patient_id: string
+          p_payload: Json
+          p_scheduled_for?: string
         }
         Returns: string
       }
@@ -2841,7 +3223,14 @@ export type Database = {
       installment_status: "PENDING" | "PAID" | "OVERDUE" | "CANCELLED"
       meal_plan_version_status: "DRAFT" | "PUBLISHED" | "ARCHIVED"
       notification_channel: "IN_APP" | "EMAIL" | "WHATSAPP"
-      notification_delivery_status: "PENDING" | "SENT" | "FAILED"
+      notification_delivery_status:
+        | "PENDING"
+        | "SENT"
+        | "FAILED"
+        | "PROCESSING"
+        | "DELIVERED"
+        | "CANCELLED"
+        | "SKIPPED"
       patient_status: "ACTIVE" | "INACTIVE"
       payment_method: "PIX" | "CARD" | "CASH" | "BANK_TRANSFER" | "OTHER"
       payment_status: "PENDING" | "CONFIRMED" | "FAILED" | "REFUNDED"
@@ -3000,7 +3389,15 @@ export const Constants = {
       installment_status: ["PENDING", "PAID", "OVERDUE", "CANCELLED"],
       meal_plan_version_status: ["DRAFT", "PUBLISHED", "ARCHIVED"],
       notification_channel: ["IN_APP", "EMAIL", "WHATSAPP"],
-      notification_delivery_status: ["PENDING", "SENT", "FAILED"],
+      notification_delivery_status: [
+        "PENDING",
+        "SENT",
+        "FAILED",
+        "PROCESSING",
+        "DELIVERED",
+        "CANCELLED",
+        "SKIPPED",
+      ],
       patient_status: ["ACTIVE", "INACTIVE"],
       payment_method: ["PIX", "CARD", "CASH", "BANK_TRANSFER", "OTHER"],
       payment_status: ["PENDING", "CONFIRMED", "FAILED", "REFUNDED"],

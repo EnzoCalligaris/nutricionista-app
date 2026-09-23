@@ -7,7 +7,6 @@ import { MATERIAL_MAX_BYTES, MATERIAL_MIME_TO_EXT, canArchiveMaterial, canAssign
 import { findAssignment, getAssignmentById, getMaterialById, getVisibleMaterialForPatient, type MaterialDetail } from "@/data/materials";
 import { requireOwnedPatient } from "@/services/patients";
 import { recordAudit } from "@/services/audit";
-import { recordNotificationEvent } from "@/services/notifications";
 import type { MaterialInput, MaterialUpdateInput } from "@/validators/patient-content";
 
 /**
@@ -162,7 +161,6 @@ export async function assignMaterial(nutritionistId: string, materialId: string,
     assignmentId = data.id;
   }
   await recordAudit({ actorId: nutritionistId, action: "MATERIAL_ASSIGNED", entityType: "material_assignment", entityId: assignmentId, metadata: { material_id: materialId, patient_id: patientId, reassigned: existing !== null } });
-  await recordNotificationEvent({ type: "MATERIAL_ASSIGNED", entityType: "material_assignment", entityId: assignmentId });
   return { assignmentId };
 }
 

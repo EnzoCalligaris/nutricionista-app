@@ -1658,3 +1658,171 @@ dado plausível/inventado.
     duas PATCHes simultâneas no claim), 10 E2E (paciente e nutricionista em
     contextos separados, fixtures sintéticas geradas com `sharp`, provider
     fake), mobile 390 sem overflow.
+
+## Decisões técnicas da Fase 12 (Notificações + e-mail + WhatsApp + lembretes)
+
+1. **Outbox transacional no banco, não na aplicação.** Os eventos
+   (`notification_events`) são enfileirados por triggers AFTER na mesma
+   transação da operação de negócio (consulta, feedback disponibilizado,
+   material atribuído, suplemento criado) — inclusive quando a operação é
+   feita pelo paciente via RPC (`book_appointment`/`reschedule_appointment`).
+   Motivo: a operação principal nunca depende de provider nem de código de
+   aplicação lembrar de chamar `recordNotificationEvent` (o helper da Fase 6
+   foi removido; as chamadas nos services também). Falha de provider vira
+   status da entrega; a consulta/feedback continua gravada.
+2. **Evento ≠ entrega, dois níveis de idempotência.** Criação do evento por
+   `dedupe_key` (`appointment_created:<id>`, `appointment_reminder_5d:<id>:
+   <epoch starts_at>`, `feedback_published:<id>`…); entrega por
+   `idempotency_key = <event_id>:<canal>:<patient_id>` (unique) e item in-app
+   por (`event_id`, `recipient_id`) unique. Reprocessar um evento, dois
+   workers ou o scheduler duas vezes nunca duplica (testado: pgTAP,
+   integração com `Promise.all` de dois workers, scheduler 2× para o lembrete).
+3. **Claim atômico no banco** (`claim_notification_deliveries`: `FOR UPDATE
+   SKIP LOCKED`, incrementa `attempt_count`, marca PROCESSING com
+   `processing_started_at`; PROCESSING mais antigo que N minutos volta a ser
+   elegível — worker morto). Nunca "processando" em memória. Execução só
+   pelo service role (`REVOKE` explícito de `anon`/`authenticated` — o
+   Supabase concede EXECUTE por default em funções de `public`; aprendido
+   quando o pgTAP mostrou o nutricionista conseguindo chamar o claim).
+4. **Retry/backoff no domínio puro** (`src/domain/notifications/retry.ts`):
+   transitório = timeout, 429, 5xx, rede (backoff 1 → 5 → 30 → 120 min, máx.
+   5 tentativas, depois FAILED `MAX_ATTEMPTS`); permanente = destinatário
+   inválido, template inexistente, 4xx de validação, credencial recusada,
+   provider não configurado (FAILED na hora). Um `retryable` explícito do
+   adapter vence a heurística por código. Reprocessamento manual só de
+   FAILED (nunca SENT), zera a contagem, relê o contato atual do paciente
+   (o caso típico é e-mail corrigido) e audita.
+5. **Lembrete de 5 dias civis, não `- interval '5 days'` cego.**
+   `appointment_reminder_due_at(starts_at, tz)` = `((starts_at AT TIME ZONE
+   tz) - 5 days) AT TIME ZONE tz` — 20/10 14:00 SP → 15/10 14:00 SP mesmo com
+   o job em UTC (espelhado em `reminderDueAt` no domínio). O trigger agenda
+   o lembrete na criação com `scheduled_for`; o job só gera entregas do que
+   já venceu. Consulta criada com menos de 5 dias não recebe lembrete
+   retroativo (o evento de agendamento já comunica). Reagendar (passo 2 da
+   função da Fase 6: a antiga recebe `rescheduled_to_id`) cancela o
+   `APPOINTMENT_CREATED` da nova (é reagendamento, não agendamento) e o
+   lembrete da antiga, e enfileira `APPOINTMENT_RESCHEDULED` + lembrete novo.
+   Cancelar/concluir/faltar cancelam lembrete pendente e entregas PENDING
+   dele; SENT nunca é revertida.
+6. **Confirmação de presença pelo paciente é uma transição própria.**
+   `validate_appointment_ownership` (mesmo corpo da Fase 6, uma regra a mais):
+   PATIENT só leva SCHEDULED → CONFIRMED junto com `patient_confirmed_at`
+   recém-preenchido; `patient_confirmed_at` sem CONFIRMED é recusado; nunca
+   no insert. `confirm_appointment_presence` (SECURITY INVOKER: RLS de quem
+   chama) é idempotente (`ALREADY_CONFIRMED`), recusa passado/cancelada e
+   devolve `APPOINTMENT_NOT_FOUND` para consulta invisível. A confirmação do
+   próprio paciente NÃO gera aviso para ele; a confirmação administrativa do
+   nutricionista gera `APPOINTMENT_CONFIRMED` (in-app por default).
+7. **Token de ação por link:** 32 bytes aleatórios em base64url no link; no
+   banco só `sha256(token:pimenta)` (`NOTIFICATIONS_TOKEN_SECRET`,
+   obrigatória em produção, pimenta fixa de dev fora dela). Propósito único
+   (`APPOINTMENT_CONFIRM`), expira no menor entre a hora da consulta e 7
+   dias, uso único por `UPDATE … WHERE used_at IS NULL RETURNING` (replay e
+   duplo clique nunca executam duas vezes), um token por entrega (reenviar
+   invalida o anterior), tabela sem policy nenhuma (service role). O GET da
+   página pública NÃO consome o token (scanners de e-mail seguem links): a
+   confirmação é um POST explícito, com rate limit por IP; a página não
+   mostra dados da consulta — o link não é autorização para ler nada.
+   Expirado/usado/inválido → mensagem amigável + "Entrar no portal".
+   Reagendar continua só pelo portal autenticado.
+8. **Providers:** `EmailProvider`/`WhatsAppProvider` devolvem
+   `ProviderResult` normalizado (`accepted`, `providerMessageId`,
+   `errorCode` sanitizado, `httpStatus`, `retryable`) — nunca a resposta crua.
+   `ResendEmailProvider` foi escrito a partir da documentação oficial
+   vigente (`POST /emails`; SDK `resend@6`: `emails.send(payload, {
+   idempotencyKey })`; erros `{ name, statusCode }` mapeados: rate limit/
+   concurrent idempotent → transitório; quota diária/mensal, chave inválida,
+   remetente inválido, validação → permanente). Não há chave real: o adapter
+   fica pronto e o dev usa `EMAIL_PROVIDER=fake`. **`EMAIL_PROVIDER=resend`
+   sem `RESEND_API_KEY`/`EMAIL_FROM` é erro de configuração** (entrega FAILED
+   `PROVIDER_NOT_CONFIGURED`, visível no dashboard), nunca fallback silencioso.
+   WhatsApp: **somente** WhatsApp Business Platform/BSP oficial; BSP
+   `PENDENTE DE DEFINIÇÃO`, então só `fake` existe e qualquer outro valor de
+   `WHATSAPP_PROVIDER` é erro. Mensagem modelada como chave interna de
+   template + variáveis posicionais; `WHATSAPP_TEMPLATE_MAP` (JSON) mapeia
+   para o nome aprovado — nenhum nome aprovado foi assumido. Nunca
+   automação de WhatsApp Web/Baileys/Puppeteer.
+9. **Fakes determinísticos e sem rede**, com cenários pelo destinatário
+   (`timeout@`, `fail500@`, `ratelimit@`, `invalid@`, `flaky@` = timeout →
+   500 → aceito; WhatsApp por sufixo `…0000/0500/0429/0422/0999`).
+   `providerMessageId` derivado da `idempotencyKey` (mesma entrega, mesmo id).
+   Só em memória; nada persiste além da entrega registrada.
+10. **Roteamento por canal:** IN_APP sempre; EMAIL/WHATSAPP = default técnico
+    por evento (`DEFAULT_CHANNELS`: agenda/lembrete/solicitação com e-mail +
+    WhatsApp; feedback/material/suplemento só e-mail; confirmação
+    administrativa só in-app) sobreposto pela preferência explícita do
+    nutricionista (`notification_preferences`) e pela preferência do
+    paciente por canal externo (`patient_notification_preferences`, sem
+    linha = ligado; não é opt-in de marketing — não existe marketing). Esses
+    defaults **não são preferências do Enzo** (PENDENTE DE DEFINIÇÃO); são o
+    ponto de partida configurável na tela. Sem e-mail/telefone → SKIPPED
+    `MISSING_EMAIL`/`MISSING_PHONE`; canal desligado por default não gera
+    linha (não é uma entrega que "deveria" ter saído); desligado
+    explicitamente → SKIPPED com o motivo.
+11. **Telefone:** `normalizePhoneE164` (domínio, testado): formatos livres
+    do cadastro → `+55DDDNÚMERO` (DDD 11–99, 8 ou 9 dígitos com 9 inicial,
+    rejeita repetição óbvia; DDI estrangeiro com `+` é mantido). O número
+    "existir" quem diz é o provider (INVALID_RECIPIENT, permanente). No
+    dashboard e nos logs só a forma mascarada (`+5511 •••• 0001`,
+    `e••••@dominio`).
+12. **Templates centrais e tipados** (`src/domain/notifications/templates.ts`):
+    variáveis já formatadas em pt-BR no fuso do nutricionista
+    (`scheduling_settings.timezone`, fallback America/Sao_Paulo) —
+    "24/09/2026 às 14:30" —, título/corpo do in-app e assunto do e-mail.
+    Payload do evento é mínimo (ids, instante, modalidade, título de
+    material ≤ 120): feedback e suplemento levam só o id — nenhum conteúdo
+    clínico sai do portal ("Você recebeu um novo feedback. Acesse o portal."),
+    sem anexo de material. Endereço só entra no e-mail presencial quando
+    `site_settings.contact.address` existe; plataforma online continua
+    PENDENTE (não é mencionada). `confirmUrl` nasce na hora do envio e nunca
+    é persistido em `variables`.
+13. **React Email** (`@react-email/components` 1.0 + `@react-email/render`
+    2.1): layout base com monograma "EM" e paleta petróleo/off-white, fontes
+    de sistema, HTML + texto puro; links absolutos só de `NEXT_PUBLIC_SITE_URL`
+    (`siteConfig.url`), nunca localhost fixo. Preview local por
+    `npm run emails:preview` (Vite SSR carrega o TSX; nada é enviado).
+14. **Job:** um route handler `/api/cron/notifications` com duas
+    responsabilidades separadas por `?task=generate|process` (default: as
+    duas), lote limitado (`?limit`, máx. 200), `Authorization: Bearer
+    CRON_SECRET` (formato que a Vercel Cron envia quando a env existe),
+    comparação em tempo constante, segredo nunca logado, **fail closed** sem
+    segredo em produção (em dev, só com header explícito `x-cron-dev: 1`).
+    `vercel.json` agenda `*/15 * * * *` — a Vercel documenta que o plano Hobby
+    aceita só 1 execução/dia (deploy falha com frequência maior) e que
+    invocações são best-effort e podem duplicar: o ciclo é idempotente e
+    seguro para concorrência (SKIP LOCKED). Plano/scheduler PENDENTE DE
+    DEFINIÇÃO. Botão "Processar fila agora" no dashboard roda o mesmo ciclo
+    sob a sessão do nutricionista (útil sem scheduler local), com rate limit.
+15. **RLS:** policies da Fase 2 que liberavam eventos/entregas a "qualquer
+    nutricionista" foram substituídas por `nutritionist_id = auth.uid()`
+    (as linhas agora carregam `nutritionist_id`/`patient_id`). Escrita continua
+    só do service role. Paciente lê/marca só as próprias `notifications`
+    (o portal nunca lê `notification_deliveries`: ids de provider, erros e
+    tentativas ficam no dashboard). Preferências: nutricionista as suas;
+    paciente as suas (nutricionista dono lê, não altera).
+16. **Suíte de integração em vitest/Node** (`vitest.integration.config.ts`,
+    `tests/integration/`): a integração da Fase 12 precisa rodar o WORKER
+    de verdade (não só PostgREST), e o pacote `server-only` lança fora do
+    Next — a suíte usa um stub por alias e o ambiente Node. Fixtures
+    próprias (prefixo `fd…`) limpas com `session_replication_role = replica`
+    (guards de imutabilidade da Fase 10 bloqueiam DELETE pela aplicação —
+    correto). Cobre timeout → 500 → sucesso com `attempt_count`/
+    `next_attempt_at`, permanente, limite, stale recovery, config error,
+    dois workers, scheduler 2×, cancelar/reagendar, token, Fase 10,
+    preferências, ownership.
+17. **Auditoria:** só `NOTIFICATION_RETRY_REQUESTED`,
+    `NOTIFICATION_SETTINGS_UPDATED` e `APPOINTMENT_CONFIRMATION_REQUESTED`
+    (ações de pessoa). Mudanças automáticas de status ficam na própria
+    entrega (`attempt_count`, `last_error_code`, `last_http_status`,
+    `sent_at`, `failed_at`) — auditar cada tentativa duplicaria a fila.
+18. **Playwright:** `CardTitle` não é `heading` (é `div`) — use
+    `getByText(…, { exact: true })`; `FlashToast` limpa `?toast=` da URL
+    logo após mostrar, então não assertar a URL, só o toast; ao marcar
+    lida e navegar, a Server Action precisa terminar ANTES do `router.push`
+    (a navegação cancelava a transição — corrigido no `NotificationsList`).
+    Sob carga, o `next start` local às vezes demora >15 s numa rota; o
+    script de screenshots recarrega uma vez (não é estado da aplicação).
+19. **Nav:** "Notificações" entrou no menu do portal (10 itens) e do
+    dashboard (13 itens); `/dashboard/configuracoes` virou um hub (Agenda,
+    Notificações) em vez de "em breve" — dados do profissional/pagamento
+    continuam Fase 14 (PROJECT_SPEC §6/§7 atualizados).

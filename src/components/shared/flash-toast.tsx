@@ -44,7 +44,11 @@ export type FlashToastCode =
   | "material_updated"
   | "meal_photo_reused"
   | "meal_confirmed"
-  | "meal_updated";
+  | "meal_updated"
+  | "notification_settings_saved"
+  | "notification_preferences_saved"
+  | "presence_confirmed"
+  | "presence_already_confirmed";
 
 const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: string; description?: string }> = {
   patient_created: { type: "success", message: "Paciente cadastrado com sucesso." },
@@ -87,6 +91,10 @@ const MESSAGES: Record<FlashToastCode, { type: "success" | "warning"; message: s
   meal_photo_reused: { type: "warning", message: "Esta foto já tinha sido enviada.", description: "Abrimos a refeição existente em vez de criar outra." },
   meal_confirmed: { type: "success", message: "Refeição confirmada.", description: "Os valores são estimativas revisadas por você." },
   meal_updated: { type: "success", message: "Refeição atualizada." },
+  notification_settings_saved: { type: "success", message: "Preferências de notificação salvas." },
+  notification_preferences_saved: { type: "success", message: "Preferências de aviso salvas." },
+  presence_confirmed: { type: "success", message: "Presença confirmada.", description: "Obrigado! Sua consulta está confirmada." },
+  presence_already_confirmed: { type: "success", message: "Esta consulta já estava confirmada." },
 };
 
 function isFlashToastCode(value: string | null): value is FlashToastCode {

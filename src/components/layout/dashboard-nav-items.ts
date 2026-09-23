@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Bell,
   CalendarDays,
   CircleDollarSign,
   ClipboardList,
@@ -34,5 +35,6 @@ export const dashboardNavItems: DashboardNavItem[] = [
   { title: "Blog", href: "/dashboard/blog", icon: Newspaper, phase: "Fase 14" },
   { title: "Resultados", href: "/dashboard/resultados", icon: TrendingUp, phase: "Fase 14" },
   { title: "Materiais", href: "/dashboard/materiais", icon: FolderOpen, phase: "Fase 10" },
+  { title: "Notificações", href: "/dashboard/notificacoes", icon: Bell, phase: "Fase 12" },
   { title: "Configurações", href: "/dashboard/configuracoes", icon: Settings, phase: "Fase 14" },
 ];

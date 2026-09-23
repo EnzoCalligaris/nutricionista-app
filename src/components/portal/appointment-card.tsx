@@ -1,6 +1,7 @@
 import { CalendarDays, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppointmentStatusBadge, ModalityBadge } from "@/components/scheduling/badges";
+import { ConfirmPresenceButton } from "@/components/portal/confirm-presence-button";
 import { PatientAppointmentActions } from "@/components/portal/patient-appointment-actions";
 import { cn } from "@/lib/utils";
 import { formatTimeRange, formatWeekdayLong } from "@/lib/dates";
@@ -14,11 +15,13 @@ type Props = {
   highlight?: boolean;
   /** Quando true, mostra reagendar/cancelar. */
   canModify?: boolean;
+  /** Fase 12: consulta futura ainda SCHEDULED — oferece "Confirmar presença". */
+  canConfirm?: boolean;
   canBook?: boolean;
 };
 
 /** Card de consulta no portal (prompt Fase 6 §37–§38) — mobile-first. */
-export function PatientAppointmentCard({ appointment, timeZone, highlight = false, canModify = false, canBook = true }: Props) {
+export function PatientAppointmentCard({ appointment, timeZone, highlight = false, canModify = false, canBook = true, canConfirm = false }: Props) {
   const date = instantToDateISO(new Date(appointment.startsAt), timeZone);
   return (
     <Card className={cn(highlight && "ring-primary/40")} id={`consulta-${appointment.id}`}>
@@ -46,7 +49,12 @@ export function PatientAppointmentCard({ appointment, timeZone, highlight = fals
         {appointment.status === "CANCELLED" && appointment.cancellationReason ? (
           <p className="text-xs text-muted-foreground">Motivo: {appointment.cancellationReason}</p>
         ) : null}
-        {canModify ? <PatientAppointmentActions appointmentId={appointment.id} canBook={canBook} /> : null}
+        {canConfirm || canModify ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canConfirm ? <ConfirmPresenceButton appointmentId={appointment.id} /> : null}
+            {canModify ? <PatientAppointmentActions appointmentId={appointment.id} canBook={canBook} /> : null}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

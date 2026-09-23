@@ -10,7 +10,6 @@ import { getAppointmentById, type AppointmentListItem } from "@/data/appointment
 import { getAvailabilityRules, getBusyIntervals, getSchedulingSettings, type SchedulingSettings } from "@/data/scheduling";
 import { requireOwnedPatient } from "@/services/patients";
 import { recordAudit } from "@/services/audit";
-import { recordNotificationEvent } from "@/services/notifications";
 import type {
   BlockedTimeInput,
   CreateAppointmentInput,
@@ -141,7 +140,6 @@ export async function createAppointment(nutritionistId: string, input: CreateApp
       outside_availability: input.allowOutsideAvailability,
     },
   });
-  await recordNotificationEvent({ type: "APPOINTMENT_CREATED", entityType: "appointment", entityId: data });
   return { appointmentId: data };
 }
 
@@ -215,7 +213,6 @@ export async function changeAppointmentStatus(
 
   await recordAudit({ actorId: nutritionistId, action: STATUS_AUDIT[to], entityType: "appointment", entityId: appointmentId });
   if (to === "CONFIRMED") {
-    await recordNotificationEvent({ type: "APPOINTMENT_CONFIRMED", entityType: "appointment", entityId: appointmentId });
   }
 }
 
@@ -239,7 +236,6 @@ export async function cancelAppointmentAsNutritionist(nutritionistId: string, ap
     entityId: appointmentId,
     metadata: { has_reason: reason !== null },
   });
-  await recordNotificationEvent({ type: "APPOINTMENT_CANCELLED", entityType: "appointment", entityId: appointmentId });
 }
 
 async function rescheduleViaDatabase(
@@ -284,7 +280,6 @@ export async function rescheduleAppointmentAsNutritionist(
     entityId: appointmentId,
     metadata: { new_appointment_id: newAppointmentId, starts_at: startsAt.toISOString() },
   });
-  await recordNotificationEvent({ type: "APPOINTMENT_RESCHEDULED", entityType: "appointment", entityId: newAppointmentId });
   return { newAppointmentId };
 }
 
@@ -351,7 +346,6 @@ export async function bookAsPatient(
     entityId: data,
     metadata: { by: "PATIENT", starts_at: startsAt.toISOString(), modality: input.modality },
   });
-  await recordNotificationEvent({ type: "APPOINTMENT_CREATED", entityType: "appointment", entityId: data });
   return { appointmentId: data };
 }
 
@@ -402,7 +396,6 @@ export async function rescheduleAsPatient(
     entityId: appointmentId,
     metadata: { by: "PATIENT", new_appointment_id: newAppointmentId, starts_at: startsAt.toISOString() },
   });
-  await recordNotificationEvent({ type: "APPOINTMENT_RESCHEDULED", entityType: "appointment", entityId: newAppointmentId });
   return { newAppointmentId };
 }
 
@@ -428,7 +421,6 @@ export async function cancelAsPatient(profileId: string, appointmentId: string, 
     entityId: appointmentId,
     metadata: { by: "PATIENT", has_reason: reason !== null },
   });
-  await recordNotificationEvent({ type: "APPOINTMENT_CANCELLED", entityType: "appointment", entityId: appointmentId });
 }
 
 // --- Bloqueios --------------------------------------------------------------

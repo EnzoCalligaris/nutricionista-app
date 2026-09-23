@@ -6,7 +6,6 @@ import { canArchiveSupplement, canDeactivateSupplement, canEditSupplement, canRe
 import { getSupplementById, type SupplementDetail } from "@/data/supplements";
 import { requireOwnedPatient } from "@/services/patients";
 import { recordAudit } from "@/services/audit";
-import { recordNotificationEvent } from "@/services/notifications";
 import type { SupplementInput } from "@/validators/patient-content";
 
 /**
@@ -53,7 +52,6 @@ export async function createSupplement(nutritionistId: string, patientId: string
     entityId: data.id,
     metadata: { patient_id: patientId, has_purchase_url: input.purchaseUrl != null, has_period: input.startsOn != null || input.endsOn != null },
   });
-  await recordNotificationEvent({ type: "SUPPLEMENT_RECOMMENDATION_CREATED", entityType: "supplement_recommendation", entityId: data.id });
   return { supplementId: data.id };
 }
 

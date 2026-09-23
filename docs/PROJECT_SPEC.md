@@ -107,7 +107,8 @@ artigos públicos automaticamente — são entidades separadas (`patient_materia
 ## 6. Dashboard do nutricionista
 
 Menu: Visão Geral, Agenda, Pacientes, Cardápios, Avaliações, Comentários,
-Consultas, Financeiro, Blog, Resultados, Materiais, Configurações.
+Consultas, Financeiro, Blog, Resultados, Materiais, Notificações (Fase 12 —
+histórico operacional de entregas, falhas e reenvio), Configurações.
 
 ### Visão Geral
 Cards: faturamento do mês, consultas do dia, total de pacientes ativos, previsão
@@ -187,7 +188,9 @@ WhatsApp, pagamento), templates de notificação — a detalhar na Fase 14.
 Menu: Início, Meu Cardápio, Minha Evolução, Consultas, Refeições (Fase 11 —
 foto da refeição + análise por IA; entrada de menu adicionada porque o
 recurso é mobile-first e precisa ser alcançável com uma mão, além do atalho
-do Início), Suplementos, Feedbacks, Materiais, Meu Perfil.
+do Início), Suplementos, Feedbacks, Materiais, Notificações (Fase 12 — lista
+in-app, lida/não lida, preferências de e-mail/WhatsApp; sino com contador
+no header), Meu Perfil.
 
 Início: próxima consulta, cardápio do dia, último feedback, última avaliação,
 atalho para agendar, atalho para analisar refeição por foto.
@@ -229,10 +232,18 @@ webhook, retry e logging seguro são requisitos (Fase 13).
 
 ## 11. Notificações
 
-Estrutura conceitual: `notifications`, `notification_events`,
-`notification_deliveries`. Canais: in-app, e-mail (Resend + React Email),
-WhatsApp (Business Platform oficial ou BSP — nunca WhatsApp Web
-automatizado em produção). Idempotência a implementar futuramente.
+Implementadas na Fase 12: `notification_events` (outbox criado por trigger
+na transação da operação) → `notification_deliveries` por canal →
+`notifications` (in-app). Canais: in-app (sempre), e-mail (Resend + React
+Email; `fake` em dev), WhatsApp (Business Platform oficial ou BSP — nunca
+WhatsApp Web automatizado; BSP pendente, `fake` até lá). Eventos: consulta
+agendada/reagendada/cancelada/confirmada, lembrete 5 dias antes (com
+Confirmar presença e Reagendar), solicitação de confirmação, feedback
+disponibilizado, material disponibilizado, recomendação de suplemento —
+os três últimos com mensagem genérica e CTA para o portal, sem conteúdo
+clínico. Idempotência por evento e por entrega, retry com backoff,
+reenvio manual, preferências do nutricionista (por evento/canal) e do
+paciente (e-mail/WhatsApp). Detalhes em `docs/ARCHITECTURE.md`.
 
 ## 12. Autenticação e papéis
 

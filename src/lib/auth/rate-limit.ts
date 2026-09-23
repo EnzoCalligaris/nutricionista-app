@@ -16,6 +16,12 @@ export const patientInviteRateLimiter: RateLimiter = new InMemoryRateLimiter(20,
 // paciente (chave = patient_id) — não é quota comercial ("N fotos por dia"
 // continua sem decisão de negócio). Mesma ressalva de produção acima.
 export const mealAnalysisRateLimiter: RateLimiter = new InMemoryRateLimiter(12, 10 * 60 * 1000);
+// Fase 12 (§84–§85): reprocessamento manual/teste de entregas por
+// nutricionista e ação pública tokenizada (confirmar por link) por IP. O job
+// autenticado por CRON_SECRET NÃO passa por aqui — limitar o worker seria
+// atrapalhar o envio legítimo.
+export const notificationRetryRateLimiter: RateLimiter = new InMemoryRateLimiter(30, 10 * 60 * 1000);
+export const tokenActionRateLimiter: RateLimiter = new InMemoryRateLimiter(20, 10 * 60 * 1000);
 
 /** IP do cliente a partir dos headers de proxy — usado para compor a chave de rate limit. */
 export async function getClientIp(): Promise<string> {

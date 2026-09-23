@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASES 0 a 11 concluídas.** Next.js rodando (`src/app`), design system,
+**FASES 0 a 12 concluídas.** Next.js rodando (`src/app`), design system,
 banco Postgres/Supabase local completo (RLS em 100% das tabelas,
 anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
 autorização reais (Fase 3), site público definitivo (Fase 4), o módulo de
@@ -45,8 +45,20 @@ DEFINIÇÃO`, nunca inventar credencial; resposta da IA validada por Zod e
 tratada como entrada não confiável; original da IA imutável x versão
 confirmada pelo paciente; consentimento versionado `meal_photo_ai_v1` em
 `patient_consents`; foto processada (WebP sem EXIF) no bucket privado
-`meal-photos`; sempre "estimativa", nunca nota/score/meta). Gateway de
-pagamento e notificações externas ainda não existem — começam na Fase 12
+`meal-photos`; sempre "estimativa", nunca nota/score/meta) e as
+**Notificações + e-mail + WhatsApp + lembretes** (Fase 12: outbox
+transacional por trigger em `notification_events` → entregas idempotentes
+em `notification_deliveries` → `notifications` in-app; worker em
+`src/services/notifications/` com claim `SKIP LOCKED`, retry/backoff,
+`EmailProvider` `fake`/`resend` e `WhatsAppProvider` `fake` (BSP oficial
+`PENDENTE`; nunca automação de WhatsApp Web); lembrete 5 dias civis em
+America/Sao_Paulo agendado no banco; confirmação de presença pelo portal
+e por link tokenizado `/confirmar/[token]`; job `/api/cron/notifications`
+com `CRON_SECRET`; portal `/paciente/notificacoes` + sino; dashboard
+`/dashboard/notificacoes` e `/dashboard/configuracoes/notificacoes`;
+provider real sem credencial = erro de configuração, nunca fallback
+silencioso; segredos só server-side). Gateway de pagamento, checkout e
+cobrança automática ainda não existem — começam na Fase 13
 (`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
 duração, antecedências, plataforma online), categorias financeiras reais e
 a política de cobrança da consulta avulsa (`APPOINTMENT_CHARGE_POLICY`) são
@@ -64,7 +76,9 @@ Integração contra o Supabase local: `npm run test:auth:integration`,
 `npm run test:financial:integration`, `npm run test:meal-plans:integration`,
 `npm run test:assessments:integration`,
 `npm run test:patient-content:integration`,
-`npm run test:food-analysis:integration`.
+`npm run test:food-analysis:integration`,
+`npm run test:notifications:integration` (vitest em Node — roda o worker
+real com providers fake). Preview local dos e-mails: `npm run emails:preview`.
 
 Antes de escrever qualquer código, releia:
 - `docs/PROJECT_SPEC.md` — o que construir (produto, planos, regras de negócio)
@@ -136,12 +150,14 @@ aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
   commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
   E2E/build.
 - Referência de script: `scripts/screenshots-fase-5.mjs` a
-  `scripts/screenshots-fase-11.mjs` (`npm run screenshots:fase-N`, com
+  `scripts/screenshots-fase-12.mjs` (`npm run screenshots:fase-N`, com
   `--extra` para as larguras adicionais). Em Playwright, `getByText` é
   substring case-insensitive e `count()` não espera: prefira
   `exact: true`/`waitFor` (Fase 9, `docs/DECISIONS.md`). Tabelas do
   dashboard: com a sidebar aberta, 768 px sobra ~490 px de conteúdo —
-  tabela só a partir de `lg`, cards abaixo (Fase 10).
+  tabela só a partir de `lg`, cards abaixo (Fase 10). `CardTitle` é `div`,
+  não `heading`; `FlashToast` limpa `?toast=` da URL logo após mostrar —
+  assertar o toast, não a URL (Fase 12).
 - Validação final sempre em sequência e contra o build:
   `npm run db:reset` → `npm run build` →
   `E2E_SKIP_BUILD=1 npx playwright test --workers=1` (nunca reutiliza um

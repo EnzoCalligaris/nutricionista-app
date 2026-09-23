@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { FlashToast } from "@/components/shared/flash-toast";
 import { AppointmentActions } from "@/components/scheduling/appointment-actions";
+import { RequestConfirmationButton } from "@/components/notifications/request-confirmation-button";
 import { AppointmentStatusBadge, ModalityBadge } from "@/components/scheduling/badges";
 import { requireNutritionist } from "@/lib/auth/session";
 import { getAppointmentById, getAppointmentNotes, getRescheduleOrigin } from "@/data/appointments";
@@ -39,6 +40,8 @@ export default async function ConsultaPage({ params }: PageProps<"/dashboard/age
   if (!appointment || appointment.nutritionistId !== nutritionist.id) notFound();
 
   const settings = await getSchedulingSettings(nutritionist.id);
+  // Fase 12: pedir confirmação só faz sentido para consulta futura ainda não confirmada (avaliado na requisição, fora do JSX).
+  const canRequestConfirmation = appointment.status === "SCHEDULED" && new Date(appointment.startsAt).getTime() > new Date().getTime();
   const date = instantToDateISO(new Date(appointment.startsAt), settings.timeZone);
   const durationMinutes = Math.round((new Date(appointment.endsAt).getTime() - new Date(appointment.startsAt).getTime()) / 60_000);
 
@@ -69,7 +72,10 @@ export default async function ConsultaPage({ params }: PageProps<"/dashboard/age
             {formatInstantWeekdayDate(appointment.startsAt)} · {formatTimeRange(appointment.startsAt, appointment.endsAt)} · {durationMinutes} min
           </p>
         </div>
-        <AppointmentActions appointmentId={appointment.id} status={appointment.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <AppointmentActions appointmentId={appointment.id} status={appointment.status} />
+          {canRequestConfirmation ? <RequestConfirmationButton appointmentId={appointment.id} /> : null}
+        </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -86,6 +92,7 @@ export default async function ConsultaPage({ params }: PageProps<"/dashboard/age
               <Field label="Pagamento">{appointment.payment ? PAYMENT_LABEL[appointment.payment.status] : "Sem registro"}</Field>
               <Field label="Criada em">{formatDateTime(appointment.createdAt)}</Field>
               <Field label="Criada por">{appointment.createdBy === nutritionist.id ? "Você" : appointment.createdBy ? "Paciente (portal)" : "—"}</Field>
+              <Field label="Presença">{appointment.patientConfirmedAt ? `Confirmada pelo paciente em ${formatDateTime(appointment.patientConfirmedAt)}` : appointment.status === "CONFIRMED" ? "Confirmada por você" : "Não confirmada"}</Field>
               {appointment.status === "CANCELLED" ? (
                 <Field label="Cancelada em">
                   {formatDateTime(appointment.cancelledAt)}

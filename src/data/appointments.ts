@@ -29,6 +29,8 @@ export type AppointmentListItem = {
   /** Estado de pagamento JÁ existente (payments.appointment_id) — só leitura nesta fase. */
   payment: { status: PaymentStatus; amountCents: number } | null;
   rescheduledToId: string | null;
+  /** Fase 12: quando o PACIENTE confirmou presença (portal ou link). */
+  patientConfirmedAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
   createdBy: string | null;
@@ -36,7 +38,7 @@ export type AppointmentListItem = {
 };
 
 const APPOINTMENT_SELECT =
-  "id, patient_id, contract_id, starts_at, ends_at, modality, status, amount_cents, rescheduled_to_id, cancelled_at, cancellation_reason, created_by, created_at, patients!inner(full_name, nutritionist_id), patient_contracts(plans(name)), payments(status, amount_cents)";
+  "id, patient_id, contract_id, starts_at, ends_at, modality, status, amount_cents, rescheduled_to_id, cancelled_at, cancellation_reason, created_by, created_at, patient_confirmed_at, patients!inner(full_name, nutritionist_id), patient_contracts(plans(name)), payments(status, amount_cents)";
 
 type Row = {
   id: string;
@@ -52,6 +54,7 @@ type Row = {
   cancellation_reason: string | null;
   created_by: string | null;
   created_at: string;
+  patient_confirmed_at: string | null;
   patients: { full_name: string; nutritionist_id: string };
   patient_contracts: { plans: { name: string } | null } | null;
   payments: { status: PaymentStatus; amount_cents: number }[];
@@ -72,6 +75,7 @@ function toItem(row: Row): AppointmentListItem {
     amountCents: row.amount_cents,
     payment: payment ? { status: payment.status, amountCents: payment.amount_cents } : null,
     rescheduledToId: row.rescheduled_to_id,
+    patientConfirmedAt: row.patient_confirmed_at,
     cancelledAt: row.cancelled_at,
     cancellationReason: row.cancellation_reason,
     createdBy: row.created_by,

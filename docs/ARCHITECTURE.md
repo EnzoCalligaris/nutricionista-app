@@ -186,11 +186,18 @@ interface PaymentProvider {
 }
 
 interface EmailProvider {
-  send(template: EmailTemplate, to: string, data: Record<string, unknown>): Promise<void>
+  // Implementada na Fase 12 (src/services/notifications/providers.ts): recebe
+  // HTML/texto já renderizados + idempotencyKey + AbortSignal e devolve um
+  // ProviderResult NORMALIZADO ({ accepted, providerMessageId } |
+  // { accepted: false, errorCode, httpStatus, retryable }) — nunca lança
+  // para erro de envio. Adapters: fake (determinístico) e resend.
+  send(message: EmailMessage): Promise<ProviderResult>
 }
 
 interface WhatsAppProvider {
-  sendTemplate(to: string, template: string, params: Record<string, string>): Promise<void>
+  // Fase 12: chave interna de template + variáveis posicionais (o adapter
+  // mapeia para o nome aprovado no BSP). Só o fake existe — BSP PENDENTE.
+  send(message: WhatsAppMessage): Promise<ProviderResult>
 }
 
 interface FoodAnalysisProvider {
@@ -202,8 +209,9 @@ interface FoodAnalysisProvider {
 ```
 
 Implementações concretas (Resend, gateway de pagamento, BSP de WhatsApp, modelo
-de visão computacional) ficam em `src/providers/<nome>/`, nunca referenciadas
-diretamente pelo domínio.
+de visão computacional) ficam junto do respectivo módulo de serviço
+(`src/services/notifications/`, `src/services/food-analysis/`), nunca
+referenciadas diretamente pelo domínio; a fábrica por env decide qual entra.
 
 ## Multi-tenant / autorização
 
@@ -405,3 +413,63 @@ passam com `TZ=UTC` e `TZ=Asia/Tokyo`.
   vivo, adições rápidas), leitura com original x confirmado, ações, cards
   do histórico; aba Refeições do perfil e detalhe para o nutricionista com
   CTA de feedback.
+
+## Notificações (Fase 12) — quem decide o quê
+
+```
+operação de negócio (Server Action / RPC)  →  trigger AFTER (mesma transação)
+  → notification_events (dedupe_key; lembrete com scheduled_for)
+  → job "generate": routeEvent() → notification_deliveries por canal
+       (IN_APP grava `notifications`; EMAIL/WHATSAPP PENDING; SKIPPED sem contato)
+  → job "process": claim_notification_deliveries (SKIP LOCKED) → render →
+       provider (timeout) → SENT | PENDING + next_attempt_at | FAILED
+```
+
+- **Banco** (migrations `20260925120000/01`): colunas novas em
+  `notification_events`/`notification_deliveries`/`notifications`, funções
+  `enqueue_notification_event`, `cancel_pending_notification_events`,
+  `appointment_reminder_due_at`, `claim_notification_events`,
+  `claim_notification_deliveries`, `confirm_appointment_presence`; triggers
+  `notify_appointment_changes`, `notify_feedback_published`,
+  `notify_material_assigned`, `notify_supplement_created`;
+  `appointments.patient_confirmed_at`; `notification_action_tokens`;
+  `notification_preferences`; `patient_notification_preferences`.
+- **Domínio puro** (`src/domain/notifications/`): catálogo de eventos,
+  defaults de canal, roteamento (`routeEvent`), chave de idempotência,
+  lembrete de 5 dias civis (`reminderDueAt`/`decideReminder`),
+  classificação transitório × permanente, backoff, `decideAfterFailure`,
+  `canRetryManually`, telefone E.164 + máscaras, variáveis de template
+  (pt-BR no fuso), in-app/assunto/variáveis de WhatsApp, regras do token.
+  Sem I/O; 24 testes.
+- **Providers** (`src/services/notifications/{providers,fake-providers,
+  resend-email-provider,index}.ts`): interfaces + `ProviderResult`, fakes,
+  adapter Resend, fábricas por env que recusam configuração incompleta,
+  `getProviderConfigStatus()` para a UI (nunca valores de chave).
+- **Templates** (`src/emails/`): layout base + 9 templates React Email;
+  `renderNotificationEmail` (HTML + texto) em
+  `src/services/notifications/render.ts` (sem `server-only`, usado pelo
+  preview local e pelos testes).
+- **Worker** (`src/services/notifications/service.ts`, admin client):
+  `generateDeliveries`, `processDeliveries`, `runNotificationCycle`. Logs só
+  com ids/canal/código.
+- **Tokens** (`src/services/notifications/tokens.ts`): geração, hash com
+  pimenta, consumo atômico de uso único.
+- **Casos de uso de pessoas** (`src/services/notifications/management.ts`,
+  sessão): marcar lida/todas, preferências (paciente e nutricionista +
+  auditoria), reprocessar FAILED (relê contato; audita; processa), confirmar
+  presença pelo portal (RPC), pedir confirmação (enfileira evento), confirmar
+  por token.
+- **Data** (`src/data/notifications.ts`): lista/contador do portal (só
+  `notifications`), entregas do dashboard com destinatário mascarado e nome
+  do paciente lido à parte, contadores por status, próximos eventos
+  agendados, matriz de preferências resolvida.
+- **Actions** (`src/actions/notifications.ts`): `requirePatient`/
+  `requireNutritionist`, Zod só com ids/flags, rate limit em reenvio/ciclo
+  manual/ação tokenizada por IP; `confirmByTokenAction` é a única pública.
+- **Job** (`src/app/api/cron/notifications/route.ts` + `src/lib/auth/cron.ts`):
+  autenticação própria por `CRON_SECRET` (testada), `?task=`, `?limit=`.
+- **UI**: portal (`/paciente/notificacoes`, sino no `PatientHeader`,
+  `ConfirmPresenceButton` no card da consulta), público
+  (`/confirmar/[token]`), dashboard (`/dashboard/notificacoes`,
+  `/dashboard/configuracoes/notificacoes`, hub `/dashboard/configuracoes`,
+  `RequestConfirmationButton` no detalhe da consulta).

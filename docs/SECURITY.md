@@ -459,6 +459,53 @@ antes/depois.
   base64, URL assinada, prompt ou resposta. Rotas privadas
   `force-dynamic`, noindex, sem ISR.
 
+## Notificações, e-mail, WhatsApp e tokens (Fase 12)
+
+- **Segredos só no servidor:** `RESEND_API_KEY`, `WHATSAPP_*`, `CRON_SECRET`,
+  `NOTIFICATIONS_TOKEN_SECRET` e `SUPABASE_SERVICE_ROLE_KEY` nunca são
+  `NEXT_PUBLIC_`, nunca logados, nunca exibidos na UI (a tela de
+  configurações mostra só Configurado/Simulado/Não configurado e o
+  remetente) e não são editáveis pela aplicação. `.env.local` está no
+  `.gitignore`; `.env.example` só tem placeholders.
+- **Provider real nunca por fallback silencioso:** `EMAIL_PROVIDER=resend`
+  sem chave/remetente e qualquer `WHATSAPP_PROVIDER` sem adapter são erro
+  de configuração explícito (entrega FAILED `PROVIDER_NOT_CONFIGURED`). O
+  worker só usa o `fake` quando a env diz `fake`.
+- **Job autenticado:** `Authorization: Bearer <CRON_SECRET>` comparado em
+  tempo constante; sem segredo em produção recusa tudo (fail closed); em
+  dev só com `x-cron-dev: 1`. Resposta só com contagens; o segredo nunca
+  aparece em log/resposta. O job NÃO passa pelo rate limit (seria atrapalhar
+  envio legítimo); ações manuais (reenviar, processar agora) e a ação
+  pública tokenizada (por IP) passam.
+- **Token de ação por link:** aleatório (256 bits), só o hash com pimenta
+  no banco, propósito único, expiração curta, uso único atômico, um por
+  entrega; tabela sem policy (service role). Nunca `patient_id` nem
+  `?id=<uuid>` como autorização. A página pública não consome no GET nem
+  revela dados da consulta; resultado só "confirmada / já confirmada /
+  expirou / já usado / inválido". Reagendar/cancelar continuam exigindo
+  sessão. Sanitizador de redirect da Fase 3 continua o único caminho para
+  redirecionar por parâmetro.
+- **Conteúdo clínico não sai do portal:** eventos carregam só ids/instante/
+  modalidade/título de material; e-mails e WhatsApp de feedback/suplemento
+  são genéricos com CTA para o portal; nada de anexo. Logs: ids, canal,
+  código sanitizado (`PROVIDER_TIMEOUT`, `RATE_LIMITED`, `INVALID_RECIPIENT`…)
+  e status HTTP — nunca conteúdo, token, headers de autorização, e-mail/
+  telefone inteiros ou payload/resposta do provider. No dashboard o
+  destinatário aparece mascarado.
+- **RLS/ownership:** eventos/entregas só do nutricionista dono; paciente só
+  os próprios itens in-app (e nunca vê provider ids/erros/tentativas);
+  preferências do paciente só ele altera; escrita da fila só service role;
+  claim/enqueue/cancel com `REVOKE` explícito de `anon`/`authenticated`.
+  Confirmação de presença: trigger de ownership impede o paciente de
+  "confirmar administrativamente" ou de mexer em `patient_confirmed_at` sem
+  a transição; consulta de outro paciente = `APPOINTMENT_NOT_FOUND`.
+- **Idempotência e concorrência** (§104–§105): dois workers, dois cliques,
+  duas instâncias serverless ou cron duplicado nunca enviam a mesma entrega
+  duas vezes (chaves únicas + `SKIP LOCKED`), testado em pgTAP, integração
+  e E2E. Reprocessar só FAILED — nunca duplica SENT.
+- **WhatsApp:** somente API oficial (Business Platform/BSP) quando definido;
+  automação de WhatsApp Web é proibida em qualquer ambiente.
+
 ## Clientes Supabase — implementados na Fase 2
 
 `src/lib/supabase/client.ts` (browser, anon key), `server.ts` (Server

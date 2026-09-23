@@ -103,6 +103,10 @@ export type DomainErrorCode =
   | "FOOD_ANALYSIS_NOT_REVIEWABLE"
   | "FOOD_ANALYSIS_RATE_LIMITED"
   | "INVALID_MEAL_TIME"
+  | "NOTIFICATION_NOT_FOUND"
+  | "NOTIFICATION_DELIVERY_NOT_FOUND"
+  | "NOTIFICATION_DELIVERY_NOT_RETRYABLE"
+  | "NOTIFICATION_RATE_LIMITED"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -201,6 +205,10 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   FOOD_ANALYSIS_ALREADY_CONFIRMED: "Esta refeição já foi confirmada.",
   FOOD_ANALYSIS_NOT_REVIEWABLE: "Esta refeição ainda não tem uma análise para revisar.",
   FOOD_ANALYSIS_RATE_LIMITED: "Muitas análises em pouco tempo. Aguarde alguns minutos e tente novamente.",
+  NOTIFICATION_NOT_FOUND: "Notificação não encontrada.",
+  NOTIFICATION_DELIVERY_NOT_FOUND: "Entrega não encontrada.",
+  NOTIFICATION_DELIVERY_NOT_RETRYABLE: "Só entregas com falha podem ser reprocessadas.",
+  NOTIFICATION_RATE_LIMITED: "Muitas tentativas em pouco tempo. Aguarde alguns minutos.",
   INVALID_MEAL_TIME: "A data e a hora da refeição não podem estar no futuro.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",

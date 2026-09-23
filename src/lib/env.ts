@@ -60,6 +60,26 @@ const serverOnlySchema = z.object({
     .default("fake"),
   FOOD_ANALYSIS_MODEL: z.string().trim().max(120).optional(),
   FOOD_ANALYSIS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(45_000),
+  // Fase 12: providers de notificação. Default `fake` (determinístico, sem
+  // rede). `resend` sem RESEND_API_KEY/EMAIL_FROM é erro de configuração —
+  // nunca cai no fake em silêncio (validado em src/services/notifications).
+  EMAIL_PROVIDER: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9_-]{1,40}$/, "EMAIL_PROVIDER: identificador inválido")
+    .default("fake"),
+  EMAIL_FROM: z.string().trim().min(3).max(200).optional(),
+  EMAIL_REPLY_TO: z.string().trim().email().max(200).optional(),
+  WHATSAPP_PROVIDER: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9_-]{1,40}$/, "WHATSAPP_PROVIDER: identificador inválido")
+    .default("fake"),
+  WHATSAPP_TEMPLATE_MAP: z.string().trim().max(4000).optional(),
+  // Segredo do scheduler (Authorization: Bearer <CRON_SECRET>). Nunca NEXT_PUBLIC_,
+  // nunca logado; ausente em produção = job recusa (fail closed).
+  CRON_SECRET: z.string().trim().min(16).optional(),
+  NOTIFICATIONS_TOKEN_SECRET: z.string().trim().min(16).optional(),
 });
 
 type ServerEnv = z.infer<typeof serverOnlySchema>;
