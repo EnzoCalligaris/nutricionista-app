@@ -4,9 +4,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { CtaFinal } from "@/components/marketing/cta-final";
-import { ABOUT } from "@/content/metodo-em";
 import { siteConfig } from "@/config/site";
-import { getContactInfo } from "@/data/site-settings";
+import { getContactInfo, getProfessionalProfile, getSiteContent, publicSiteAssetUrl } from "@/data/site-settings";
+import { ABOUT } from "@/content/metodo-em";
 
 export const metadata: Metadata = {
   title: "Sobre Enzo Mangili",
@@ -16,7 +16,13 @@ export const metadata: Metadata = {
 };
 
 export default async function SobrePage() {
-  const contact = await getContactInfo();
+  const [contact, professional, content] = await Promise.all([
+    getContactInfo(),
+    getProfessionalProfile(),
+    getSiteContent(),
+  ]);
+  const photoUrl = publicSiteAssetUrl(professional.photoPath);
+  const name = professional.name ?? siteConfig.professional.name;
 
   return (
     <>
@@ -25,12 +31,13 @@ export default async function SobrePage() {
           <div className="lg:sticky lg:top-28">
             <div className="relative mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-[1.75rem] bg-secondary lg:max-w-none">
               <Image
-                src="/images/enzo/sobre.webp"
+                src={photoUrl ?? "/images/enzo/sobre.webp"}
                 alt="Enzo Mangili sentado em uma poltrona clara, sorrindo"
                 fill
                 priority
                 sizes="(min-width: 1024px) 40vw, (min-width: 640px) 24rem, 100vw"
                 className="object-cover object-top"
+                unoptimized={Boolean(photoUrl)}
               />
             </div>
           </div>
@@ -39,15 +46,25 @@ export default async function SobrePage() {
             <SectionHeading
               as="h1"
               eyebrow="Sobre"
-              title={`Prazer, ${siteConfig.professional.name}.`}
+              title={`Prazer, ${name}.`}
               lead="Quem está do outro lado do acompanhamento — e por que ele funciona do jeito que funciona."
             />
-            {contact.crn ? <p className="mt-3 text-sm text-muted-foreground">CRN {contact.crn}</p> : null}
+            {/* CRN e anos de experiência só aparecem quando configurados (§2/§3). */}
+            <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+              {contact.crn ? <p>CRN {contact.crn}</p> : null}
+              {professional.experienceYears ? (
+                <p>
+                  {professional.experienceYears} {professional.experienceYears === 1 ? "ano" : "anos"} de experiência
+                </p>
+              ) : null}
+              {professional.specialties.length > 0 ? <p>{professional.specialties.join(" · ")}</p> : null}
+            </div>
 
             <div className="mt-10 space-y-6 text-base leading-relaxed text-foreground/90 sm:text-lg">
-              <p>{ABOUT.intro}</p>
+              <p>{content.aboutIntro}</p>
+              {professional.bioFull ? <p>{professional.bioFull}</p> : null}
               <h2 className="pt-4 font-heading text-2xl font-medium">Como eu trabalho</h2>
-              <p>{ABOUT.philosophy}</p>
+              <p>{content.aboutPhilosophy}</p>
               <p>
                 Na prática, isso vira um acompanhamento em etapas: uma pré-consulta gratuita para
                 entender o seu momento, um planejamento alimentar individualizado e ajustes

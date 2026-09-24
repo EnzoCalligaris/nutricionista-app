@@ -17,6 +17,8 @@ export default function AppointmentReminderEmail({ vars, siteUrl, portalUrl, con
         <DetailRow label="Horário" value={vars.appointmentTime ?? "—"} />
         <DetailRow label="Modalidade" value={vars.modality ?? "—"} />
         {vars.address ? <DetailRow label="Endereço" value={vars.address} /> : null}
+        {vars.onlinePlatform ? <DetailRow label="Plataforma" value={vars.onlinePlatform} /> : null}
+        {vars.onlineInstructions ? <DetailRow label="Como acessar" value={vars.onlineInstructions} /> : null}
       </Details>
       <Paragraph>Confirme sua presença para mantermos o horário reservado. Se não puder comparecer, reagende pelo portal.</Paragraph>
     </EmailLayout>

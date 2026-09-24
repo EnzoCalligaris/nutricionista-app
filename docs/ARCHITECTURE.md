@@ -531,3 +531,76 @@ paciente escolhe a parcela + método
   `/paciente/pagamentos/checkout/[chargeId]`) e dashboard (cobranças no
   financeiro, `/dashboard/financeiro/reconciliacao`,
   `/dashboard/configuracoes/pagamentos`, botão de cobrança na parcela).
+
+---
+
+## Fase 14 — Consolidação administrativa, conteúdo e resultados
+
+As camadas seguem as mesmas da Fase 5 em diante (`domain` puro → `data` →
+`services` → `actions` → UI). O que a Fase 14 acrescenta:
+
+### Configurações (`site_settings`)
+
+```
+src/domain/site-settings/registry.ts   Registry FECHADO de chaves (grupo,
+                                       tipo, limite, visibilidade)
+src/domain/site-settings/resolve.ts    Mapa chave→valor → objetos tipados
+src/domain/site-settings/format.ts     Telefone/Instagram para exibição
+src/domain/site-settings/form-values.ts  Valor de cada campo do formulário
+src/content/site-content.ts            FALLBACK versionado da copy da Fase 4
+src/validators/site-settings.ts        Validação/normalização por tipo
+src/data/site-settings.ts              Leitura pública (anon) e do dashboard
+src/services/site-settings.ts          Gravação por GRUPO + upload de asset
+src/actions/site-settings.ts           Server Actions + revalidação
+```
+
+Regra central: **`is_public` é derivado no servidor**, nunca enviado pelo
+client. O endereço só vira público quando `address.show_public` está ligado —
+com a flag desligada, a RLS não entrega as linhas para `anon`.
+
+### Planos
+
+`src/domain/plans/preview.ts` converte o plano do dashboard no shape que o
+card PÚBLICO consome, então a prévia usa literalmente o mesmo componente do
+site. A condição principal é trocada por RPC atômica
+(`set_plan_primary_price` / `clear_plan_primary_price`), porque o índice único
+parcial não permite dois primários nem transitoriamente.
+
+### Resultados antes/depois
+
+```
+src/domain/results/display.ts           Nome público DERIVADO + alt text
+src/domain/results/status.ts            Estado derivado + bloqueios de publicação
+src/domain/results/consent-document.ts  Termo operacional versionado (v1)
+src/services/results.ts                 Upload, consentimento, publicação
+src/app/api/resultados/[id]/[slot]/     Entrega pública das fotos (bytes)
+```
+
+Fluxo de entrega pública da imagem (bucket privado):
+
+```
+visitante → /api/resultados/<id>/<slot>
+          → RPC public_result_image_path (SECURITY DEFINER; exige published +
+            não arquivado + consentimento válido)
+          → sem path? 404
+          → com path: service role lê o objeto e devolve os BYTES
+            (Cache-Control: no-store)
+```
+
+O visitante nunca recebe URL assinada nem path de storage — por isso uma
+revogação tem efeito imediato, inclusive para quem já tinha a página aberta.
+
+### Blog
+
+`src/domain/blog/rich-text.ts` converte a sintaxe restrita do editor no
+documento JSON que `RichContent` (Fase 4) já renderiza, com uma lista fechada
+de nós. `src/domain/blog/slug.ts` cuida do endereço; o histórico de slug fica
+em `blog_post_slug_aliases` (trigger no banco) e `/blog/[slug]` redireciona
+308 quando o endereço pedido é um alias de post visível.
+
+### Invalidação de cache
+
+`src/lib/revalidate.ts` centraliza `revalidatePublicSite()` e
+`revalidatePublicBlog(slugs)`. Toda Server Action administrativa que muda
+conteúdo público chama uma das duas: o ISR de 10 minutos continua valendo para
+o tráfego normal, mas nenhuma mudança do dashboard espera esse tempo.

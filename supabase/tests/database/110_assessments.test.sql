@@ -50,7 +50,7 @@ select is((select created_by from public.assessments where id = 'f9000000-0000-0
 select is((select visible_to_patient from public.assessments where id = 'f9000000-0000-0000-0000-000000000100'), false, 'Nasce invisível ao paciente');
 
 select lives_ok(
-  $$ insert into public.assessments (patient_id, assessment_date) values ('f9000000-0000-0000-0000-000000000011', current_date) $$,
+  $$ insert into public.assessments (patient_id, assessment_date) values ('f9000000-0000-0000-0000-000000000011', (now() at time zone 'America/Sao_Paulo')::date) $$,
   'Nutri A cadastra para paciente B (também seu)'
 );
 
@@ -146,7 +146,7 @@ select throws_ok(
   'ASSESSMENT_NOT_FOUND', 'Nutri B não grava medidas (avaliação inexistente para ele)'
 );
 select throws_ok(
-  $$ insert into public.assessments (patient_id, assessment_date) values ('f9000000-0000-0000-0000-000000000010', current_date) $$,
+  $$ insert into public.assessments (patient_id, assessment_date) values ('f9000000-0000-0000-0000-000000000010', (now() at time zone 'America/Sao_Paulo')::date) $$,
   '42501', null, 'Nutri B não cria avaliação para paciente de A'
 );
 
@@ -169,13 +169,13 @@ select set_config('request.jwt.claims', json_build_object('sub', 'f9000000-0000-
 select is((select count(*)::int from public.assessments where patient_id = 'f9000000-0000-0000-0000-000000000010'), 0, 'Paciente deixa de ver a avaliação arquivada');
 
 select set_config('request.jwt.claims', json_build_object('sub', 'f9000000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
-insert into public.assessments (id, patient_id, assessment_date) values ('f9000000-0000-0000-0000-000000000101', 'f9000000-0000-0000-0000-000000000010', current_date);
+insert into public.assessments (id, patient_id, assessment_date) values ('f9000000-0000-0000-0000-000000000101', 'f9000000-0000-0000-0000-000000000010', (now() at time zone 'America/Sao_Paulo')::date);
 select lives_ok($$ delete from public.assessments where id = 'f9000000-0000-0000-0000-000000000101' $$, 'Avaliação nunca exibida pode ser apagada');
 
 -- 7. Bucket privado (RLS do storage) --------------------------------------------------------
 insert into public.assessments (id, patient_id, assessment_date, visible_to_patient) values
-  ('f9000000-0000-0000-0000-000000000102', 'f9000000-0000-0000-0000-000000000010', current_date - 2, true),
-  ('f9000000-0000-0000-0000-000000000103', 'f9000000-0000-0000-0000-000000000010', current_date - 1, false);
+  ('f9000000-0000-0000-0000-000000000102', 'f9000000-0000-0000-0000-000000000010', (now() at time zone 'America/Sao_Paulo')::date - 2, true),
+  ('f9000000-0000-0000-0000-000000000103', 'f9000000-0000-0000-0000-000000000010', (now() at time zone 'America/Sao_Paulo')::date - 1, false);
 reset role;
 insert into storage.objects (bucket_id, name, owner, metadata) values
   ('bioimpedance-reports', 'f9000000-0000-0000-0000-000000000010/f9000000-0000-0000-0000-000000000102/r1.pdf', 'f9000000-0000-0000-0000-000000000001', '{}'),

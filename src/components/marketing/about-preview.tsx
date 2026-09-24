@@ -1,10 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ABOUT } from "@/content/metodo-em";
 import { siteConfig } from "@/config/site";
+import type { SiteContent } from "@/content/site-content";
 
-export function AboutPreview() {
+/** Prévia de "Sobre" na home — textos e nome vindos da configuração (§9/§11). */
+export function AboutPreview({ content, name }: { content: SiteContent; name?: string }) {
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
       <div className="relative mx-auto w-full max-w-sm">
@@ -21,10 +22,10 @@ export function AboutPreview() {
       <div>
         <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-primary">Quem acompanha você</p>
         <h2 className="font-heading text-3xl font-medium tracking-tight text-balance sm:text-4xl">
-          Prazer, {siteConfig.professional.name}.
+          Prazer, {name ?? siteConfig.professional.name}.
         </h2>
-        <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">{ABOUT.intro}</p>
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">{ABOUT.philosophy}</p>
+        <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">{content.aboutIntro}</p>
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">{content.aboutPhilosophy}</p>
         <Button asChild variant="outline" className="mt-8">
           <Link href="/sobre">Conhecer o Enzo</Link>
         </Button>

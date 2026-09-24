@@ -426,3 +426,43 @@ Rodar tudo: `npm run db:start` (uma vez) → `npm run test:db` → `npm run test
   do nutricionista (select/update); `payments` ganhou SELECT para o próprio
   paciente (portal financeiro).
 - pgTAP `150_payments_online.test.sql` (72 testes).
+
+---
+
+## Fase 14 — administração, resultados e blog
+
+Migration: `supabase/migrations/20260927120000_admin_content_management.sql`.
+
+### Colunas e constraints acrescentadas
+
+| Tabela | Mudança | Por quê |
+| --- | --- | --- |
+| `site_settings` | `updated_by`; check `site_settings_key_format` | rastreabilidade e recusa de chave arbitrária (mass assignment) |
+| `plan_prices` | check `plan_prices_amount_positive` | valor sempre > 0 (a constraint da Fase 2 permitia zero) |
+| `plans` | `description`; checks `plans_public_requires_active`, `plans_sale_requires_active` | texto administrável; impede "visível/à venda mas inativo" |
+| `media_consents` | `consent_version`, `granted_by`, `revoked_by`, `revoke_reason`, `name_display_mode` | consentimento versionado e formato de identificação autorizado |
+| `before_after_results` | `nutritionist_id` (NOT NULL), `archived_at`, `published_at`, `published_by`, `sort_order`, `display_name`, `image_alt`; `before_path`/`after_path` passam a aceitar NULL | dono verificado, arquivamento, vitrine e fluxo criar → subir fotos → publicar |
+| `blog_posts` | `published_by`, `archived_at` | autoria da publicação e histórico |
+| `blog_post_slug_aliases` (nova) | `post_id`, `slug` único | endereço antigo de post publicado redireciona em vez de quebrar |
+
+### Funções
+
+| Função | Papel |
+| --- | --- |
+| `publish_before_after_result(uuid)` | publica conferindo imagens + consentimento VÁLIDO, numa transação |
+| `unpublish_/archive_/restore_before_after_result(uuid)` | transições de publicação/arquivamento |
+| `revoke_media_consent(uuid, text)` | revoga; o resultado sai do site na hora pela policy pública |
+| `public_result_image_path(uuid, text)` | `SECURITY DEFINER`: path da foto só para resultado elegível (usada pela rota pública) |
+| `set_plan_primary_price(uuid, uuid)` / `clear_plan_primary_price(uuid)` | troca atômica da condição principal; "nenhuma" é estado válido |
+| `swap_plan_benefit_order(uuid, uuid)` | reordena dois benefícios numa transação (lock em ordem estável) |
+| `is_owner_of_before_after_result(uuid)` / `is_patient_of_before_after_result(uuid)` | `SECURITY DEFINER` usadas pelas policies do bucket `before-after` |
+| `validate_before_after_publication()` / `validate_before_after_ownership()` / `register_blog_slug_change()` / `validate_blog_slug_alias()` | triggers de integridade |
+
+### Storage
+
+- **`site-assets` (novo, PÚBLICO)** — foto profissional, logo e imagem de OG.
+  Asset institucional, separado de qualquer bucket de paciente.
+- **`before-after` (continua PRIVADO)** — as policies deixaram de liberar
+  qualquer objeto para qualquer `NUTRITIONIST` e passaram a exigir que o
+  resultado seja do nutricionista autenticado; o paciente continua vendo as
+  fotos do próprio resultado.

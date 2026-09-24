@@ -10,6 +10,8 @@ export default function AppointmentCreatedEmail({ vars, siteUrl, portalUrl }: Ap
         <DetailRow label="Horário" value={vars.appointmentTime ?? "—"} />
         <DetailRow label="Modalidade" value={vars.modality ?? "—"} />
         {vars.address ? <DetailRow label="Endereço" value={vars.address} /> : null}
+        {vars.onlinePlatform ? <DetailRow label="Plataforma" value={vars.onlinePlatform} /> : null}
+        {vars.onlineInstructions ? <DetailRow label="Como acessar" value={vars.onlineInstructions} /> : null}
       </Details>
       <Paragraph>Se precisar remarcar, faça isso pelo portal com antecedência.</Paragraph>
     </EmailLayout>

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Container } from "@/components/shared/container";
 import { RichContent, richContentIsEmpty } from "@/components/blog/rich-content";
 import { JsonLd } from "@/components/seo/json-ld";
-import { getPublishedPostBySlug } from "@/data/blog";
+import { getPostSlugByAlias, getPublishedPostBySlug } from "@/data/blog";
 import { formatDate } from "@/lib/dates";
 import { siteConfig } from "@/config/site";
 
@@ -40,6 +40,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const result = await getPublishedPostBySlug(slug);
+
+  // Endereço antigo de um post publicado redireciona para o atual (§42). Só
+  // alias de post visível resolve — endereço antigo de rascunho/arquivado
+  // continua 404.
+  if (result.ok && !result.data) {
+    const alias = await getPostSlugByAlias(slug);
+    if (alias.ok && alias.data && alias.data !== slug) permanentRedirect(`/blog/${alias.data}`);
+  }
 
   if (!result.ok) {
     return (

@@ -118,6 +118,29 @@ export type DomainErrorCode =
   | "PAYMENT_AMOUNT_MISMATCH"
   | "PAYMENT_RECONCILIATION_REQUIRED"
   | "PAYMENT_RATE_LIMITED"
+  // --- Fase 14: configurações, planos, resultados e blog -----------------
+  | "SETTING_UNKNOWN_KEY"
+  | "SITE_ASSET_INVALID"
+  | "SITE_ASSET_UPLOAD_FAILED"
+  | "PLAN_NOT_FOUND"
+  | "PLAN_PRICE_NOT_FOUND"
+  | "PLAN_PRICE_INACTIVE"
+  | "PLAN_BENEFIT_NOT_FOUND"
+  | "PLAN_BENEFIT_MISMATCH"
+  | "RESULT_NOT_FOUND"
+  | "RESULT_NOT_AUTHORIZED"
+  | "RESULT_ARCHIVED"
+  | "RESULT_IMAGES_MISSING"
+  | "RESULT_CONSENT_REQUIRED"
+  | "RESULT_CONSENT_REVOKED"
+  | "RESULT_IMAGE_INVALID"
+  | "RESULT_UPLOAD_FAILED"
+  | "CONSENT_NOT_FOUND"
+  | "CONSENT_ALREADY_REVOKED"
+  | "POST_NOT_FOUND"
+  | "POST_SLUG_TAKEN"
+  | "POST_EMPTY_CONTENT"
+  | "POST_NOT_PUBLISHED"
   | "VALIDATION_ERROR"
   | "UNKNOWN";
 
@@ -232,6 +255,28 @@ const MESSAGES: Record<DomainErrorCode, string> = {
   PAYMENT_RECONCILIATION_REQUIRED: "Esta cobrança precisa de conferência manual.",
   PAYMENT_RATE_LIMITED: "Muitas tentativas em pouco tempo. Aguarde alguns minutos.",
   INVALID_MEAL_TIME: "A data e a hora da refeição não podem estar no futuro.",
+  SETTING_UNKNOWN_KEY: "Configuração desconhecida.",
+  SITE_ASSET_INVALID: "Envie uma imagem WEBP, PNG ou JPG de até 5 MB.",
+  SITE_ASSET_UPLOAD_FAILED: "Não foi possível enviar a imagem. Tente novamente.",
+  PLAN_NOT_FOUND: "Plano não encontrado.",
+  PLAN_PRICE_NOT_FOUND: "Condição de preço não encontrada neste plano.",
+  PLAN_PRICE_INACTIVE: "Uma condição inativa não pode ser a principal. Reative-a primeiro.",
+  PLAN_BENEFIT_NOT_FOUND: "Benefício não encontrado.",
+  PLAN_BENEFIT_MISMATCH: "Os benefícios não pertencem ao mesmo plano.",
+  RESULT_NOT_FOUND: "Resultado não encontrado.",
+  RESULT_NOT_AUTHORIZED: "Você não tem permissão para alterar este resultado.",
+  RESULT_ARCHIVED: "Este resultado está arquivado. Restaure-o para editar ou publicar.",
+  RESULT_IMAGES_MISSING: "Envie a foto de antes e a de depois antes de publicar.",
+  RESULT_CONSENT_REQUIRED: "Registre o consentimento de uso de imagem antes de publicar.",
+  RESULT_CONSENT_REVOKED: "O consentimento de uso de imagem foi revogado: o resultado não pode ser publicado.",
+  RESULT_IMAGE_INVALID: "Envie uma imagem WEBP, PNG ou JPG de até 10 MB.",
+  RESULT_UPLOAD_FAILED: "Não foi possível enviar a imagem. Tente novamente.",
+  CONSENT_NOT_FOUND: "Consentimento não encontrado.",
+  CONSENT_ALREADY_REVOKED: "Este consentimento já foi revogado.",
+  POST_NOT_FOUND: "Post não encontrado.",
+  POST_SLUG_TAKEN: "Este endereço já está sendo usado por outro post.",
+  POST_EMPTY_CONTENT: "Escreva o conteúdo do post antes de publicar.",
+  POST_NOT_PUBLISHED: "Este post não está publicado.",
   VALIDATION_ERROR: "Verifique os dados informados.",
   UNKNOWN: "Não foi possível concluir a operação. Tente novamente.",
 };
@@ -285,6 +330,23 @@ export function domainErrorFromDatabase(error: { message?: string; code?: string
   }
   if (error?.code === "23505" && message.includes("material_assignments_material_id_patient_id_key")) {
     return new DomainError("MATERIAL_ALREADY_ASSIGNED");
+  }
+  // Fase 14 — slug de post e alias compartilham o mesmo espaço de endereços.
+  if (error?.code === "23505" && (message.includes("blog_posts_slug_key") || message.includes("blog_post_slug_aliases_slug_key"))) {
+    return new DomainError("POST_SLUG_TAKEN");
+  }
+  if (error?.code === "23505" && message.includes("plan_prices_one_primary_per_plan")) {
+    return new DomainError("PLAN_PRICE_NOT_FOUND");
+  }
+  // 23514 — valor de preço <= 0 recusado pelo banco (prompt Fase 14 §18).
+  if (error?.code === "23514" && message.includes("plan_prices_amount_positive")) {
+    return new DomainError("INVALID_AMOUNT");
+  }
+  if (error?.code === "23514" && (message.includes("plans_public_requires_active") || message.includes("plans_sale_requires_active"))) {
+    return new DomainError("VALIDATION_ERROR");
+  }
+  if (error?.code === "23514" && message.includes("site_settings_key_format")) {
+    return new DomainError("SETTING_UNKNOWN_KEY");
   }
   // 23514 = check_violation: URL fora de http(s) recusada pelo banco (defesa em profundidade da Fase 10).
   if (error?.code === "23514" && (message.includes("purchase_url_check") || message.includes("external_url_check"))) {

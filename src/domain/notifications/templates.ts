@@ -49,6 +49,9 @@ export type TemplateVariables = {
   paymentMethod?: string;
   /** Endereço só quando `site_settings` tem um cadastrado — nunca inventado (§37). */
   address?: string;
+  /** Plataforma/instruções da consulta ONLINE (prompt Fase 14 §7). */
+  onlinePlatform?: string;
+  onlineInstructions?: string;
 };
 
 const MODALITY_LABEL: Record<"IN_PERSON" | "ONLINE", string> = { IN_PERSON: "Presencial", ONLINE: "Online" };
@@ -92,6 +95,8 @@ export function buildTemplateVariables(input: {
   nutritionistName: string | null;
   timeZone?: string;
   address?: string | null;
+  onlinePlatform?: string | null;
+  onlineInstructions?: string | null;
 }): TemplateVariables {
   const tz = input.timeZone ?? DEFAULT_TIME_ZONE;
   const vars: TemplateVariables = {
@@ -111,6 +116,12 @@ export function buildTemplateVariables(input: {
   if (input.payload.modality && MODALITY_LABEL[input.payload.modality]) {
     vars.modality = MODALITY_LABEL[input.payload.modality];
     if (input.payload.modality === "IN_PERSON" && input.address?.trim()) vars.address = input.address.trim();
+    // Consulta online: plataforma e instruções configuradas (§7). Enquanto não
+    // houver configuração, nada é dito — nenhuma ferramenta é sugerida.
+    if (input.payload.modality === "ONLINE") {
+      if (input.onlinePlatform?.trim()) vars.onlinePlatform = input.onlinePlatform.trim();
+      if (input.onlineInstructions?.trim()) vars.onlineInstructions = input.onlineInstructions.trim().slice(0, 600);
+    }
   }
   if (input.payload.previous_starts_at) {
     const prev = new Date(input.payload.previous_starts_at);

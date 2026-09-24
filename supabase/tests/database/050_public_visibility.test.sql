@@ -28,20 +28,29 @@ values ('e0000000-0000-0000-0000-000000000012', 'Agendado para o futuro', 'agend
 
 -- Antes/depois: sem consentimento, com consentimento revogado, e com
 -- consentimento válido.
-insert into public.before_after_results (id, patient_id, title, before_path, after_path, published)
-values ('e0000000-0000-0000-0000-000000000020', 'e0000000-0000-0000-0000-000000000002', 'Sem consentimento', 'x/b.jpg', 'x/a.jpg', false);
+insert into public.before_after_results (id, nutritionist_id, patient_id, title, before_path, after_path, published)
+values ('e0000000-0000-0000-0000-000000000020', 'e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000002', 'Sem consentimento', 'x/b.jpg', 'x/a.jpg', false);
 
 insert into public.media_consents (id, patient_id, consent_type, revoked_at)
 values ('e0000000-0000-0000-0000-000000000030', 'e0000000-0000-0000-0000-000000000002', 'BEFORE_AFTER_PHOTOS', now());
 
-insert into public.before_after_results (id, patient_id, title, before_path, after_path, published, media_consent_id)
-values ('e0000000-0000-0000-0000-000000000021', 'e0000000-0000-0000-0000-000000000002', 'Consentimento revogado', 'x/b.jpg', 'x/a.jpg', true, 'e0000000-0000-0000-0000-000000000030');
+-- Publicar com consentimento REVOGADO passou a ser recusado pelo trigger
+-- validate_before_after_publication (Fase 14): a linha é criada publicada
+-- com o consentimento válido e o consentimento é revogado DEPOIS — que é
+-- exatamente o cenário real da revogação (prompt Fase 14 §31).
+insert into public.media_consents (id, patient_id, consent_type)
+values ('e0000000-0000-0000-0000-000000000032', 'e0000000-0000-0000-0000-000000000002', 'BEFORE_AFTER_PHOTOS');
+
+insert into public.before_after_results (id, nutritionist_id, patient_id, title, before_path, after_path, published, published_at, media_consent_id)
+values ('e0000000-0000-0000-0000-000000000021', 'e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000002', 'Consentimento revogado', 'x/b.jpg', 'x/a.jpg', true, now(), 'e0000000-0000-0000-0000-000000000032');
+
+update public.media_consents set revoked_at = now() where id = 'e0000000-0000-0000-0000-000000000032';
 
 insert into public.media_consents (id, patient_id, consent_type)
 values ('e0000000-0000-0000-0000-000000000031', 'e0000000-0000-0000-0000-000000000002', 'BEFORE_AFTER_PHOTOS');
 
-insert into public.before_after_results (id, patient_id, title, before_path, after_path, published, media_consent_id)
-values ('e0000000-0000-0000-0000-000000000022', 'e0000000-0000-0000-0000-000000000002', 'Publicado e consentido', 'x/b.jpg', 'x/a.jpg', true, 'e0000000-0000-0000-0000-000000000031');
+insert into public.before_after_results (id, nutritionist_id, patient_id, title, before_path, after_path, published, published_at, media_consent_id)
+values ('e0000000-0000-0000-0000-000000000022', 'e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000002', 'Publicado e consentido', 'x/b.jpg', 'x/a.jpg', true, now(), 'e0000000-0000-0000-0000-000000000031');
 
 -- Simula visitante anônimo do site público.
 set local role anon;

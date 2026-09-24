@@ -287,9 +287,35 @@ Critérios de entrada da Fase 1 estão no fim deste documento.
   (`test:payments-online:integration`), 11 E2E, screenshots em
   1440/1024/768/390/375/430. Sem nota fiscal, split, recorrência de cartão,
   juros/multa, chargeback além do que o provider informar ou credencial real.
-- **FASE 14 — CMS, resultados e configurações.** Blog completo no dashboard,
-  antes/depois com consentimento, tela de configurações (horários, dados do
-  profissional, textos do site).
+- **FASE 14 — Consolidação administrativa, conteúdo e resultados.** ✅
+  Concluída. `/dashboard/configuracoes` virou HUB real (perfil profissional,
+  contato/endereço, atendimento online, agenda, planos, site público,
+  resultados, blog, notificações e pagamentos), cada card mostrando o ESTADO
+  da configuração. `site_settings` ganhou um REGISTRY FECHADO
+  (`src/domain/site-settings/registry.ts`): só chave declarada é gravada e
+  `is_public` é derivado no servidor — o endereço só é legível por `anon`
+  quando `address.show_public` está ligado, e instruções/link da consulta
+  online nunca são públicos. Conteúdo da home/Sobre é configurável com
+  FALLBACK VERSIONADO (`src/content/site-content.ts`, copy da Fase 4
+  preservada palavra por palavra). Planos: administração de dados,
+  visibilidade, condições de preço (com troca ATÔMICA da condição principal —
+  "nenhuma" continua sendo estado válido do trimestral/semestral) e
+  benefícios ordenáveis; o ANUAL continua fora do site. Resultados
+  antes/depois completos: criar → fotos no bucket PRIVADO → consentimento
+  versionado (`image_use_v1`, REVISÃO JURÍDICA PENDENTE) → publicar por
+  função SQL que confere imagens + consentimento válido; revogar tira do site
+  na hora (a policy pública checa o consentimento) e a entrega das fotos é
+  por rota server-side com `no-store`, nunca URL assinada no HTML. CMS do
+  blog: rascunho/publicado/arquivado, SEO, slug com ALIAS automático
+  (endereço antigo redireciona 308) e editor de sintaxe restrita que nunca
+  aceita HTML. Bucket público novo `site-assets` só para asset institucional.
+  1 migration, 124 testes unitários novos (529 no total), 71 pgTAP novos (608
+  no total), 61 checks de integração (`test:admin-content:integration`), 16
+  E2E novos (163 no total), screenshots em 1440/768/390. Dois achados reais
+  dos testes viraram correção: o bucket `before-after` liberava a foto de um
+  resultado para QUALQUER nutricionista (policy agora é por dono) e os
+  validadores novos usavam `z.uuid()`, que recusa os ids do seed
+  (convenção do projeto é `z.guid()`).
 - **FASE 15 — Segurança, testes, acessibilidade, performance e SEO.** Testes de
   RLS/IDOR, concorrência de agenda, webhooks, timezone; auditoria WCAG;
   Lighthouse/performance; sitemap/robots/structured data.
@@ -471,6 +497,28 @@ Todos os itens cumpridos; Fase 4 concluída em 2026-09-18.
    (`APPOINTMENT_CHARGE_POLICY` continua `MANUAL`), estorno/refund pelo
    provedor, chargeback, recibo/nota fiscal, cobrança do contrato inteiro
    numa transação só, lembrete de cobrança a vencer.
-3. **Aguardando aprovação explícita do usuário** — não iniciar CMS do blog,
-   resultados antes/depois nem a tela de configurações da Fase 14 sem sinal
-   verde (prompt Fase 13 §143).
+3. Aprovação formal da Fase 13 recebida em 2026-09-24. Fase 14 concluída em
+   2026-09-24.
+
+## Critérios para iniciar a Fase 15
+
+1. Usuário revisou a consolidação administrativa (hub de configurações,
+   perfil/contato/endereço/atendimento, planos e preços, site público,
+   resultados com consentimento, blog e screenshots) e aprovou
+   explicitamente.
+2. Pendências de DADO REAL que só o Enzo fornece (o sistema já aceita todas,
+   nenhuma é inventada): CRN, telefone/WhatsApp, e-mail público, Instagram/
+   LinkedIn, endereço do consultório + se pode ser exibido, plataforma da
+   consulta online e instruções, foto profissional/logo/imagem de OG, textos
+   próprios da home e de Sobre, e os resultados antes/depois reais com o
+   respectivo consentimento assinado.
+3. Pendências de DECISÃO de produto: qual condição de preço é a principal do
+   trimestral e do semestral (hoje: nenhuma, e o site lista as opções),
+   Comunidade VIP (não aparece até ser criada), periodicidade das consultas
+   por plano, elegibilidade de agendamento por plano, categorias financeiras
+   reais e `APPOINTMENT_CHARGE_POLICY`.
+4. Pendência JURÍDICA: revisão do termo de consentimento de imagem
+   (`image_use_v1`) por advogado antes de produção — a plataforma implementa
+   os controles técnicos, mas NÃO declara conformidade jurídica plena.
+5. **Aguardando aprovação explícita do usuário** — não iniciar a Fase 15
+   (segurança, testes, acessibilidade, performance e SEO) sem sinal verde.

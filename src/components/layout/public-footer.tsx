@@ -2,12 +2,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/shared/container";
 import { siteConfig } from "@/config/site";
-import { getContactInfo } from "@/data/site-settings";
+import { getContactInfo, getProfessionalProfile, publicSiteAssetUrl } from "@/data/site-settings";
 import { hasAnyContactChannel, whatsappHref } from "@/domain/site-settings/contact";
+import { formatPhoneForDisplay, instagramHandle, telHref } from "@/domain/site-settings/format";
 
+/**
+ * Rodapé (prompt Fase 14 §9). Logo, nome, CRN e canais saem da configuração
+ * quando existirem; sem configuração continua o monograma da Fase 4 e o
+ * rodapé simplesmente não inventa contato.
+ */
 export async function PublicFooter() {
-  const contact = await getContactInfo();
+  const [contact, professional] = await Promise.all([getContactInfo(), getProfessionalProfile()]);
   const showContact = hasAnyContactChannel(contact);
+  const logoUrl = publicSiteAssetUrl(professional.logoPath);
 
   return (
     <footer className="mt-auto border-t border-border bg-secondary/60">
@@ -16,14 +23,17 @@ export async function PublicFooter() {
           <div className="max-w-sm">
             <Link href="/" className="inline-flex items-center gap-3" aria-label="Enzo Mangili — Nutricionista">
               <Image
-                src="/brand/monogram-badge.webp"
+                src={logoUrl ?? "/brand/monogram-badge.webp"}
                 alt=""
                 width={512}
                 height={526}
                 className="h-12 w-12 rounded-full object-cover"
                 sizes="48px"
+                unoptimized={Boolean(logoUrl)}
               />
-              <span className="font-heading text-lg">{siteConfig.fullName}</span>
+              <span className="font-heading text-lg">
+                {professional.name ? `${professional.name} — ${professional.title ?? siteConfig.professional.title}` : siteConfig.fullName}
+              </span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               {siteConfig.name}: acompanhamento nutricional que começa antes da consulta e continua
@@ -58,11 +68,17 @@ export async function PublicFooter() {
                   {contact.whatsapp ? (
                     <li>
                       <a href={whatsappHref(contact.whatsapp)} className="hover:text-foreground" rel="noopener">
-                        WhatsApp: {contact.whatsapp}
+                        WhatsApp: {formatPhoneForDisplay(contact.whatsapp)}
                       </a>
                     </li>
                   ) : null}
-                  {contact.phone ? <li>Telefone: {contact.phone}</li> : null}
+                  {contact.phone ? (
+                    <li>
+                      <a href={telHref(contact.phone)} className="hover:text-foreground">
+                        Telefone: {formatPhoneForDisplay(contact.phone)}
+                      </a>
+                    </li>
+                  ) : null}
                   {contact.email ? (
                     <li>
                       <a href={`mailto:${contact.email}`} className="hover:text-foreground">
@@ -73,8 +89,15 @@ export async function PublicFooter() {
                   {contact.address ? <li>{contact.address}</li> : null}
                   {contact.instagram ? (
                     <li>
-                      <a href={contact.instagram} className="hover:text-foreground" rel="noopener">
-                        Instagram
+                      <a href={contact.instagram} className="hover:text-foreground" target="_blank" rel="noopener noreferrer">
+                        Instagram {instagramHandle(contact.instagram) ?? ""}
+                      </a>
+                    </li>
+                  ) : null}
+                  {contact.linkedin ? (
+                    <li>
+                      <a href={contact.linkedin} className="hover:text-foreground" target="_blank" rel="noopener noreferrer">
+                        LinkedIn
                       </a>
                     </li>
                   ) : null}

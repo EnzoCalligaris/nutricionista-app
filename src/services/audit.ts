@@ -78,7 +78,34 @@ export type AuditAction =
   | "PAYMENT_CHARGE_CREATED"
   | "PAYMENT_CHARGE_CANCELLED"
   | "PAYMENT_RECONCILIATION_REQUESTED"
-  | "PAYMENT_REVIEW_RESOLVED";
+  | "PAYMENT_REVIEW_RESOLVED"
+  // --- Fase 14 (prompt §52) ----------------------------------------------
+  | "SETTINGS_UPDATED"
+  | "PUBLIC_PROFILE_UPDATED"
+  | "SITE_ASSET_UPLOADED"
+  | "SITE_ASSET_REMOVED"
+  | "PLAN_UPDATED"
+  | "PLAN_PRICE_CREATED"
+  | "PLAN_PRICE_UPDATED"
+  | "PLAN_PRICE_PRIMARY_SET"
+  | "PLAN_BENEFIT_CREATED"
+  | "PLAN_BENEFIT_UPDATED"
+  | "PLAN_BENEFIT_REORDERED"
+  | "RESULT_CREATED"
+  | "RESULT_UPDATED"
+  | "RESULT_IMAGE_UPLOADED"
+  | "RESULT_PUBLISHED"
+  | "RESULT_UNPUBLISHED"
+  | "RESULT_ARCHIVED"
+  | "RESULT_RESTORED"
+  | "MEDIA_CONSENT_REGISTERED"
+  | "MEDIA_CONSENT_REVOKED"
+  | "BLOG_POST_CREATED"
+  | "BLOG_POST_UPDATED"
+  | "BLOG_POST_PUBLISHED"
+  | "BLOG_POST_UNPUBLISHED"
+  | "BLOG_POST_ARCHIVED"
+  | "BLOG_POST_SLUG_CHANGED";
 
 /**
  * Auditoria append-only (`audit_logs`, Fase 2) escrita pela aplicação a
@@ -118,8 +145,20 @@ export async function recordAudit(input: {
     | "notification_delivery"
     | "notification_preferences"
     | "payment_charge"
-    | "payment_reconciliation";
-  entityId: string;
+    | "payment_reconciliation"
+    | "site_settings"
+    | "plan"
+    | "plan_price"
+    | "plan_benefit"
+    | "before_after_result"
+    | "media_consent"
+    | "blog_post";
+  /**
+   * `null` para entidade sem id de linha — o caso de `site_settings`, que é
+   * key/value global. A coluna `audit_logs.entity_id` é nullable desde a
+   * Fase 2.
+   */
+  entityId: string | null;
   metadata?: Record<string, Json>;
 }): Promise<void> {
   const supabase = await createClient();

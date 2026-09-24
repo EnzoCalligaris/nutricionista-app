@@ -88,12 +88,16 @@ select throws_ok(
 );
 
 -- 6) before_after_results: nunca publica sem consentimento ---------------
+-- O check constraint da Fase 2 (23514) continua no lugar, mas desde a Fase 14
+-- o trigger validate_before_after_publication roda ANTES dele e recusa com
+-- mensagem específica (P0001) — além de cobrir o caso que o check não pega:
+-- consentimento presente mas REVOGADO (ver 160_admin_content.test.sql).
 select throws_ok(
-  $$insert into public.before_after_results (title, before_path, after_path, published)
-    values ('Resultado sem consentimento', 'x/before.jpg', 'x/after.jpg', true)$$,
-  '23514',
-  null,
-  'before_after_results: published=true sem media_consent_id é rejeitado pelo check constraint'
+  $$insert into public.before_after_results (nutritionist_id, title, before_path, after_path, published)
+    values ('a0000000-0000-0000-0000-000000000001', 'Resultado sem consentimento', 'x/before.jpg', 'x/after.jpg', true)$$,
+  'P0001',
+  'RESULT_CONSENT_REQUIRED',
+  'before_after_results: published=true sem media_consent_id é recusado'
 );
 
 select * from finish();

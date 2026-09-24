@@ -41,6 +41,13 @@ endereço/localização do consultório, e-mail profissional, redes sociais,
 depoimentos com nome/foto autorizados, fotos de antes/depois com consentimento
 registrado.
 
+> **Desde a Fase 14 todos esses dados são CONFIGURÁVEIS pelo dashboard**
+> (`/dashboard/configuracoes`): o sistema aceita cada um deles e o site
+> simplesmente não exibe o que estiver vazio. Eles continuam `PENDENTE DE
+> DEFINIÇÃO` porque dependem do Enzo informá-los — não porque falte onde
+> guardar. O mesmo vale para a plataforma da consulta online, a foto
+> profissional, o logo e a imagem de compartilhamento.
+
 ### Pilares do acompanhamento (adaptados do material — "6 pilares")
 
 Conteúdo original do PDF cita 6 pilares, incluindo "Grupo Exclusivo com a Equipe"
@@ -260,3 +267,39 @@ administração; autorização sempre validada no servidor.
 
 Ver `docs/SECURITY.md` para o detalhamento completo (RLS, storage, auditoria,
 consentimento, retenção).
+
+## 14. Administração do conteúdo e dos resultados (Fase 14)
+
+O nutricionista administra pelo dashboard, sem tocar em código:
+
+- **Perfil profissional** — nome, título, CRN, bio curta/completa, áreas de
+  atuação, anos de experiência, foto e logo.
+- **Contato e localização** — telefone, WhatsApp, e-mail público, Instagram,
+  LinkedIn e endereço estruturado, com uma flag que decide se o endereço pode
+  aparecer no site e nos e-mails.
+- **Atendimento online** — nome da plataforma (público) e instruções/link base
+  (só para o paciente autenticado).
+- **Planos** — nome, descrição, composição, benefícios (ordenáveis), condições
+  de preço e as três flags independentes (`active`, `publicly_visible`,
+  `available_for_sale`). O plano ANUAL continua existindo sem ser ofertado
+  publicamente.
+- **Condição principal de preço** — o nutricionista escolhe qual condição é a
+  destacada, ou NENHUMA. Sem escolha, o site lista as opções sem eleger uma:
+  é assim que o trimestral e o semestral estão hoje.
+- **Site público** — headline, subheadline, CTA, textos do Método EM e de
+  Sobre, e o SEO padrão. Campo vazio mantém o texto atual (fallback
+  versionado da Fase 4).
+- **Resultados antes/depois** — criar, subir as duas fotos, registrar o
+  consentimento de uso de imagem, pré-visualizar, publicar, despublicar,
+  arquivar e revogar o consentimento.
+- **Blog** — rascunho, publicação, republicação, arquivamento, endereço
+  (slug) com redirecionamento do endereço antigo, capa e SEO.
+
+Regras de produto que a fase NÃO decidiu (continuam com o Enzo): qual condição
+de preço é a principal do trimestral/semestral, Comunidade VIP, periodicidade
+das consultas por plano, elegibilidade de agendamento por plano e as
+categorias financeiras reais.
+
+**Uma avaliação física (Fase 9) nunca vira resultado público automaticamente.**
+Subir a foto, registrar o consentimento e publicar são passos separados e
+explícitos.

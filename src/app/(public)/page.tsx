@@ -14,7 +14,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getPublicPlans } from "@/data/plans";
 import { getPublishedPosts } from "@/data/blog";
 import { getPublishedResults } from "@/data/results";
-import { MISSION } from "@/content/metodo-em";
+import { getProfessionalProfile, getSiteContent, publicSiteAssetUrl } from "@/data/site-settings";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
@@ -24,11 +24,15 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [plans, posts, results] = await Promise.all([
+  const [plans, posts, results, content, professional] = await Promise.all([
     getPublicPlans(),
     getPublishedPosts(3),
     getPublishedResults(),
+    getSiteContent(),
+    getProfessionalProfile(),
   ]);
+  const heroPhotoUrl = publicSiteAssetUrl(professional.photoPath);
+  const professionalName = professional.name ?? siteConfig.professional.name;
 
   // Só dados realmente disponíveis (prompt Fase 4 §36): sem address,
   // telephone, priceRange, rating ou reviews inventados.
@@ -38,10 +42,10 @@ export default async function HomePage() {
       {
         "@type": "Person",
         "@id": `${siteConfig.url}/#enzo`,
-        name: siteConfig.professional.name,
-        jobTitle: siteConfig.professional.title,
+        name: professionalName,
+        jobTitle: professional.title ?? siteConfig.professional.title,
         url: siteConfig.url,
-        image: `${siteConfig.url}/images/enzo/hero.webp`,
+        image: heroPhotoUrl ?? `${siteConfig.url}/images/enzo/hero.webp`,
       },
       {
         "@type": "WebSite",
@@ -57,7 +61,7 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={jsonLd} />
-      <Hero />
+      <Hero content={content} title={professional.title} photoUrl={heroPhotoUrl} />
 
       <Section tone="muted" size="compact">
         <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
@@ -66,12 +70,8 @@ export default async function HomePage() {
             title="Uma metodologia de acompanhamento, não uma dieta."
           />
           <div className="space-y-4 text-base leading-relaxed text-muted-foreground sm:text-lg lg:pt-2">
-            <p>
-              EM são as iniciais de Enzo Mangili — e também o jeito de trabalhar: antes, durante e
-              depois da consulta. Em vez de entregar um cardápio e esperar o retorno, o
-              acompanhamento se organiza em pré-consulta, consulta, ajustes e evolução.
-            </p>
-            <p>{MISSION}</p>
+            <p>{content.methodIntro}</p>
+            <p>{content.mission}</p>
           </div>
         </div>
       </Section>
@@ -101,7 +101,7 @@ export default async function HomePage() {
       </Section>
 
       <Section>
-        <AboutPreview />
+        <AboutPreview content={content} name={professional.name} />
       </Section>
 
       <Section tone="muted">

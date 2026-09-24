@@ -3,9 +3,10 @@ import { dashboardNavItems } from "@/components/layout/dashboard-nav-items";
 import { patientNavItems } from "@/components/layout/patient-nav-items";
 
 describe("dashboardNavItems", () => {
-  it("tem os 12 itens definidos em docs/PROJECT_SPEC.md §6 + Notificações (Fase 12)", () => {
-    expect(dashboardNavItems).toHaveLength(13);
+  it("tem os 12 itens definidos em docs/PROJECT_SPEC.md §6 + Notificações (Fase 12) + Planos (Fase 14)", () => {
+    expect(dashboardNavItems).toHaveLength(14);
     expect(dashboardNavItems.map((item) => item.title)).toContain("Notificações");
+    expect(dashboardNavItems.map((item) => item.title)).toContain("Planos");
   });
 
   it("não tem hrefs duplicados", () => {

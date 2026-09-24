@@ -459,41 +459,62 @@ export type Database = {
       }
       before_after_results: {
         Row: {
-          after_path: string
-          before_path: string
+          after_path: string | null
+          archived_at: string | null
+          before_path: string | null
           created_at: string
           description: string | null
+          display_name: string | null
           id: string
+          image_alt: string | null
           media_consent_id: string | null
+          nutritionist_id: string
           patient_id: string | null
           period: string | null
           published: boolean
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
           title: string
           updated_at: string
         }
         Insert: {
-          after_path: string
-          before_path: string
+          after_path?: string | null
+          archived_at?: string | null
+          before_path?: string | null
           created_at?: string
           description?: string | null
+          display_name?: string | null
           id?: string
+          image_alt?: string | null
           media_consent_id?: string | null
+          nutritionist_id: string
           patient_id?: string | null
           period?: string | null
           published?: boolean
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
           title: string
           updated_at?: string
         }
         Update: {
-          after_path?: string
-          before_path?: string
+          after_path?: string | null
+          archived_at?: string | null
+          before_path?: string | null
           created_at?: string
           description?: string | null
+          display_name?: string | null
           id?: string
+          image_alt?: string | null
           media_consent_id?: string | null
+          nutritionist_id?: string
           patient_id?: string | null
           period?: string | null
           published?: boolean
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
           title?: string
           updated_at?: string
         }
@@ -503,6 +524,13 @@ export type Database = {
             columns: ["media_consent_id"]
             isOneToOne: false
             referencedRelation: "media_consents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "before_after_results_nutritionist_id_fkey"
+            columns: ["nutritionist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -524,6 +552,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "before_after_results_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -593,6 +628,35 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_post_slug_aliases: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_post_slug_aliases_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_post_tags: {
         Row: {
           post_id: string
@@ -625,6 +689,7 @@ export type Database = {
       }
       blog_posts: {
         Row: {
+          archived_at: string | null
           author_id: string | null
           category_id: string | null
           content: Json
@@ -635,6 +700,7 @@ export type Database = {
           meta_description: string | null
           og_image_path: string | null
           published_at: string | null
+          published_by: string | null
           seo_title: string | null
           slug: string
           status: Database["public"]["Enums"]["blog_post_status"]
@@ -642,6 +708,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           author_id?: string | null
           category_id?: string | null
           content?: Json
@@ -652,6 +719,7 @@ export type Database = {
           meta_description?: string | null
           og_image_path?: string | null
           published_at?: string | null
+          published_by?: string | null
           seo_title?: string | null
           slug: string
           status?: Database["public"]["Enums"]["blog_post_status"]
@@ -659,6 +727,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           author_id?: string | null
           category_id?: string | null
           content?: Json
@@ -669,6 +738,7 @@ export type Database = {
           meta_description?: string | null
           og_image_path?: string | null
           published_at?: string | null
+          published_by?: string | null
           seo_title?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["blog_post_status"]
@@ -688,6 +758,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "blog_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1556,35 +1633,57 @@ export type Database = {
       media_consents: {
         Row: {
           consent_type: string
+          consent_version: string
           created_at: string
           evidence_reference: string | null
           granted_at: string
+          granted_by: string | null
           id: string
+          name_display_mode: string
           patient_id: string
+          revoke_reason: string | null
           revoked_at: string | null
+          revoked_by: string | null
           updated_at: string
         }
         Insert: {
           consent_type: string
+          consent_version?: string
           created_at?: string
           evidence_reference?: string | null
           granted_at?: string
+          granted_by?: string | null
           id?: string
+          name_display_mode?: string
           patient_id: string
+          revoke_reason?: string | null
           revoked_at?: string | null
+          revoked_by?: string | null
           updated_at?: string
         }
         Update: {
           consent_type?: string
+          consent_version?: string
           created_at?: string
           evidence_reference?: string | null
           granted_at?: string
+          granted_by?: string | null
           id?: string
+          name_display_mode?: string
           patient_id?: string
+          revoke_reason?: string | null
           revoked_at?: string | null
+          revoked_by?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "media_consents_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "media_consents_patient_id_fkey"
             columns: ["patient_id"]
@@ -1604,6 +1703,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_consents_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2844,6 +2950,7 @@ export type Database = {
           available_for_sale: boolean
           code: string
           created_at: string
+          description: string | null
           duration_months: number | null
           id: string
           name: string
@@ -2857,6 +2964,7 @@ export type Database = {
           available_for_sale?: boolean
           code: string
           created_at?: string
+          description?: string | null
           duration_months?: number | null
           id?: string
           name: string
@@ -2870,6 +2978,7 @@ export type Database = {
           available_for_sale?: boolean
           code?: string
           created_at?: string
+          description?: string | null
           duration_months?: number | null
           id?: string
           name?: string
@@ -2962,21 +3071,32 @@ export type Database = {
           is_public: boolean
           key: string
           updated_at: string
+          updated_by: string | null
           value: Json
         }
         Insert: {
           is_public?: boolean
           key: string
           updated_at?: string
+          updated_by?: string | null
           value: Json
         }
         Update: {
           is_public?: boolean
           key?: string
           updated_at?: string
+          updated_by?: string | null
           value?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "site_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplement_recommendations: {
         Row: {
@@ -3299,6 +3419,35 @@ export type Database = {
         Args: { p_starts_at: string; p_timezone?: string }
         Returns: string
       }
+      archive_before_after_result: {
+        Args: { p_result_id: string }
+        Returns: {
+          after_path: string | null
+          archived_at: string | null
+          before_path: string | null
+          created_at: string
+          description: string | null
+          display_name: string | null
+          id: string
+          image_alt: string | null
+          media_consent_id: string | null
+          nutritionist_id: string
+          patient_id: string | null
+          period: string | null
+          published: boolean
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "before_after_results"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       archive_meal_plan: { Args: { p_plan_id: string }; Returns: undefined }
       assessment_visible_to_patient: {
         Args: { p_assessment_id: string }
@@ -3436,6 +3585,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      clear_plan_primary_price: {
+        Args: { p_plan_id: string }
+        Returns: undefined
       }
       complete_contract: { Args: { p_contract_id: string }; Returns: undefined }
       confirm_appointment_presence: {
@@ -3576,6 +3729,14 @@ export type Database = {
         Args: { target_patient_id: string }
         Returns: boolean
       }
+      is_owner_of_before_after_result: {
+        Args: { target_result_id: string }
+        Returns: boolean
+      }
+      is_patient_of_before_after_result: {
+        Args: { target_result_id: string }
+        Returns: boolean
+      }
       is_patient_self: { Args: { target_patient_id: string }; Returns: boolean }
       material_visible_to_patient: {
         Args: { p_material_id: string }
@@ -3603,6 +3764,39 @@ export type Database = {
       patient_has_consent: {
         Args: { p_patient_id: string; p_type: string; p_version: string }
         Returns: boolean
+      }
+      public_result_image_path: {
+        Args: { p_result_id: string; p_slot: string }
+        Returns: string
+      }
+      publish_before_after_result: {
+        Args: { p_result_id: string }
+        Returns: {
+          after_path: string | null
+          archived_at: string | null
+          before_path: string | null
+          created_at: string
+          description: string | null
+          display_name: string | null
+          id: string
+          image_alt: string | null
+          media_consent_id: string | null
+          nutritionist_id: string
+          patient_id: string | null
+          period: string | null
+          published: boolean
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "before_after_results"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       publish_meal_plan_version: {
         Args: { p_version_id: string }
@@ -3645,10 +3839,100 @@ export type Database = {
         }
         Returns: string
       }
+      restore_before_after_result: {
+        Args: { p_result_id: string }
+        Returns: {
+          after_path: string | null
+          archived_at: string | null
+          before_path: string | null
+          created_at: string
+          description: string | null
+          display_name: string | null
+          id: string
+          image_alt: string | null
+          media_consent_id: string | null
+          nutritionist_id: string
+          patient_id: string | null
+          period: string | null
+          published: boolean
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "before_after_results"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      revoke_media_consent: {
+        Args: { p_consent_id: string; p_reason?: string }
+        Returns: {
+          consent_type: string
+          consent_version: string
+          created_at: string
+          evidence_reference: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          name_display_mode: string
+          patient_id: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "media_consents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       safe_uuid: { Args: { value: string }; Returns: string }
       set_assessment_measurements: {
         Args: { p_assessment_id: string; p_values: Json }
         Returns: undefined
+      }
+      set_plan_primary_price: {
+        Args: { p_plan_id: string; p_price_id: string }
+        Returns: undefined
+      }
+      swap_plan_benefit_order: {
+        Args: { p_benefit_id: string; p_other_benefit_id: string }
+        Returns: undefined
+      }
+      unpublish_before_after_result: {
+        Args: { p_result_id: string }
+        Returns: {
+          after_path: string | null
+          archived_at: string | null
+          before_path: string | null
+          created_at: string
+          description: string | null
+          display_name: string | null
+          id: string
+          image_alt: string | null
+          media_consent_id: string | null
+          nutritionist_id: string
+          patient_id: string | null
+          period: string | null
+          published: boolean
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "before_after_results"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       validate_booking_window: {
         Args: {

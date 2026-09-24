@@ -6,6 +6,7 @@ import { normalizePhoneE164 } from "@/domain/notifications/phone";
 import { decideAfterFailure, type ProviderErrorCode } from "@/domain/notifications/retry";
 import { buildTemplateVariables, inAppContent, offersPresenceConfirmation, whatsappVariables, type EventPayload, type TemplateVariables } from "@/domain/notifications/templates";
 import { confirmTokenExpiresAt } from "@/domain/notifications/tokens";
+import { publicAddressLine, resolveAddress, resolveOnlineAttendance } from "@/domain/site-settings/resolve";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json } from "@/types/database";
 import { getEmailProvider, getWhatsAppProvider, getWhatsAppTemplateMap, ProviderConfigError } from "@/services/notifications/index";
@@ -49,18 +50,37 @@ async function loadContext(admin: Admin, event: EventRow) {
     admin.from("notification_preferences").select("event_type, channel, enabled").eq("nutritionist_id", event.nutritionist_id),
     admin.from("patient_notification_preferences").select("email_enabled, whatsapp_enabled").eq("patient_id", event.patient_id).maybeSingle(),
     admin.from("scheduling_settings").select("timezone").eq("nutritionist_id", event.nutritionist_id).maybeSingle(),
-    admin.from("site_settings").select("value").eq("key", "contact.address").maybeSingle(),
+    // Fase 14: endereço estruturado + flag de exibição + atendimento online.
+    // O worker usa o service role (sem RLS), então a permissão de exibir o
+    // endereço é checada AQUI: e-mail só mostra endereço quando configurado E
+    // autorizado (prompt Fase 14 §6).
+    admin.from("site_settings").select("key, value"),
   ]);
   if (!patient.data) return null;
-  const addressValue = address.data?.value;
+  const settingsMap = Object.fromEntries((address.data ?? []).map((row) => [row.key, row.value]));
+  const resolvedAddress = resolveAddress(settingsMap);
+  const online = resolveOnlineAttendance(settingsMap);
   return {
     patient: patient.data,
     nutritionistName: nutritionist.data?.full_name ?? null,
     preferences: prefs.data ?? [],
     patientPreference: patientPref.data ?? null,
     timeZone: settings.data?.timezone ?? siteConfig.timeZone,
-    address: typeof addressValue === "string" ? addressValue : null,
+    address: publicAddressLine(resolvedAddress) ?? readLegacyAddress(settingsMap),
+    onlinePlatform: online.platform ?? null,
+    onlineInstructions: online.instructions ?? null,
   };
+}
+
+/**
+ * Chave legada `contact.address` (endereço em texto livre da Fase 4). Só vale
+ * quando a flag de exibição está ligada — a mesma regra do endereço
+ * estruturado.
+ */
+function readLegacyAddress(settings: Record<string, unknown>): string | null {
+  if (settings["address.show_public"] !== true) return null;
+  const legacy = settings["contact.address"];
+  return typeof legacy === "string" && legacy.trim() ? legacy.trim() : null;
 }
 
 /**
@@ -89,7 +109,16 @@ export async function generateDeliveries(options: { limit?: number } = {}): Prom
     }
     const eventType: NotificationEventType = event.event_type;
     const payload = (event.payload ?? {}) as EventPayload;
-    const vars = buildTemplateVariables({ eventType, payload, patientName: ctx.patient.full_name, nutritionistName: ctx.nutritionistName, timeZone: ctx.timeZone, address: ctx.address });
+    const vars = buildTemplateVariables({
+      eventType,
+      payload,
+      patientName: ctx.patient.full_name,
+      nutritionistName: ctx.nutritionistName,
+      timeZone: ctx.timeZone,
+      address: ctx.address,
+      onlinePlatform: ctx.onlinePlatform,
+      onlineInstructions: ctx.onlineInstructions,
+    });
     const phone = normalizePhoneE164(ctx.patient.phone);
     const email = ctx.patient.email?.trim() || null;
     const decisions = routeEvent({

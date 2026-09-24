@@ -1953,3 +1953,146 @@ dado plausível/inventado.
     `flex-nowrap` — com dois botões de texto as linhas ficavam com alturas
     diferentes em 768/1024. O `not-found` do portal é o padrão do Next (a
     página de checkout de outro paciente devolve 404 sem vazar nada).
+
+---
+
+## Fase 14 — Consolidação administrativa, conteúdo e resultados
+
+Decisões tomadas ao implementar o hub de configurações, a administração de
+planos/preços/benefícios, os resultados antes/depois com consentimento e o CMS
+do blog.
+
+1. **`site_settings` continua key/value, com um REGISTRY FECHADO na
+   aplicação** (`src/domain/site-settings/registry.ts`). Cada chave declara
+   grupo, tipo, limite e visibilidade. O Server Action só lê do formulário as
+   chaves DAQUELE grupo e `is_public` é sempre DERIVADO no servidor
+   (`resolveIsPublic`) — nunca vem do client (§56). O banco reforça com o
+   check `site_settings_key_format`, que recusa chave fora do padrão. Chaves
+   planas (`contact.phone`, `professional.crn`, `social.instagram`) foram
+   mantidas: são as que o site já lia desde a Fase 4.
+2. **Endereço: privacidade pela RLS, não pela renderização** (§6). Os campos
+   `address.*` são gravados com `is_public = address.show_public`. Com a flag
+   desligada, o visitante anônimo não recebe as linhas nem pela API — a
+   aplicação não depende de "lembrar de esconder". Ligar/desligar a flag
+   regrava a visibilidade das linhas já salvas na MESMA operação.
+3. **Consulta online**: só o NOME da plataforma é público. Instruções e link
+   base têm `is_public = false` e são entregues ao paciente autenticado
+   (portal/e-mail). Nenhum exemplo entra como default — "Plataforma X" e
+   afins só existem em fixture de teste/QA (§7/§91).
+4. **Conteúdo público com fallback versionado** (§12). `src/content/
+   site-content.ts` guarda a copy da Fase 4 PALAVRA POR PALAVRA
+   (`SITE_CONTENT_FALLBACK_VERSION = "fase-4-v1"`). Campo vazio no formulário
+   APAGA a linha e o site volta ao fallback; campo preenchido manda no site. A
+   tela de configuração mostra o texto em uso e marca o que já foi
+   personalizado — a aplicação nunca grava a copy de fallback no banco por
+   conta própria.
+5. **Não é um CMS genérico** (§10): formulários específicos por seção
+   (perfil, contato, endereço, atendimento, home, SEO), sem editor de página
+   livre nem árvore de conteúdo.
+6. **Condição principal de preço é atômica** (§17/§66). O índice único
+   parcial `plan_prices_one_primary_per_plan` (Fase 2) impede dois primários
+   até por um instante, então a troca passa por
+   `set_plan_primary_price(plan, price)` — limpa e marca numa transação.
+   "Nenhuma principal" é estado LEGÍTIMO e ganhou função própria
+   (`clear_plan_primary_price`), para o cliente tipado não precisar passar
+   NULL num parâmetro `uuid`. O trimestral e o semestral continuam sem
+   principal: o site lista "Opções de investimento" sem eleger nenhuma.
+7. **Validação de preço no banco** (§18): `plan_prices_amount_positive`
+   (valor > 0) foi adicionada — a constraint da Fase 2 permitia zero.
+   `plans_public_requires_active` e `plans_sale_requires_active` impedem o
+   estado incoerente "visível/à venda mas inativo".
+8. **Resultado antes/depois: o nome exibido é DERIVADO, nunca digitado**
+   (§36/§91). `media_consents.name_display_mode`
+   (ANONYMOUS/FIRST_NAME/INITIALS/FULL_NAME) diz o que a pessoa autorizou, e
+   `publicDisplayName()` monta o nome a partir do cadastro real. Não existe
+   campo de texto para "nome a exibir" — assim não há caminho para inventar
+   identidade. Resultado sem paciente vinculado é sempre anônimo.
+9. **Publicar é uma função SQL** (§29/§47/§70). `publish_before_after_result`
+   confere, numa transação: não arquivado, as duas fotos presentes,
+   consentimento presente E não revogado. Um trigger
+   (`validate_before_after_publication`) fecha o caminho de escrita direta —
+   o check da Fase 2 só garantia "tem consentimento", não "consentimento
+   válido".
+10. **Revogação não edita o resultado** (§31). `revoke_media_consent` marca
+    `revoked_at`/`revoked_by`/`revoke_reason`; a policy pública chama
+    `has_valid_media_consent()`, então o resultado sai do ar NA HORA. O
+    `published` continua `true` de propósito: preserva o histórico do que
+    esteve publicado, e o dashboard mostra o estado "Fora do ar —
+    consentimento revogado". Republicar exige uma NOVA autorização.
+11. **Entrega pública das fotos: rota server-side, não URL assinada** (§32/
+    §33). O bucket `before-after` continua privado. `/api/resultados/[id]/
+    [slot]` pergunta a elegibilidade ao BANCO
+    (`public_result_image_path`, SECURITY DEFINER) e só então lê o objeto com
+    o service role e devolve os bytes. Uma URL assinada embutida no HTML
+    continuaria funcionando depois de uma revogação e ficaria congelada no
+    cache do ISR — por isso não é usada. `Cache-Control: no-store` é
+    deliberado: revogação imediata vale mais que cache de imagem aqui.
+12. **Arquivar, não apagar** (§37): `archive_before_after_result` despublica
+    e marca `archived_at`; `restore_...` desfaz. A RLS pública também exige
+    `archived_at is null`.
+13. **Consentimento operacional v1, com revisão jurídica pendente** (§88/
+    §89). `src/domain/results/consent-document.ts` descreve em linguagem
+    simples o que o sistema REALMENTE faz (bucket privado, entrega
+    server-side, revogação imediata) e é versionado em
+    `media_consents.consent_version`. A plataforma implementa controles
+    técnicos (consentimento, revogação, minimização, acesso por RLS,
+    auditoria) e NÃO afirma conformidade jurídica plena com a LGPD.
+14. **Conteúdo do blog nunca é HTML** (§40). O editor usa uma sintaxe
+    restrita (`##`, `-`, `1.`, `>`, `**`, `*`, `[texto](url)`) convertida por
+    `parseRichText` num documento JSON com uma lista FECHADA de nós — os
+    mesmos que `RichContent` (Fase 4) já renderizava passando texto como
+    children React, sem `dangerouslySetInnerHTML`. O que não casa com a
+    sintaxe vira texto comum, e link com protocolo perigoso não vira link.
+    TipTap não foi adicionado como dependência: a estrutura de dados
+    compatível já existia e o editor por sintaxe cobre o caso sem trazer um
+    editor inteiro para o bundle.
+15. **Slug de post publicado nunca quebra URL** (§42). Um trigger
+    (`register_blog_slug_change`) guarda o slug anterior em
+    `blog_post_slug_aliases` quando um post PUBLICADO muda de endereço, e
+    `/blog/<antigo>` responde 308 para o atual. Rascunho que troca de slug não
+    gera alias (nunca teve URL). Alias e slug compartilham o mesmo espaço de
+    nomes: colisão nas duas direções é recusada.
+16. **Bucket `site-assets` (público) para asset institucional** (§45/§46):
+    foto profissional, logo e imagem de OG. Justificativa: são públicos por
+    natureza e não podem dividir bucket com foto de paciente; o bucket `blog`
+    continua sendo das capas de post. Nenhuma foto clínica entra aqui.
+17. **Invalidação explícita de cache** (§49/§50): o site público mantém ISR de
+    10 min, mas toda mutação administrativa chama `revalidatePublicSite()` /
+    `revalidatePublicBlog()` (`src/lib/revalidate.ts`). Crítico para a
+    revogação de consentimento, que precisa refletir na hora.
+18. **Correções de segurança encontradas PELOS TESTES desta fase** (não eram
+    regressões da Fase 14, e sim autorização presumida das fases anteriores):
+    - o bucket `before-after` liberava SELECT/ALL para qualquer perfil
+      `NUTRITIONIST`; o teste de integração mostrou o nutricionista B baixando
+      a foto do resultado do nutricionista A. As policies passaram a ser por
+      DONO, via funções `SECURITY DEFINER` (`is_owner_of_before_after_result`,
+      `is_patient_of_before_after_result`) em vez de `EXISTS` direto
+      (CLAUDE.md regra 11);
+    - `before_after_results` e `media_consents` também liberavam leitura/
+      escrita para qualquer nutricionista — agora são por dono/por paciente do
+      nutricionista.
+19. **`z.guid()`, não `z.uuid()`** (achado do E2E). Os ids do projeto (seed e
+    migrations) usam a forma 8-4-4-4-12 sem o nibble de versão RFC (ex.:
+    `90000000-0000-0000-0000-000000000010`). No Zod 4, `z.uuid()` exige
+    versão 1–8 e RECUSA esses ids — o formulário de consentimento falhava com
+    "identificador inválido". A convenção do projeto (já usada em
+    `src/validators/patients.ts`) é `z.guid()`. Há teste de regressão.
+20. **Bug de fuso em fixture pré-existente**: `110_assessments.test.sql` usava
+    `current_date` (data do SERVIDOR, UTC no Supabase local). Entre 00:00 e
+    03:00 UTC isso já é "amanhã" em America/Sao_Paulo e o trigger recusava a
+    avaliação (`INVALID_ASSESSMENT_DATE`). Passou a usar
+    `(now() at time zone 'America/Sao_Paulo')::date`, como manda a regra 5 do
+    CLAUDE.md.
+21. **Ajustes de QA visual**: a página pública de resultados passou de 3 para
+    2 colunas (com 3, cada foto ficava com ~140 px e o antes/depois deixava
+    de ser legível — a lista da home, que é teaser, continua em 3); o
+    textarea do editor de post ganhou altura mínima (`min-h-72`), porque o
+    `Textarea` do design system dimensiona pelo conteúdo e deixava a área de
+    escrita minúscula; a linha de benefício do plano passou a `flex-1 min-w-0`
+    para o rótulo longo não empurrar os botões de ordenar para a linha de
+    baixo.
+22. **Dado real continua PENDENTE**: nenhum CRN, telefone, endereço, e-mail,
+    Instagram, plataforma online, logo, preço novo ou depoimento foi
+    inventado. O sistema aceita todos e o site simplesmente não exibe o que
+    não estiver configurado. Os valores que aparecem em screenshots e testes
+    são explicitamente de exemplo/QA.

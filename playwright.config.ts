@@ -20,7 +20,16 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Ambiente com Chromium já instalado fora do registry do Playwright
+        // (container de CI/execução remota): `PLAYWRIGHT_CHROMIUM_PATH` aponta
+        // o binário e evita baixar outro. Sem a variável, o comportamento é o
+        // padrão (Playwright resolve o browser que ele mesmo instalou).
+        ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } }
+          : {}),
+      },
     },
   ],
   // Servidor de PRODUÇÃO sempre (Fase 7, docs/DECISIONS.md): nunca reutiliza

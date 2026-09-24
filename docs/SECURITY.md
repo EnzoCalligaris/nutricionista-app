@@ -599,3 +599,73 @@ Toda regra de disponibilidade, lembrete e vencimento depende do fuso
 indisponível ou disparar lembrete no dia errado. Testes de timezone (Fase 15)
 devem cobrir: criação de consulta perto da virada de dia, período de horário de
 verão histórico (se relevante), e cron jobs de lembrete rodando em servidor UTC.
+
+---
+
+## Fase 14 — configurações, resultados e conteúdo público
+
+### Superfície nova e o que a protege
+
+| Recurso | Quem pode | Como é garantido |
+| --- | --- | --- |
+| `site_settings` | leitura: `anon` só `is_public = true`; escrita: nutricionista | RLS da Fase 2 + `is_public` DERIVADO no servidor + registry fechado de chaves + check de formato de chave no banco |
+| Endereço do consultório | público só com `address.show_public` | as linhas são gravadas com `is_public = flag`: desligada, `anon` não lê nem pela API |
+| Instruções/link da consulta online | paciente autenticado | `is_public = false` sempre; o site público recebe só o nome da plataforma |
+| Planos/preços/benefícios | escrita: nutricionista | RLS da Fase 2 + constraints de valor/coerência + RPC atômica para condição principal |
+| Resultados antes/depois | escrita e leitura: DONO | `before_after_results_*_own` (por `nutritionist_id`) |
+| `media_consents` | nutricionista DO PACIENTE, e o próprio paciente | `is_nutritionist_of_patient` / `is_patient_self` |
+| Fotos antes/depois | dono, paciente do resultado, e o público só pela rota | policies do bucket por dono (`is_owner_of_before_after_result`) + rota server-side |
+| Assets institucionais | leitura pública; escrita: nutricionista | bucket `site-assets` público por natureza, sem nenhum dado de paciente |
+| Blog | escrita: nutricionista; leitura pública só `PUBLISHED` com data no passado | RLS da Fase 2 + alias de slug com a mesma regra |
+
+### Revisão de segurança desta fase (§96)
+
+- **IDOR / ownership**: id adulterado em resultado, consentimento, plano,
+  preço, benefício e post é recusado pela RLS (o registro simplesmente não é
+  encontrado). Coberto por pgTAP e pelo teste de integração com DOIS
+  nutricionistas.
+- **Vazamento público**: o visitante anônimo não lê configuração privada,
+  endereço não autorizado, rascunho/arquivado de blog, plano fora do site,
+  resultado não publicado nem resultado com consentimento revogado.
+- **Revogação de consentimento**: tem efeito imediato porque a policy pública
+  chama `has_valid_media_consent()` e a entrega da imagem re-checa a
+  elegibilidade a cada requisição (nenhuma URL assinada é distribuída, e a
+  rota responde com `no-store`).
+- **Storage**: `before-after`, `meal-photos`, `bioimpedance-reports` e
+  `patient-documents` continuam privados. Duas policies da Fase 2 que
+  presumiam autorização (qualquer `NUTRITIONIST` lia qualquer objeto de
+  `before-after`) foram corrigidas para checar o dono — o vazamento foi
+  encontrado pelo teste de integração desta fase.
+- **Mass assignment**: `nutritionist_id`, `published`, `published_at`,
+  `published_by`, `archived_at`, `media_consent_id`, paths de storage,
+  `author_id`, `is_public` e o ator da auditoria são decididos no servidor;
+  nenhum deles é aceito do formulário.
+- **XSS no blog**: o conteúdo nunca é aceito como HTML. A sintaxe restrita
+  vira um documento JSON com nós conhecidos e o renderizador passa texto como
+  children React, sem `dangerouslySetInnerHTML`. Link com protocolo perigoso
+  (`javascript:`, `data:`, protocol-relative) não vira link — fica texto.
+- **URLs externas**: Instagram/LinkedIn/link da consulta passam pelo
+  `validateExternalUrl` da Fase 10 (http(s), sem credencial embutida, sem
+  protocol-relative).
+- **Upload**: imagens têm tipo conferido pela ASSINATURA dos bytes (não pelo
+  MIME do browser), limite de tamanho e path gerado pela aplicação
+  (`<id>/<uuid>.<ext>`) — o nome do arquivo original nunca é usado.
+- **Auditoria**: metadados só com ids, nomes de campo e flags. Título,
+  depoimento, conteúdo de post, texto do consentimento e valor de
+  configuração nunca entram no log.
+- **Cache**: toda mutação administrativa revalida as rotas públicas
+  afetadas, para o site não continuar servindo conteúdo que deixou de ser
+  autorizado.
+
+### LGPD — o que é e o que NÃO é
+
+A plataforma implementa **controles técnicos**: consentimento de imagem
+registrado e versionado, revogação com efeito imediato, minimização (nenhum
+dado clínico vai ao site), acesso restrito por RLS e auditoria de quem
+publicou/revogou.
+
+A plataforma **não declara conformidade jurídica plena**. O termo de
+consentimento em uso (`image_use_v1`) é operacional e está marcado como
+**REVISÃO JURÍDICA PENDENTE** — precisa de revisão por advogado antes de
+produção. A versão revisada entra como `image_use_v2`, sem sobrescrever os
+consentimentos já aceitos.

@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { ContactForm } from "@/components/marketing/contact-form";
-import { getContactInfo } from "@/data/site-settings";
+import { getContactInfo, getPublicAddress, getPublicOnlineAttendance } from "@/data/site-settings";
 import { hasAnyContactChannel, whatsappHref } from "@/domain/site-settings/contact";
+import { formatPhoneForDisplay, instagramHandle, telHref } from "@/domain/site-settings/format";
+import { publicAddressLine } from "@/domain/site-settings/resolve";
+import { ExternalLink } from "@/components/shared/external-link";
 
 export const metadata: Metadata = {
   title: "Contato",
@@ -12,8 +15,15 @@ export const metadata: Metadata = {
 };
 
 export default async function ContatoPage() {
-  const contact = await getContactInfo();
-  const showChannels = hasAnyContactChannel(contact);
+  const [contact, address, online] = await Promise.all([
+    getContactInfo(),
+    getPublicAddress(),
+    getPublicOnlineAttendance(),
+  ]);
+  // O endereço só aparece quando configurado E autorizado (§6). Com a flag
+  // desligada as chaves nem chegam ao visitante anônimo (RLS).
+  const addressLine = publicAddressLine(address);
+  const showChannels = hasAnyContactChannel(contact) || Boolean(addressLine) || Boolean(online.platform);
 
   return (
     <Section size="compact">
@@ -33,7 +43,7 @@ export default async function ContatoPage() {
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">WhatsApp</dt>
                   <dd>
                     <a href={whatsappHref(contact.whatsapp)} rel="noopener" className="underline underline-offset-4">
-                      {contact.whatsapp}
+                      {formatPhoneForDisplay(contact.whatsapp)}
                     </a>
                   </dd>
                 </div>
@@ -41,7 +51,11 @@ export default async function ContatoPage() {
               {contact.phone ? (
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">Telefone</dt>
-                  <dd>{contact.phone}</dd>
+                  <dd>
+                    <a href={telHref(contact.phone)} className="underline underline-offset-4">
+                      {formatPhoneForDisplay(contact.phone)}
+                    </a>
+                  </dd>
                 </div>
               ) : null}
               {contact.email ? (
@@ -54,10 +68,36 @@ export default async function ContatoPage() {
                   </dd>
                 </div>
               ) : null}
-              {contact.address ? (
+              {contact.instagram ? (
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Endereço</dt>
-                  <dd>{contact.address}</dd>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Instagram</dt>
+                  <dd>
+                    <ExternalLink href={contact.instagram} className="underline underline-offset-4">
+                      {instagramHandle(contact.instagram) ?? "Perfil no Instagram"}
+                    </ExternalLink>
+                  </dd>
+                </div>
+              ) : null}
+              {contact.linkedin ? (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">LinkedIn</dt>
+                  <dd>
+                    <ExternalLink href={contact.linkedin} className="underline underline-offset-4">
+                      Perfil no LinkedIn
+                    </ExternalLink>
+                  </dd>
+                </div>
+              ) : null}
+              {addressLine ? (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Atendimento presencial</dt>
+                  <dd>{addressLine}</dd>
+                </div>
+              ) : null}
+              {online.platform ? (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Atendimento online</dt>
+                  <dd>Por {online.platform}</dd>
                 </div>
               ) : null}
             </dl>

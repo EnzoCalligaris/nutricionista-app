@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão futura do Claude Code neste repositório.
 
 ## Status do projeto
 
-**FASES 0 a 13 concluídas.** Next.js rodando (`src/app`), design system,
+**FASES 0 a 14 concluídas.** Next.js rodando (`src/app`), design system,
 banco Postgres/Supabase local completo (RLS em 100% das tabelas,
 anti-double-booking, tipos gerados — `supabase/migrations/`), autenticação e
 autorização reais (Fase 3), site público definitivo (Fase 4), o módulo de
@@ -69,9 +69,25 @@ cobrança ativa por parcela; divergências viram
 e sem jamais pedir número de cartão/CVV) — gateway real `PENDENTE DE
 DEFINIÇÃO` e identificador sem adapter é erro de configuração; portal
 `/paciente/pagamentos` + checkout, dashboard com cobranças, reconciliação e
-`/dashboard/configuracoes/pagamentos`; job `/api/cron/payments`). CMS do
-blog, resultados antes/depois e configurações do profissional ainda não
-existem — começam na Fase 14 (`docs/ROADMAP.md`). Regras comerciais da agenda (horários reais,
+`/dashboard/configuracoes/pagamentos`; job `/api/cron/payments`) e a
+**consolidação administrativa** (Fase 14: `/dashboard/configuracoes` como hub
+real — perfil profissional, contato/endereço, atendimento online, agenda,
+planos, site público, resultados, blog, notificações e pagamentos;
+`site_settings` com REGISTRY FECHADO de chaves e `is_public` derivado no
+servidor — endereço só é legível por `anon` com `address.show_public` ligado,
+instruções/link da consulta online nunca são públicos; conteúdo da home/Sobre
+configurável com fallback versionado da copy da Fase 4
+(`src/content/site-content.ts`); `/dashboard/planos` com dados, visibilidade,
+condições de preço — troca ATÔMICA da principal, "nenhuma" é estado válido do
+trimestral/semestral — e benefícios ordenáveis, ANUAL segue fora do site;
+`/dashboard/resultados` antes/depois: criar → fotos no bucket PRIVADO →
+consentimento versionado `image_use_v1` (REVISÃO JURÍDICA PENDENTE) →
+publicar por função SQL que confere imagens + consentimento válido, revogar
+tira do site na hora e as fotos são entregues por rota server-side com
+`no-store`, nunca URL assinada no HTML; `/dashboard/blog` com rascunho/
+publicado/arquivado, SEO, slug com ALIAS automático (endereço antigo
+redireciona 308) e editor de sintaxe restrita que nunca aceita HTML; bucket
+público novo `site-assets` só para asset institucional). Regras comerciais da agenda (horários reais,
 duração, antecedências, plataforma online), categorias financeiras reais e
 a política de cobrança da consulta avulsa (`APPOINTMENT_CHARGE_POLICY`) são
 configuráveis e continuam `PENDENTE DE DEFINIÇÃO` — nunca hardcodar um
@@ -89,9 +105,10 @@ Integração contra o Supabase local: `npm run test:auth:integration`,
 `npm run test:assessments:integration`,
 `npm run test:patient-content:integration`,
 `npm run test:food-analysis:integration`,
-`npm run test:notifications:integration` e
+`npm run test:notifications:integration`,
 `npm run test:payments-online:integration` (vitest em Node — rodam worker e
-gateway reais com providers fake). Preview local dos e-mails:
+gateway reais com providers fake) e
+`npm run test:admin-content:integration`. Preview local dos e-mails:
 `npm run emails:preview`.
 
 Antes de escrever qualquer código, releia:
@@ -141,6 +158,20 @@ pare e aguarde confirmação antes de iniciar a próxima.
     um `EXISTS` direto — um `EXISTS` comum herda a RLS da tabela referenciada
     e pode falhar silenciosamente para `anon`/outro papel (aconteceu com
     `before_after_results` na Fase 2; ver `docs/DECISIONS.md`).
+12. **Id do projeto é `z.guid()`, nunca `z.uuid()`.** Os ids do seed e das
+    migrations usam a forma 8-4-4-4-12 sem o nibble de versão RFC (ex.:
+    `90000000-0000-0000-0000-000000000010`); no Zod 4 `z.uuid()` exige versão
+    1–8 e recusa esses ids. Convenção em `src/validators/patients.ts`
+    (descoberto na Fase 14, com teste de regressão).
+13. **Single-nutritionist não é permissão.** Nunca escreva policy do tipo
+    `current_profile_role() = 'NUTRITIONIST'` para dado que tem dono: filtre
+    pelo dono (`nutritionist_id = auth.uid()` ou `is_nutritionist_of_patient`).
+    Duas policies da Fase 2 presumiam isso e vazavam entre nutricionistas —
+    o teste de integração da Fase 14 pegou (ver `docs/DECISIONS.md`).
+14. **Data civil em fixture de teste** usa
+    `(now() at time zone 'America/Sao_Paulo')::date`, nunca `current_date`
+    (que é a data do servidor, UTC): entre 00:00 e 03:00 UTC o teste quebra
+    sozinho (aconteceu em `110_assessments.test.sql`, Fase 14).
 
 ## QA visual obrigatório com screenshots reais (regra permanente)
 
@@ -167,14 +198,20 @@ aplicação rodando no navegador (Playwright, nunca mock/imagem fictícia) em:
   commitar. Screenshots complementam, não substituem, lint/typecheck/testes/
   E2E/build.
 - Referência de script: `scripts/screenshots-fase-5.mjs` a
-  `scripts/screenshots-fase-13.mjs` (`npm run screenshots:fase-N`, com
+  `scripts/screenshots-fase-14.mjs` (`npm run screenshots:fase-N`, com
   `--extra` para as larguras adicionais). Em Playwright, `getByText` é
   substring case-insensitive e `count()` não espera: prefira
   `exact: true`/`waitFor` (Fase 9, `docs/DECISIONS.md`). Tabelas do
   dashboard: com a sidebar aberta, 768 px sobra ~490 px de conteúdo —
   tabela só a partir de `lg`, cards abaixo (Fase 10). `CardTitle` é `div`,
   não `heading`; `FlashToast` limpa `?toast=` da URL logo após mostrar —
-  assertar o toast, não a URL (Fase 12).
+  assertar o toast, não a URL (Fase 12). `getByLabel` também casa por
+  SUBSTRING ("Headline" casa "Subheadline", "Título" casa "Título de SEO"):
+  use `exact: true`. Quando a lista tem cards (< `lg`) E tabela (>= `lg`),
+  os dois existem no DOM — filtre por `visible: true` (Fase 14). Antes de
+  gerar screenshots, **rebuild com o servidor PARADO**: trocar `.next`
+  embaixo de um `next start` em execução faz as páginas responderem
+  "This page couldn't load" (Fase 14).
 - Validação final sempre em sequência e contra o build:
   `npm run db:reset` → `npm run build` →
   `E2E_SKIP_BUILD=1 npx playwright test --workers=1` (nunca reutiliza um

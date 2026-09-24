@@ -161,6 +161,8 @@ Login local (dados fictícios de `supabase/seed.sql`, senha `NutricaoDev123`):
 | `npm run test:notifications:integration` | Integração das notificações (vitest em Node, worker real com providers FAKE contra o Supabase local): evento → entregas idempotentes, in-app, e-mail e WhatsApp fake, SKIPPED sem contato, retry timeout → 500 → sucesso com `attempt_count`/`next_attempt_at`, erro permanente, limite de tentativas, PROCESSING travado, provider não configurado, dois workers → 1 envio, scheduler 2× → 1 lembrete, cancelar/reagendar, token de uso único, eventos da Fase 10, preferências, ownership |
 | `npm run test:payments-online:integration` | Integração dos pagamentos online (vitest em Node, gateway FAKE contra o Supabase local): cobrança com valor derivado do saldo, idempotência e reuso, webhook assinado (duplicado, fora de ordem, assinatura inválida), valor/moeda divergentes, conflito manual × online, expiração, reconciliação, ownership e ausência de dado de cartão |
 | `npm run screenshots:fase-13` | Screenshots reais de pagamentos (portal, checkout, Pix, pago, expirado, financeiro com cobranças, reconciliação, configurações) em `screenshots/fase-13/` |
+| `npm run test:admin-content:integration` | Integração da consolidação administrativa (Supabase local, dois nutricionistas + paciente + visitante anônimo): visibilidade de configurações, endereço só com autorização, preço/condição principal, publicação com consentimento, revogação com efeito imediato, policies do storage, blog com alias de slug e auditoria |
+| `npm run screenshots:fase-14` | Screenshots reais da administração (hub, perfil, contato, atendimento, site, planos, resultados, consentimento, blog) e do site público em `screenshots/fase-14/` |
 | `npm run emails:preview` | Renderiza os 9 templates React Email (HTML/texto + screenshots 390/720) em `screenshots/fase-12/emails/` — nada é enviado |
 | `npm run screenshots:fase-12` | Screenshots reais de notificações (portal, sino, lida/não lida, confirmar presença, link tokenizado, dashboard de entregas com FAILED/reenvio, configurações) em `screenshots/fase-12/` |
 | `npm run screenshots:fase-10` | Screenshots reais de suplementos/feedbacks/materiais (abas do paciente, formulários, biblioteca, detalhe do material, portal e empty states) em `screenshots/fase-10/` |
@@ -243,6 +245,15 @@ real é PENDENTE DE DEFINIÇÃO — um identificador sem adapter, ou um adapter
 real sem credencial, é erro de configuração (nunca cai no fake). Webhook:
 `/api/webhooks/payments/<provider>` (assinatura sobre o corpo bruto);
 job de expiração/reconciliação: `/api/cron/payments` (mesmo `CRON_SECRET`).
+
+Fase 14 (administração): não acrescenta nenhuma variável de ambiente — tudo
+que o site público e o atendimento mostram passa a ser configurado em
+`/dashboard/configuracoes` e fica em `site_settings`. Enquanto uma
+configuração não existir, o site simplesmente não exibe aquela informação e o
+conteúdo editorial cai no fallback versionado de `src/content/site-content.ts`
+(a copy aprovada na Fase 4). Nenhum CRN, telefone, endereço, e-mail, rede
+social ou plataforma de consulta vem preenchido: todos continuam PENDENTE DE
+DEFINIÇÃO até o Enzo informá-los pelo dashboard.
 
 ## Fases do projeto
 

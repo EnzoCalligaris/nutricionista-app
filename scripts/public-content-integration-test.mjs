@@ -19,6 +19,9 @@ const SERVICE_ROLE_KEY =
 
 // Paciente fictício do seed (Fulana de Tal).
 const SEED_PATIENT_ID = "90000000-0000-0000-0000-000000000010";
+// Dono do resultado: `before_after_results.nutritionist_id` passou a ser
+// obrigatório na Fase 14 (autorização verificada, não presumida).
+const SEED_NUTRITIONIST_ID = "90000000-0000-0000-0000-000000000001";
 
 let passed = 0;
 let failed = 0;
@@ -109,19 +112,29 @@ async function main() {
 
   const resultIds = [];
   const create = async (payload) => {
-    const r = await admin("POST", "before_after_results", { patient_id: SEED_PATIENT_ID, before_path: "t/b.jpg", after_path: "t/a.jpg", ...payload });
+    const r = await admin("POST", "before_after_results", {
+      nutritionist_id: SEED_NUTRITIONIST_ID,
+      patient_id: SEED_PATIENT_ID,
+      before_path: "t/b.jpg",
+      after_path: "t/a.jpg",
+      ...payload,
+    });
     if (r.body?.[0]?.id) resultIds.push(r.body[0].id);
     return r;
   };
 
-  const withValid = await create({ title: "TESTE valido", published: true, media_consent_id: validId });
-  const withRevoked = await create({ title: "TESTE revogado", published: true, media_consent_id: revokedId });
+  const withValid = await create({ title: "TESTE valido", published: true, published_at: new Date().toISOString(), media_consent_id: validId });
   const unpublished = await create({ title: "TESTE nao publicado", published: false, media_consent_id: validId });
-  const noConsentPublished = await create({ title: "TESTE sem consentimento", published: true });
+  const noConsentPublished = await create({ title: "TESTE sem consentimento", published: true, published_at: new Date().toISOString() });
+  // Desde a Fase 14 publicar com consentimento JÁ REVOGADO é recusado na
+  // escrita (trigger validate_before_after_publication) — antes a regra era só
+  // de leitura. A cobertura do cenário real (publicado e depois revogado) está
+  // logo abaixo.
+  const withRevoked = await create({ title: "TESTE revogado", published: true, published_at: new Date().toISOString(), media_consent_id: revokedId });
 
   check("resultado publicado com consentimento válido é aceito", withValid.status === 201);
   check("resultado não publicado é aceito no banco (só não aparece ao público)", unpublished.status === 201);
-  check("resultado publicado com consentimento revogado é aceito no banco (filtro é na leitura pública)", withRevoked.status === 201);
+  check("resultado publicado com consentimento JÁ revogado é recusado na escrita (Fase 14)", withRevoked.status >= 400);
   check("resultado publicado SEM consentimento é rejeitado pelo check constraint", noConsentPublished.status >= 400);
 
   const publicResults = await anonGet("before_after_results?select=title");
@@ -130,6 +143,12 @@ async function main() {
   check("anon NÃO vê resultado com consentimento revogado", !titles.includes("TESTE revogado"));
   check("anon NÃO vê resultado não publicado", !titles.includes("TESTE nao publicado"));
   check("anon NÃO vê nada sem consentimento", !titles.includes("TESTE sem consentimento"));
+
+  // Revogação DEPOIS de publicado: o resultado sai do ar na hora, sem nenhuma
+  // edição do resultado (Fase 14 §31).
+  await admin("PATCH", `media_consents?id=eq.${validId}`, { revoked_at: new Date().toISOString() });
+  const afterRevoke = (await anonGet("before_after_results?select=title")).map((r) => r.title);
+  check("revogar consentimento tira o resultado do ar imediatamente", !afterRevoke.includes("TESTE valido"));
 
   // Cleanup (ordem: resultados -> consentimentos).
   for (const id of resultIds) await admin("DELETE", `before_after_results?id=eq.${id}`);

@@ -9,6 +9,8 @@ export default function AppointmentConfirmedEmail({ vars, siteUrl, portalUrl }: 
         <DetailRow label="Data" value={vars.appointmentDateTime ?? "—"} />
         <DetailRow label="Modalidade" value={vars.modality ?? "—"} />
         {vars.address ? <DetailRow label="Endereço" value={vars.address} /> : null}
+        {vars.onlinePlatform ? <DetailRow label="Plataforma" value={vars.onlinePlatform} /> : null}
+        {vars.onlineInstructions ? <DetailRow label="Como acessar" value={vars.onlineInstructions} /> : null}
       </Details>
     </EmailLayout>
   );
